@@ -3,7 +3,6 @@
 import type { Session } from '@supabase/supabase-js';
 import { requireSupabase } from './supabase-client';
 
-const UNLOCKED_SHARED_WHEELS_KEY = 'unlockedSharedWheelIds';
 const PERSISTED_ANONYMOUS_SESSION_KEY = 'persistedAnonymousSession';
 
 interface PersistedAnonymousSession {
@@ -32,24 +31,6 @@ function readPersistedAnonymousSession(): PersistedAnonymousSession | null {
 	catch {
 		return null;
 	}
-}
-
-export function getUnlockedSharedWheelIds(): string[] {
-	const raw = localStorage.getItem(UNLOCKED_SHARED_WHEELS_KEY);
-	if (!raw) return [];
-	try {
-		const parsed = JSON.parse(raw);
-		return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
-	}
-	catch {
-		return [];
-	}
-}
-
-export function markSharedWheelUnlocked(sharedWheelId: string): void {
-	const current = new Set(getUnlockedSharedWheelIds());
-	current.add(sharedWheelId);
-	localStorage.setItem(UNLOCKED_SHARED_WHEELS_KEY, JSON.stringify([...current]));
 }
 
 export async function ensureAnonymousOrExistingSession(): Promise<void> {
@@ -91,7 +72,5 @@ export async function unlockSharedWheel(sharedWheelId: string, password: string)
 		password_param: password,
 	});
 	if (error) throw error;
-	const unlocked = data === true;
-	if (unlocked) markSharedWheelUnlocked(sharedWheelId);
-	return unlocked;
+	return data === true;
 }

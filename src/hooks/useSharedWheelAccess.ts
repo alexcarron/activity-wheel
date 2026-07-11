@@ -3,10 +3,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Wheel } from '../domain-logic/types';
 import { onAuthStateChange } from '../services/auth-service';
-import { getSharedWheelMetadata } from '../services/cloud/shared-wheel-service';
+import { getSharedWheelMetadata, listAccessibleSharedWheels } from '../services/cloud/shared-wheel-service';
 import {
 	doesSharedWheelExist,
-	getUnlockedSharedWheelIds,
 	persistAnonymousSessionIfPresent,
 	unlockSharedWheel,
 } from '../services/shared-wheel-access-service';
@@ -54,24 +53,19 @@ export function useSharedWheelAccess(sharedWheelIdFromUrl: string | null): UseSh
 
 	useEffect(() => {
 		let cancelled = false;
-		const idsToCheck = new Set(getUnlockedSharedWheelIds());
-		if (sharedWheelIdFromUrl) idsToCheck.add(sharedWheelIdFromUrl);
 
 		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setWasSharedWheelNotFound(false);
 
-		if (idsToCheck.size === 0) {
+		if (!sessionUserId && !sharedWheelIdFromUrl) {
 			setLoading(false);
 			return;
 		}
 
 		setLoading(true);
 		void (async () => {
-			const resolved = await Promise.all(
-				[...idsToCheck].map((id) => getSharedWheelMetadata(id).catch(() => undefined)),
-			);
+			const resolvedWheels = sessionUserId ? await listAccessibleSharedWheels().catch(() => []) : [];
 			if (cancelled) return;
-			const resolvedWheels = resolved.filter((wheel): wheel is Wheel => wheel !== undefined);
 			setUnlockedWheels(resolvedWheels);
 
 			const wasUrlWheelResolved = resolvedWheels.some((wheel) => wheel.id === sharedWheelIdFromUrl);

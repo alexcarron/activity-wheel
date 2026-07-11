@@ -35,6 +35,14 @@ export async function getSharedWheelMetadata(sharedWheelId: string): Promise<Whe
 	return data ? rowToSharedWheel(data as SharedWheelRow) : undefined;
 }
 
+/** Every shared wheel the current session is a member of, relying entirely on the shared_wheels_select_members RLS policy rather than any locally-cached id list. */
+export async function listAccessibleSharedWheels(): Promise<Wheel[]> {
+	const supabase = requireSupabase();
+	const { data, error } = await supabase.from('shared_wheels').select('id, name, created_at, last_used_at');
+	if (error) throw error;
+	return (data as SharedWheelRow[]).map(rowToSharedWheel);
+}
+
 /** Export a single shared wheel's activities and tag metadata as a portable JSON snapshot, in the same format as exportFullBackup. */
 export async function exportSharedWheelBackup(sharedWheelId: string): Promise<string> {
 	const wheel = await getSharedWheelMetadata(sharedWheelId);
