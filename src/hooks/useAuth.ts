@@ -2,6 +2,7 @@
  * `useAuth`. Owns the Supabase session and the current user's profile.
  * Restores any existing session on mount and subscribes to live auth changes
  * (sign-in, sign-out, token refresh) so the rest of the app can gate on `user`.
+ * `user` excludes anonymous sessions, treating them as signed-out.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -16,6 +17,11 @@ import {
 	resolveDisplayName,
 	type Profile,
 } from '../services/auth-service';
+
+/** Anonymous sessions exist only to unlock shared wheels and must never count as a signed-in user. */
+function toRealUser(user: User | null): User | null {
+	return user && !user.is_anonymous ? user : null;
+}
 
 export interface UseAuthApi {
 	readonly user: User | null;
@@ -48,14 +54,16 @@ export function useAuth(): UseAuthApi {
 		void (async () => {
 			const session = await getSession();
 			if (!mounted.current) return;
-			setUser(session?.user ?? null);
-			await loadProfile(session?.user ?? null);
+			const realUser = toRealUser(session?.user ?? null);
+			setUser(realUser);
+			await loadProfile(realUser);
 			if (mounted.current) setLoading(false);
 		})();
 
 		const subscription = onAuthStateChange((session) => {
-			setUser(session?.user ?? null);
-			void loadProfile(session?.user ?? null);
+			const realUser = toRealUser(session?.user ?? null);
+			setUser(realUser);
+			void loadProfile(realUser);
 		});
 
 		return () => {

@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { Wheel } from '../domain-logic/types';
+import { onAuthStateChange } from '../services/auth-service';
 import { getSharedWheelMetadata } from '../services/cloud/shared-wheel-service';
 import {
 	doesSharedWheelExist,
 	getUnlockedSharedWheelIds,
+	persistAnonymousSessionIfPresent,
 	unlockSharedWheel,
 } from '../services/shared-wheel-access-service';
 import { toErrorMessage } from '../utils/error-message';
@@ -39,6 +41,16 @@ export function useSharedWheelAccess(sharedWheelIdFromUrl: string | null): UseSh
 	const [wasSharedWheelNotFound, setWasSharedWheelNotFound] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [unlocking, setUnlocking] = useState(false);
+	// Membership is scoped to whichever Supabase auth session (Google or anonymous) is active, so a sign-in/sign-out must re-verify access rather than trust what was resolved under the previous session.
+	const [sessionUserId, setSessionUserId] = useState<string | null>(null);
+
+	useEffect(() => {
+		const subscription = onAuthStateChange((session) => {
+			setSessionUserId(session?.user?.id ?? null);
+			persistAnonymousSessionIfPresent(session);
+		});
+		return () => subscription.unsubscribe();
+	}, []);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -75,7 +87,7 @@ export function useSharedWheelAccess(sharedWheelIdFromUrl: string | null): UseSh
 		return () => {
 			cancelled = true;
 		};
-	}, [sharedWheelIdFromUrl]);
+	}, [sharedWheelIdFromUrl, sessionUserId]);
 
 	const unlock = useCallback(
 		async (password: string): Promise<boolean> => {

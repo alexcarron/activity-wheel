@@ -53,12 +53,25 @@ function App() {
 	const [activeEditActivityId, setActiveEditActivityId] = useState<string | null>(null);
 	const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+	// Only fires on hasAccess's rising edge (initial load already-unlocked, or right after entering the password), not on every render, so switching to your own wheel afterward doesn't get immediately overridden back to the shared tab.
 	useEffect(() => {
-		if (sharedWheelIdFromUrl && sharedAccess.hasAccess && activeSharedWheelId !== sharedWheelIdFromUrl) {
+		if (sharedWheelIdFromUrl && sharedAccess.hasAccess) {
 			// eslint-disable-next-line react-hooks/set-state-in-effect
 			setActiveSharedWheelId(sharedWheelIdFromUrl);
 		}
-	}, [sharedWheelIdFromUrl, sharedAccess.hasAccess, activeSharedWheelId]);
+	}, [sharedWheelIdFromUrl, sharedAccess.hasAccess]);
+
+	// Access is re-verified against whichever auth session is active (see useSharedWheelAccess), so a sign-out, sign-in, or membership change can drop the active shared wheel from unlockedWheels. Fall back to the user's own wheel instead of being stuck on a tab that no longer resolves.
+	useEffect(() => {
+		if (
+			activeSharedWheelId &&
+			!sharedAccess.loading &&
+			!sharedAccess.unlockedWheels.some((wheel) => wheel.id === activeSharedWheelId)
+		) {
+			// eslint-disable-next-line react-hooks/set-state-in-effect
+			setActiveSharedWheelId(null);
+		}
+	}, [activeSharedWheelId, sharedAccess.loading, sharedAccess.unlockedWheels]);
 
 	useEffect(() => {
 		if (sharedAccess.wasSharedWheelNotFound) {
