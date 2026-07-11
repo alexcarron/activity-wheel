@@ -27,8 +27,8 @@ Everything lives in your browser via IndexedDB by default, with no backend and n
 ### Using the Github Pages Site
 
 1. Go to [https://alexcarron.github.io/activity-wheel/](https://alexcarron.github.io/activity-wheel/)
-2. Use the web app locally without switching browser or devices or clearing site data
-3. If you want to use the app on different browsers and devices, click "Sign in with Google"
+2. Start adding activities right away. (Your wheels are saved in this browser, so they'll still be here next time you visit from the same browser and device)
+3. If you want your wheels on another browser or device, click "Sign in with Google" then "Import local wheels" to sync them to your account
 
 ### Running Locally
 
