@@ -1,6 +1,7 @@
 /** Full-screen gate shown while a shared wheel named by ?sharedWheelId= hasn't been unlocked yet. */
 
 import { useState } from 'react';
+import './SharedWheelPasswordGate.css';
 
 interface SharedWheelPasswordGateProps {
 	wheelName: string;

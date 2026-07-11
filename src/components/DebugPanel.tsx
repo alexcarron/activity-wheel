@@ -15,6 +15,7 @@ import {
 	sliderPositionToSpreadFactor,
 	spreadFactorToSliderPosition,
 } from '../domain-logic/weight-logic/weight-spread-logic';
+import './DebugPanel.css';
 
 interface Props {
 	readonly debug: UseDebugApi;

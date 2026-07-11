@@ -1,0 +1,157 @@
+.tag-filter-bar {
+	background: var(--bg-elev);
+	border-radius: var(--radius);
+	padding: 12px 16px;
+	box-shadow: var(--shadow);
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.tag-filter-bar-active {
+	border-color: var(--accent);
+	box-shadow:
+		0 0 0 2px var(--accent-soft),
+		var(--shadow);
+}
+
+.tag-filter-top-row {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+.tag-filter-search {
+	flex: 1;
+	padding: 7px 10px;
+	border-radius: var(--radius-sm);
+	border: none;
+	background: var(--bg);
+	font-size: 0.8125rem;
+	color: var(--text);
+	min-width: 0;
+}
+
+.tag-filter-search:focus {
+	outline: none;
+	border-color: var(--accent);
+	box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.tag-filter-mode-toggle {
+	flex-shrink: 0;
+	font-size: 0.6875rem;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	padding: 5px 10px;
+	border-radius: var(--radius-sm);
+	border: none;
+	background: var(--bg-soft);
+	color: var(--text-soft);
+	transition:
+		background 120ms,
+		color 120ms,
+		border-color 120ms;
+}
+
+.tag-filter-mode-toggle:hover:not(:disabled) {
+	border-color: var(--accent);
+	color: var(--accent-strong);
+}
+
+.tag-filter-mode-and {
+	background: var(--accent);
+	border-color: var(--accent);
+	color: #fff;
+}
+
+.tag-filter-mode-and:hover:not(:disabled) {
+	background: var(--accent-strong);
+	border-color: var(--accent-strong);
+	color: #fff;
+}
+
+.tag-filter-pills {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+	align-items: center;
+}
+
+/* Filter bar pill */
+.tag-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	padding: 5px 11px;
+	border-radius: 999px;
+	border: none;
+	background: var(--bg-soft);
+	color: var(--text-soft);
+	font-size: 0.75rem;
+	font-weight: 500;
+	cursor: pointer;
+	transition:
+		background 100ms,
+		color 100ms,
+		border-color 100ms,
+		box-shadow 100ms;
+	white-space: nowrap;
+	user-select: none;
+}
+
+.tag-pill:hover {
+	border-color: var(--accent);
+	color: var(--accent-strong);
+	background: var(--accent-soft);
+}
+
+.tag-pill-active {
+	background: var(--accent);
+	border-color: var(--accent);
+	color: #fff;
+}
+
+.tag-pill-active:hover {
+	background: var(--accent-strong);
+	border-color: var(--accent-strong);
+	color: #fff;
+}
+
+.tag-pill-untagged {
+	font-style: italic;
+}
+
+.tag-pill-count {
+	opacity: 0.75;
+	font-size: 0.6875rem;
+}
+
+.tag-pill-hotkey {
+	display: inline-block;
+	margin-left: 3px;
+	padding: 1px 4px;
+	border-radius: 3px;
+	border: 1px solid rgba(255, 255, 255, 0.35);
+	background: rgba(255, 255, 255, 0.15);
+	font-family: var(--mono);
+	font-size: 0.625rem;
+	font-weight: 600;
+	line-height: 1.4;
+	pointer-events: none;
+}
+
+/* Non-active tag hotkey badge (darker background pill) */
+.tag-pill:not(.tag-pill-active) .tag-pill-hotkey {
+	border-color: rgba(0, 0, 0, 0.18);
+	background: rgba(0, 0, 0, 0.07);
+	color: var(--text-mute);
+}
+
+@media (max-width: 599px) {
+	.tag-filter-pills {
+		overflow-x: auto;
+		flex-wrap: nowrap;
+		padding-bottom: 4px;
+	}
+}

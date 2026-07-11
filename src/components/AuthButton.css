@@ -1,0 +1,67 @@
+.auth-button {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 0.875rem;
+}
+
+.auth-button-loading {
+	color: var(--text-mute);
+	display: flex;
+	align-items: center;
+	height: 34px;
+}
+
+.auth-button-name,
+.auth-button-import,
+.auth-button-signout {
+	background: var(--bg-soft);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	padding: 8px 14px;
+	font-size: 0.875rem;
+	font-weight: 500;
+	color: var(--text);
+	cursor: pointer;
+	transition:
+		background 120ms ease,
+		border-color 120ms ease;
+}
+
+.auth-button-name:hover,
+.auth-button-import:hover,
+.auth-button-signout:hover {
+	background: var(--bg-elev);
+	border-color: var(--border-strong);
+}
+
+.auth-button-name {
+	font-weight: 600;
+}
+
+.auth-button-import-status {
+	color: var(--text-mute);
+	font-size: 0.8125rem;
+}
+
+.google-signin-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 16px 8px 12px;
+	border-radius: var(--radius-sm);
+	border: 1px solid var(--border);
+	background: var(--bg-soft);
+	color: var(--text);
+	font-size: 0.875rem;
+	font-weight: 500;
+	cursor: pointer;
+	transition:
+		background 120ms ease,
+		border-color 120ms ease;
+}
+
+.google-signin-btn:hover {
+	background: var(--bg-elev);
+	border-color: var(--border-strong);
+}

@@ -4,6 +4,8 @@
  * so it adapts to light/dark mode automatically.
  */
 
+import './LoadingSpinner.css';
+
 interface LoadingSpinnerProps {
 	readonly size?: number;
 }

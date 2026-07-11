@@ -1,0 +1,132 @@
+.post-spin {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 14px;
+	width: 100%;
+}
+
+.post-spin-result {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+
+	width: 100%;
+}
+
+.post-spin-label {
+	font-size: 0.8125rem;
+	color: var(--text-soft);
+	text-transform: uppercase;
+	letter-spacing: 1px;
+}
+
+.post-spin-name {
+	font-size: clamp(1.125rem, 4.5vw, 1.375rem);
+	font-weight: 600;
+	letter-spacing: -0.2px;
+	text-align: center;
+}
+
+.post-spin-name-editable {
+	cursor: pointer;
+	border-radius: 6px;
+	padding: 2px 6px;
+	transition:
+		background 120ms ease,
+		color 120ms ease;
+}
+
+.post-spin-name-editable:hover {
+	background: var(--accent-soft);
+	color: var(--accent-strong);
+}
+
+.post-spin-name-edit {
+	font-size: clamp(1.125rem, 4.5vw, 1.375rem);
+	font-weight: 600;
+	letter-spacing: -0.2px;
+	text-align: center;
+	background: var(--bg);
+	color: var(--text);
+	border: 2px solid var(--accent);
+	border-radius: 6px;
+	padding: 2px 10px;
+	outline: none;
+	box-shadow: 0 0 0 3px var(--accent-soft);
+	width: auto;
+	min-width: 120px;
+	width: 100%;
+}
+
+.post-spin-feedback {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+
+	width: 100%;
+}
+
+.post-spin-feedback-row,
+.post-spin-nav {
+	display: flex;
+	gap: 10px;
+	flex-wrap: wrap;
+	justify-content: center;
+	width: 100%;
+}
+
+.post-spin-tag-nudge {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px;
+	border-radius: var(--radius-sm);
+	background: var(--bg-soft);
+	border: 1px solid var(--border);
+}
+
+.post-spin-tag-nudge-text {
+	font-size: 0.8125rem;
+	color: var(--text-mute);
+}
+
+.post-spin-tag-input-row {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+	flex-wrap: wrap;
+}
+
+.post-spin-tag-input {
+	flex: 1;
+	min-width: 120px;
+	padding: 7px 10px;
+	border-radius: var(--radius-sm);
+	border: 1px solid var(--accent);
+	background: var(--bg);
+	font-size: 0.8125rem;
+	color: var(--text);
+	outline: none;
+	box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.wheel-tag-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 10px;
+}
+
+@media (max-width: 599px) {
+	.post-spin-feedback,
+	.post-spin-nav {
+		width: 100%;
+	}
+	.post-spin-feedback .btn,
+	.post-spin-nav .btn {
+		flex: 1;
+	}
+}

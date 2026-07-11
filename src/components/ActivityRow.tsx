@@ -7,15 +7,17 @@
  * Pure presentation: actual persistence is done by the parent's callbacks. 
  */
 
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties, KeyboardEvent, MouseEvent } from 'react';
 import type { Activity, FeedbackAction, TagMetadata } from '../domain-logic/types';
 import { getEffectiveWeight } from '../domain-logic/weight-logic/effective-weight-logic';
 import { hasWarningWeight as isLowWeight } from '../domain-logic/weight-logic/warning-weight-logic';
 import { formatDate, formatPercent, formatWeight } from '../utils/format';
+import { clampToViewport } from '../utils/clamp-to-viewport';
 import { useWeightContext } from '../context/WeightContext';
 import { useNow } from '../hooks/useNow';
+import './ActivityRow.css';
 
 function TrashIcon() {
 	return (
@@ -102,21 +104,45 @@ function TagPill({ name, color, count, onRemove, onSetColor }: TagPillProps) {
 	const [colorPickerOpen, setColorPickerOpen] = useState(false);
 	const [pickerPos, setPickerPos] = useState({ top: 0, left: 0 });
 	const pillRef = useRef<HTMLSpanElement>(null);
+	const pickerPopoverRef = useRef<HTMLDivElement>(null);
 	const customColorRef = useRef<HTMLInputElement>(null);
+
+	// .tag-color-picker's real width isn't known until it's rendered (its content, e.g. the tag name label, varies), so this is an estimate corrected below.
+	const ESTIMATED_PICKER_WIDTH = 220;
+	const ESTIMATED_PICKER_HEIGHT = 140;
 
 	const openColorPicker = useCallback((event: MouseEvent) => {
 		event.preventDefault();
 		if (pillRef.current) {
 			const rect = pillRef.current.getBoundingClientRect();
-			setPickerPos({
-				top: rect.bottom + window.scrollY + 4,
-				left: rect.left + window.scrollX,
-			});
+			setPickerPos(
+				clampToViewport(
+					rect.left + window.scrollX,
+					rect.bottom + window.scrollY + 4,
+					ESTIMATED_PICKER_WIDTH,
+					ESTIMATED_PICKER_HEIGHT,
+				),
+			);
 		}
 		setColorPickerOpen(true);
 	}, []);
 
 	const closeColorPicker = useCallback(() => setColorPickerOpen(false), []);
+
+	// Corrects the estimate above once the popover's actual rendered size is known.
+	useLayoutEffect(() => {
+		if (!colorPickerOpen || !pickerPopoverRef.current) return;
+		const rect = pickerPopoverRef.current.getBoundingClientRect();
+		const clamped = clampToViewport(
+			rect.left + window.scrollX,
+			rect.top + window.scrollY,
+			rect.width,
+			rect.height,
+		);
+		if (clamped.left !== rect.left + window.scrollX || clamped.top !== rect.top + window.scrollY) {
+			setPickerPos(clamped);
+		}
+	}, [colorPickerOpen]);
 
 	// Close picker on outside click
 	useEffect(() => {
@@ -163,6 +189,7 @@ function TagPill({ name, color, count, onRemove, onSetColor }: TagPillProps) {
 			{colorPickerOpen &&
 				createPortal(
 					<div
+						ref={pickerPopoverRef}
 						className="tag-color-picker"
 						style={{ position: 'absolute', top: pickerPos.top, left: pickerPos.left }}
 						role="dialog"
@@ -238,11 +265,14 @@ export function AddTagCombobox({
 	const openCombobox = useCallback(() => {
 		if (buttonRef.current) {
 			const rect = buttonRef.current.getBoundingClientRect();
-			setDropdownPosition({
-				top: rect.bottom + window.scrollY + 4,
-				left: rect.left + window.scrollX,
-				width: 220,
-			});
+			const dropdownWidth = 220;
+			const clamped = clampToViewport(
+				rect.left + window.scrollX,
+				rect.bottom + window.scrollY + 4,
+				dropdownWidth,
+				260,
+			);
+			setDropdownPosition({ ...clamped, width: dropdownWidth });
 		}
 		setQuery('');
 		setOpen(true);
@@ -747,7 +777,6 @@ function ActivityRowComponent({
 				if (
 					target.closest('.activity-row-selector') ||
 					target.closest('.activity-row-feedback') ||
-					target.closest('.activity-row-bottom') ||
 					target.closest('.activity-row-tags') ||
 					target.closest('.activity-tag-add') ||
 					target.closest('.activity-row-edit')
@@ -809,22 +838,26 @@ function ActivityRowComponent({
 								<span title={`Added ${formatDate(activity.createdAt)}`}>
 									{formatDate(activity.createdAt)}
 								</span>
-								{showWeights && (
-									<span
-										className="meta-pill"
-										style={getBarPillStyle(effectiveWeight, weightMinimum, weightMaximum)}
-										title="Effective weight = stored weight + recency boost"
-									>
-										w {formatWeight(effectiveWeight)}
-									</span>
-								)}
-								{showProbabilities && probability !== null && (
-									<span
-										className="meta-pill"
-										style={getBarPillStyle(probability, probabilityMinimum, probabilityMaximum)}
-										title="Selection probability if you spin right now"
-									>
-										p {formatPercent(probability)}
+								{(showWeights || (showProbabilities && probability !== null)) && (
+									<span className="activity-row-pills">
+										{showWeights && (
+											<span
+												className="meta-pill"
+												style={getBarPillStyle(effectiveWeight, weightMinimum, weightMaximum)}
+												title="Effective weight = stored weight + recency boost"
+											>
+												w {formatWeight(effectiveWeight)}
+											</span>
+										)}
+										{showProbabilities && probability !== null && (
+											<span
+												className="meta-pill"
+												style={getBarPillStyle(probability, probabilityMinimum, probabilityMaximum)}
+												title="Selection probability if you spin right now"
+											>
+												p {formatPercent(probability)}
+											</span>
+										)}
 									</span>
 								)}
 							</div>
@@ -879,34 +912,31 @@ function ActivityRowComponent({
 						>
 							✕
 						</button>
-						{!hasTags && <DeleteButton onClick={() => void handleDelete()} disabled={busy} />}
+						<DeleteButton onClick={() => void handleDelete()} disabled={busy} />
 					</div>
 				</div>
 
 				{/* Tags row. Only rendered when the activity has tags */}
 				{hasTags && (
-					<div className="activity-row-bottom">
-						<div className="activity-row-tags">
-							{tags.map((tag) => {
-								const matchedMetadata = allTagMetadata.find((metadata) => metadata.name === tag);
-								return (
-									<TagPill
-										key={tag}
-										name={tag}
-										color={matchedMetadata?.color}
-										count={tagCounts.get(tag) ?? 1}
-										onRemove={() => void handleRemoveTag(tag)}
-										onSetColor={(color) => void handleSetTagColor(tag, color)}
-									/>
-								);
-							})}
-							<AddTagCombobox
-								activityTags={tags}
-								allTagMetadata={allTagMetadata}
-								onAdd={(name) => void handleAddTag(name)}
-							/>
-						</div>
-						<DeleteButton onClick={() => void handleDelete()} disabled={busy} />
+					<div className="activity-row-tags">
+						{tags.map((tag) => {
+							const matchedMetadata = allTagMetadata.find((metadata) => metadata.name === tag);
+							return (
+								<TagPill
+									key={tag}
+									name={tag}
+									color={matchedMetadata?.color}
+									count={tagCounts.get(tag) ?? 1}
+									onRemove={() => void handleRemoveTag(tag)}
+									onSetColor={(color) => void handleSetTagColor(tag, color)}
+								/>
+							);
+						})}
+						<AddTagCombobox
+							activityTags={tags}
+							allTagMetadata={allTagMetadata}
+							onAdd={(name) => void handleAddTag(name)}
+						/>
 					</div>
 				)}
 			</div>

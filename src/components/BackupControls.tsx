@@ -10,6 +10,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
+import './BackupControls.css';
 
 interface Props {
 	exportJson(): Promise<string>;

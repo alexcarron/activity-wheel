@@ -1,0 +1,50 @@
+.wheel-size-wrap {
+	width: min(420px, calc(100vw - 80px), 60vh);
+	aspect-ratio: 1;
+}
+
+@media (min-width: 1440px) {
+	.wheel-size-wrap {
+		width: min(480px, calc(100vw - 80px), 60vh);
+	}
+}
+
+.wheel {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.wheel-rotor {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	will-change: transform;
+	transform-origin: 50% 50%;
+}
+
+.wheel-canvas {
+	display: block;
+	border-radius: 50%;
+	box-shadow:
+		0 0 0 4px var(--bg-elev),
+		0 0 0 5px var(--border-strong),
+		var(--shadow);
+}
+
+.wheel-pointer {
+	position: absolute;
+	top: -10px;
+	left: 50%;
+	transform: translateX(-50%);
+	width: 0;
+	height: 0;
+	border-left: 14px solid transparent;
+	border-right: 14px solid transparent;
+	border-top: 22px solid var(--accent-strong);
+	filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25));
+	z-index: 2;
+	pointer-events: none;
+}

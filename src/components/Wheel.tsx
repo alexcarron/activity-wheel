@@ -4,9 +4,10 @@
  * Animation runs in requestAnimationFrame and writes `transform` directly to the DOM so React doesn't re-render every frame. 
  */
 
-import { memo, useEffect, useRef } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import type { Activity } from '../domain-logic/types';
 import { SPIN_TIMING } from '../hooks/wheel/useWheel';
+import './Wheel.css';
 
 interface WheelProps {
 	readonly pool: readonly Activity[];
@@ -176,9 +177,34 @@ const easeOutCubic = (progress: number): number => 1 - Math.pow(1 - progress, 3)
 
 function WheelComponent(props: WheelProps) {
 	const { pool, weights, currentRotationDeg, targetRotationDeg, animating, onComplete } = props;
-	const size = props.size ?? 420;
+	const wheelSizeWrapRef = useRef<HTMLDivElement>(null);
+	const [measuredSize, setMeasuredSize] = useState(420);
+	const size = props.size ?? measuredSize;
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const rotorRef = useRef<HTMLDivElement>(null);
+
+	// Measures the CSS-driven `.wheel-size-wrap` box so the canvas's imperative pixel buffer (set in drawWheel) can track it. min()/aspect-ratio in CSS picks the target size responsively; this just reads it back into JS.
+	useEffect(() => {
+		const wheelSizeWrap = wheelSizeWrapRef.current;
+		if (!wheelSizeWrap) return;
+
+		const measure = (): void => {
+			const width = wheelSizeWrap.getBoundingClientRect().width;
+			if (width > 0) setMeasuredSize(Math.round(width));
+		};
+		measure();
+
+		let debounceTimeoutId = 0;
+		const handleResize = (): void => {
+			window.clearTimeout(debounceTimeoutId);
+			debounceTimeoutId = window.setTimeout(measure, 150);
+		};
+		window.addEventListener('resize', handleResize);
+		return () => {
+			window.clearTimeout(debounceTimeoutId);
+			window.removeEventListener('resize', handleResize);
+		};
+	}, []);
 
 	// Redraw whenever the pool or weights change.
 	useEffect(() => {
@@ -222,11 +248,13 @@ function WheelComponent(props: WheelProps) {
 	}, [animating]);
 
 	return (
-		<div className="wheel" style={{ width: size, height: size, pointerEvents: 'none' }}>
-			<div ref={rotorRef} className="wheel-rotor" style={{ width: size, height: size }}>
-				<canvas ref={canvasRef} className="wheel-canvas" />
+		<div ref={wheelSizeWrapRef} className="wheel-size-wrap">
+			<div className="wheel" style={{ width: size, height: size, pointerEvents: 'none' }}>
+				<div ref={rotorRef} className="wheel-rotor" style={{ width: size, height: size }}>
+					<canvas ref={canvasRef} className="wheel-canvas" />
+				</div>
+				<div className="wheel-pointer" aria-hidden="true" />
 			</div>
-			<div className="wheel-pointer" aria-hidden="true" />
 		</div>
 	);
 }

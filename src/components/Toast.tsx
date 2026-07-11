@@ -1,6 +1,7 @@
 /** Small auto-dismissing banner, e.g. for "Wheel updated by another user." notices. */
 
 import { useEffect } from 'react';
+import './Toast.css';
 
 interface ToastProps {
 	message: string;

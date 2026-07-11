@@ -1,0 +1,27 @@
+.kbd-hint {
+	--_kbd-bg: rgba(0, 0, 0, 0.07);
+	--_kbd-border: rgba(0, 0, 0, 0.16);
+	--_kbd-color: var(--text-mute);
+
+	display: inline-block;
+	margin-left: 7px;
+	padding: 2px 6px;
+	border-radius: 4px;
+	border: 1px solid var(--_kbd-border);
+	background: var(--_kbd-bg);
+	font-family: inherit;
+	font-size: 0.6875rem;
+	font-weight: 600;
+	letter-spacing: 0.03em;
+	color: var(--_kbd-color);
+	line-height: 1.4;
+	vertical-align: middle;
+	pointer-events: none;
+	user-select: none;
+}
+
+@media (max-width: 599px) {
+	.kbd-hint {
+		display: none;
+	}
+}

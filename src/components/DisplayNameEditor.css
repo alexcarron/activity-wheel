@@ -1,0 +1,11 @@
+.display-name-editor-input {
+	padding: 8px 14px;
+	font-size: 0.875rem;
+	border-radius: var(--radius-sm);
+	border: 1px solid var(--accent);
+	background: var(--bg-elev);
+	color: var(--text);
+	font-weight: 600;
+	outline: none;
+	box-shadow: 0 0 0 3px var(--accent-soft);
+}

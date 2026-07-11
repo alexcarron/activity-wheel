@@ -4,6 +4,7 @@
  */
 
 import { useRef, useState } from 'react';
+import './DisplayNameEditor.css';
 
 interface DisplayNameEditorProps {
 	currentName: string;

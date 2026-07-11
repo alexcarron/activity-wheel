@@ -1,0 +1,33 @@
+.add-activity {
+	display: flex;
+	gap: 10px;
+}
+
+.add-activity-input {
+	flex: 1;
+	padding: 10px 12px;
+	border-radius: var(--radius-sm);
+	border: none;
+	background: var(--bg);
+	color: var(--text);
+	font-size: 0.875rem;
+	transition:
+		border-color 120ms ease,
+		box-shadow 120ms ease;
+}
+
+.add-activity-input:focus {
+	outline: none;
+	border-color: var(--accent);
+	box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+@media (max-width: 599px) {
+	.add-activity {
+		flex-wrap: wrap;
+	}
+
+	.add-activity-input {
+		flex-basis: 100%;
+	}
+}

@@ -1,0 +1,120 @@
+.btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	padding: 10px 17px;
+	border-radius: var(--radius-sm);
+	border: none;
+	background: var(--bg-soft);
+	color: var(--text);
+	font-weight: 500;
+	font-size: 0.875rem;
+	transition:
+		background 120ms ease,
+		color 120ms ease,
+		border-color 120ms ease,
+		transform 60ms ease;
+}
+
+.btn:hover:not(:disabled) {
+	background: var(--accent-soft);
+}
+
+.btn:active:not(:disabled) {
+	transform: translateY(1px);
+}
+
+.btn:disabled {
+	opacity: 0.55;
+}
+
+.btn-primary {
+	background: var(--accent);
+	color: #fff;
+}
+.btn-primary:hover:not(:disabled) {
+	background: var(--accent-strong);
+}
+
+.btn-large {
+	font-size: 1rem;
+	padding: 12px 26px;
+}
+
+/* Dark-background buttons need a white-on-translucent variant. */
+.btn-primary .kbd-hint,
+.btn-accept .kbd-hint,
+.btn-reject .kbd-hint,
+.btn-love-it .kbd-hint,
+.btn-hate-it .kbd-hint {
+	--_kbd-bg: rgba(255, 255, 255, 0.15);
+	--_kbd-border: rgba(255, 255, 255, 0.35);
+	--_kbd-color: rgba(255, 255, 255, 0.85);
+}
+
+.btn-secondary {
+	background: var(--bg-soft);
+	border-color: var(--border);
+}
+.btn-secondary:hover:not(:disabled) {
+	background: var(--bg-elev);
+	border-color: var(--border-strong);
+}
+
+.btn-ghost {
+	background: transparent;
+	border-color: var(--border);
+}
+
+.btn-small {
+	padding: 5px 10px;
+	font-size: 0.8125rem;
+}
+
+.btn-love-it {
+	background: var(--boost);
+	color: #fff;
+}
+.btn-love-it:hover:not(:disabled) {
+	background: var(--boost-strong);
+}
+
+.btn-accept {
+	background: var(--good);
+	color: #fff;
+}
+.btn-accept:hover:not(:disabled) {
+	background: var(--good-strong);
+}
+
+.btn-reject {
+	background: var(--warn);
+	color: #fff;
+}
+.btn-reject:hover:not(:disabled) {
+	background: var(--warn-strong);
+}
+
+.btn-hate-it {
+	background: var(--hate);
+	color: #fff;
+}
+.btn-hate-it:hover:not(:disabled) {
+	background: var(--hate-strong);
+}
+
+.btn-skip {
+	background: var(--bg-soft);
+	border-color: var(--border);
+}
+
+.btn-danger {
+	background: transparent;
+	border-color: var(--warn);
+	color: var(--warn);
+}
+.btn-danger:hover:not(:disabled) {
+	background: var(--warn);
+	color: #fff;
+}

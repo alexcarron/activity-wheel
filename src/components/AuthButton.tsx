@@ -10,6 +10,7 @@ import { DisplayNameEditor } from './DisplayNameEditor';
 import { LoadingSpinner } from './LoadingSpinner';
 import { hasSavedCloudWheels, migrateLocalDataToCloud } from '../services/cloud/migration-service';
 import { toErrorMessage } from '../utils/error-message';
+import './AuthButton.css';
 
 interface AuthButtonProps {
 	/** Called after a successful local-to-cloud import so the caller can reload wheels. */

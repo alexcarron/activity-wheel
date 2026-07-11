@@ -136,6 +136,16 @@ All of these persist to `localStorage`, so they survive a page reload.
 - **Tag filter matches something, but you've spun through all of it this session** offers both Reset session and Clear filter.
 - **Deleting an activity mid-animation** is handled gracefully: the wheel resets rather than trying to land on something that no longer exists.
 
+## Responsive layout
+
+The app is designed to work well on anything from a small phone to an ultrawide monitor, in portrait or landscape.
+
+- The wheel itself scales fluidly with the viewport rather than staying a fixed size, so it never overflows a narrow phone screen and gets a little more room to breathe on large desktop monitors.
+- On touch devices, small icon buttons get an invisibly-extended tap area (the visible button stays the same size, but there's more room around it to tap), and affordances that would otherwise only appear on mouse hover (like the tag remove `×` or the wheel-tab delete `×`) are shown all the time instead, since there's no hover state on touch.
+- Popovers like the tag color picker and the add-tag dropdown reposition themselves to stay fully on screen even if they'd otherwise open near the edge of a small viewport.
+- On very short viewports (a phone in landscape, for example), padding and spacing shrink so the wheel and its controls still fit without needing to scroll.
+- On narrow phone widths, an activity row's name/date, debug pills, tags, and feedback/delete buttons each drop onto their own line instead of competing for space on one row, and keyboard-shortcut hints are hidden entirely since there's no keyboard to reference.
+
 ## Layout, top to bottom
 
 1. Auth control (sign in / account name), top-right of the wheel header.
@@ -147,4 +157,4 @@ All of these persist to `localStorage`, so they survive a page reload.
 7. Debug panel (collapsed by default).
 8. Backup & restore (collapsed by default).
 
-Styling is plain CSS, no framework, with theme variables in `src/index.css` and full dark-mode support via `prefers-color-scheme`.
+Styling is plain CSS, no framework, with theme variables in `src/index.css`, full dark-mode support via `prefers-color-scheme`, and each component's styling co-located in its own `.css` file next to it in `src/components/`.

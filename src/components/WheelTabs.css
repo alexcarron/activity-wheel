@@ -1,0 +1,233 @@
+.wheel-tabs-wrap {
+	width: 100%;
+	max-width: 880px;
+	margin: 0 auto;
+	padding: 0 20px;
+	display: flex;
+	flex-direction: column;
+	gap: 0;
+}
+
+.wheel-tabs {
+	display: flex;
+	align-items: stretch;
+	gap: 4px;
+	flex-wrap: wrap;
+	padding: 12px 0 0;
+}
+
+.wheel-tab {
+	position: relative;
+	display: flex;
+	align-items: center;
+	border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+	background: var(--bg-soft);
+	border-bottom: none;
+	transition: background 120ms ease;
+	overflow: hidden;
+}
+
+.wheel-tab:hover {
+	background: var(--bg-elev);
+}
+
+.wheel-tab-active {
+	background: var(--bg-elev);
+	border-color: var(--border-strong);
+	border-bottom: 2px solid var(--accent);
+	z-index: 1;
+}
+
+.wheel-tab-btn {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 14px;
+	background: transparent;
+	border: none;
+	font-size: 0.875rem;
+	font-weight: 500;
+	color: var(--text-soft);
+	cursor: pointer;
+	white-space: nowrap;
+	max-width: 180px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.wheel-tab-active .wheel-tab-btn {
+	color: var(--text);
+	font-weight: 600;
+}
+
+.wheel-tab-btn:hover {
+	color: var(--text);
+}
+
+.wheel-tab-hotkeys {
+	display: inline-flex;
+	gap: 2px;
+	opacity: 0.55;
+}
+
+.wheel-tab-delete {
+	position: relative;
+	display: none;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	margin-right: 4px;
+	border-radius: 50%;
+	border: none;
+	background: transparent;
+	color: var(--text-mute);
+	font-size: 1rem;
+	line-height: 1;
+	cursor: pointer;
+	transition:
+		background 100ms ease,
+		color 100ms ease;
+	flex-shrink: 0;
+}
+
+.wheel-tab:hover .wheel-tab-delete {
+	display: flex;
+}
+
+.wheel-tab-delete:hover {
+	background: rgba(var(--warn-rgb), 0.15);
+	color: var(--warn);
+}
+
+.wheel-tab-rename-input {
+	padding: 6px 10px;
+	border: none;
+	border-bottom: 2px solid var(--accent);
+	background: transparent;
+	font-size: 0.875rem;
+	font-weight: 600;
+	color: var(--text);
+	outline: none;
+	min-width: 80px;
+	max-width: 180px;
+}
+
+.wheel-tab-add {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 8px 12px;
+	border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+	border: 1px dashed var(--border);
+	border-bottom: none;
+	background: transparent;
+	color: var(--text-mute);
+	font-size: 1.125rem;
+	line-height: 1;
+	cursor: pointer;
+	transition:
+		color 120ms ease,
+		border-color 120ms ease,
+		background 120ms ease;
+}
+
+.wheel-tab-add:hover {
+	color: var(--accent);
+	border-color: var(--accent);
+	background: var(--accent-soft);
+}
+
+.wheel-create-form {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px;
+	padding: 12px 16px;
+	background: var(--bg-elev);
+	border: 1px solid var(--border-strong);
+	border-radius: 0 var(--radius-sm) var(--radius-sm) var(--radius-sm);
+	box-shadow: var(--shadow);
+	animation: slideDown 120ms ease;
+}
+
+@keyframes slideDown {
+	from {
+		opacity: 0;
+		transform: translateY(-6px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.wheel-create-name {
+	flex: 1;
+	min-width: 140px;
+	padding: 7px 10px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	background: var(--bg);
+	font-size: 0.875rem;
+	color: var(--text);
+}
+
+.wheel-create-name:focus {
+	outline: none;
+	border-color: var(--accent);
+	box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.wheel-create-label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 0.8125rem;
+	color: var(--text-soft);
+	white-space: nowrap;
+}
+
+.wheel-create-select {
+	padding: 6px 8px;
+	border-radius: var(--radius-sm);
+	border: 1px solid var(--border);
+	background: var(--bg);
+	font-size: 0.8125rem;
+	color: var(--text);
+}
+
+.wheel-create-reset {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 0.8125rem;
+	color: var(--text-soft);
+	cursor: pointer;
+}
+
+.wheel-create-actions {
+	display: flex;
+	gap: 6px;
+	margin-left: auto;
+}
+
+.wheel-tab-shared-icon {
+	margin-right: 4px;
+	color: var(--text-soft);
+	vertical-align: -1px;
+}
+
+@media (pointer: coarse) {
+	.wheel-tab-delete::after {
+		content: '';
+		position: absolute;
+		inset: -11px;
+	}
+}
+
+@media (hover: none) {
+	.wheel-tab-delete {
+		display: flex;
+	}
+}

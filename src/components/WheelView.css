@@ -1,0 +1,78 @@
+.wheel-view {
+	position: relative;
+	background: var(--bg-elev);
+	border-radius: var(--radius);
+	padding: 28px 20px;
+	box-shadow: var(--shadow);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 22px;
+}
+
+.wheel-pin-btn {
+	position: absolute;
+	top: 12px;
+	right: 12px;
+	width: 32px;
+	height: 32px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border: none;
+	border-radius: 50%;
+	background: var(--bg-soft);
+	box-shadow: var(--shadow);
+	cursor: pointer;
+	color: var(--text);
+	opacity: 0.55;
+	transition:
+		opacity 0.15s,
+		transform 0.15s;
+}
+
+.wheel-pin-btn:hover {
+	opacity: 1;
+}
+
+.wheel-pin-btn.is-active {
+	opacity: 1;
+	background: var(--accent);
+	transform: rotate(-35deg);
+}
+
+.wheel-actions {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 10px;
+	min-height: 60px;
+	justify-content: center;
+}
+
+.wheel-empty,
+.wheel-spinning {
+	margin: 0;
+	color: var(--text-soft);
+	font-size: 0.9375rem;
+}
+
+@media (pointer: coarse) {
+	.wheel-pin-btn {
+		min-width: 44px;
+		min-height: 44px;
+	}
+}
+
+@media (max-width: 599px) {
+	.wheel-pin-btn {
+		top: 8px;
+		right: 8px;
+	}
+}
+
+@media (max-height: 480px) and (orientation: landscape) {
+	.wheel-view {
+		padding: 12px 16px;
+	}
+}

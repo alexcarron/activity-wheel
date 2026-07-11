@@ -11,6 +11,7 @@ import { getEffectiveWeight } from '../domain-logic/weight-logic/effective-weigh
 import { useWeightContext } from '../context/WeightContext';
 import { useNow } from '../hooks/useNow';
 import { ActivityRow, AddTagCombobox } from './ActivityRow';
+import './ActivityList.css';
 
 interface ActivityListProps {
 	/** The possibly tag-filtered activities to display. */

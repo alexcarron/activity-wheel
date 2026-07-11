@@ -16,6 +16,7 @@ import type { FilterMode } from '../domain-logic/tag-filter-logic';
 import { computeTagCounts, countUntagged, isFilterActive } from '../domain-logic/tag-filter-logic';
 import { useHotkey } from '../hooks/useHotkey';
 import { TAG_HOTKEYS } from '../constants/hotkeys';
+import './TagFilterBar.css';
 
 interface Props {
 	/** Full (unfiltered) activity list. Needed for accurate counts. */

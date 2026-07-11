@@ -4,14 +4,22 @@
 
 import { useCallback, useState } from 'react';
 import type { FormEvent } from 'react';
+import { createPortal } from 'react-dom';
+import './AddActivity.css';
+import { useViewportBreakpoint } from '../hooks/useViewportBreakpoint';
+import { AddActivityButton } from './AddActivityButton';
+
+const ADD_ACTIVITY_FORM_ID = 'add-activity-form';
 
 interface Props {
 	onAdd(name: string): Promise<void>;
+	mobileButtonContainer: HTMLElement | null;
 }
 
-export function AddActivity({ onAdd }: Props) {
+export function AddActivity({ onAdd, mobileButtonContainer }: Props) {
 	const [name, setName] = useState('');
 	const [busy, setBusy] = useState(false);
+	const { isPhone } = useViewportBreakpoint();
 
 	const submit = useCallback(
 		async (event: FormEvent): Promise<void> => {
@@ -30,8 +38,12 @@ export function AddActivity({ onAdd }: Props) {
 		[name, onAdd],
 	);
 
+	const addActivityButton = (
+		<AddActivityButton formId={ADD_ACTIVITY_FORM_ID} disabled={busy || name.trim().length === 0} />
+	);
+
 	return (
-		<form className="add-activity" onSubmit={submit}>
+		<form id={ADD_ACTIVITY_FORM_ID} className="add-activity" onSubmit={submit}>
 			<input
 				type="text"
 				className="add-activity-input"
@@ -41,9 +53,8 @@ export function AddActivity({ onAdd }: Props) {
 				maxLength={120}
 				disabled={busy}
 			/>
-			<button type="submit" className="btn btn-primary" disabled={busy || name.trim().length === 0}>
-				Add
-			</button>
+			{!isPhone && addActivityButton}
+			{isPhone && mobileButtonContainer && createPortal(addActivityButton, mobileButtonContainer)}
 		</form>
 	);
 }

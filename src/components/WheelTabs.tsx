@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Wheel } from '../domain-logic/types';
+import './WheelTabs.css';
 
 interface Props {
 	wheels: readonly Wheel[];

@@ -35,23 +35,24 @@ import { createCloudWheelService } from './services/cloud/wheel-service';
 import { createSharedTagService } from './services/cloud/shared-tag-service';
 import { exportSharedWheelBackup } from './services/cloud/shared-wheel-service';
 import { getSharedWheelIdFromUrl, removeSharedWheelIdFromUrl } from './utils/url-params';
+import { useViewportBreakpoint } from './hooks/useViewportBreakpoint';
 
 function App() {
 	const auth = useAuth();
 	const userId = auth.user?.id ?? null;
 	const wheels = useWheels(userId, auth.loading);
-	// '' means not resolved yet; withhold it so useActivities/useTagFilter don't fetch against a stale/wrong-backend id.
 	const resolvedWheelId = wheels.loading ? '' : wheels.activeWheelId;
 
 	const sharedWheelIdFromUrl = useMemo(() => getSharedWheelIdFromUrl(), []);
 	const sharedAccess = useSharedWheelAccess(sharedWheelIdFromUrl);
-	// Kept separate from useWheels's own activeWheelId/localStorage bookkeeping.
 	const [activeSharedWheelId, setActiveSharedWheelId] = useState<string | null>(null);
 
-	// Only these two cases trigger the "updated by another user" toast.
 	const [landedActivityId, setLandedActivityId] = useState<string | null>(null);
 	const [activeEditActivityId, setActiveEditActivityId] = useState<string | null>(null);
 	const [toastMessage, setToastMessage] = useState<string | null>(null);
+	
+	const { isPhone } = useViewportBreakpoint();
+	const [addActivityButtonContainer, setAddActivityButtonContainer] = useState<HTMLDivElement | null>(null);
 
 	// Only fires on hasAccess's rising edge (initial load already-unlocked, or right after entering the password), not on every render, so switching to your own wheel afterward doesn't get immediately overridden back to the shared tab.
 	useEffect(() => {
@@ -302,15 +303,18 @@ function App() {
 							/>
 
 							<section className="app-panel">
-								<h2>
-									Activities
-									{filterOn && (
-										<span className="app-panel-filter-badge">
-											{filteredActivities.length} shown
-										</span>
-									)}
-								</h2>
-								<AddActivity onAdd={activityState.add} />
+								<div className='app-panel-title'>
+									<h2>
+										Activities
+										{filterOn && (
+											<span className="app-panel-filter-badge">
+												{filteredActivities.length} shown
+											</span>
+										)}
+									</h2>
+									{isPhone && <div ref={setAddActivityButtonContainer} />}
+								</div>
+								<AddActivity onAdd={activityState.add} mobileButtonContainer={addActivityButtonContainer} />
 								<ActivityList
 									activities={filterOn ? filteredActivities : activityState.activities}
 									showWeights={debug.showWeights}

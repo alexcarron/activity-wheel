@@ -13,8 +13,67 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import type { Activity, FeedbackAction, TagMetadata } from '../domain-logic/types';
 import { useHotkey } from '../hooks/useHotkey';
+import { useViewportBreakpoint } from '../hooks/useViewportBreakpoint';
 import { HOTKEYS } from '../constants/hotkeys';
 import { KbdHint } from './KbdHint';
+import './PostSpinActions.css';
+
+type ManualFeedbackAction = Exclude<FeedbackAction, 'undo'>;
+
+interface FeedbackButtonConfig {
+	readonly className: string;
+	readonly label: string;
+	readonly hotkeyLabel: string;
+	readonly title: string;
+}
+
+const FEEDBACK_BUTTON_CONFIGS: Record<ManualFeedbackAction, FeedbackButtonConfig> = {
+	boost: {
+		className: 'btn btn-love-it',
+		label: '★ Love It!',
+		hotkeyLabel: HOTKEYS.LOVE_IT.label,
+		title: `Love It! (big weight boost) [${HOTKEYS.LOVE_IT.label}]`,
+	},
+	accept: {
+		className: 'btn btn-accept',
+		label: 'Accept',
+		hotkeyLabel: HOTKEYS.ACCEPT.label,
+		title: `Accept (${HOTKEYS.ACCEPT.label})`,
+	},
+	skip: {
+		className: 'btn btn-skip',
+		label: 'Skip',
+		hotkeyLabel: HOTKEYS.SKIP.label,
+		title: `Skip (${HOTKEYS.SKIP.label})`,
+	},
+	reject: {
+		className: 'btn btn-reject',
+		label: 'Reject',
+		hotkeyLabel: HOTKEYS.REJECT.label,
+		title: `Reject (${HOTKEYS.REJECT.label})`,
+	},
+	hate: {
+		className: 'btn btn-hate-it',
+		label: '✕ Hate It!',
+		hotkeyLabel: HOTKEYS.HATE_IT.label,
+		title: `Hate It! (big weight penalty) [${HOTKEYS.HATE_IT.label}]`,
+	},
+};
+
+const DESKTOP_FEEDBACK_BUTTON_ORDER: readonly ManualFeedbackAction[][] = [
+	['boost',
+	'accept',
+	'skip',
+	'reject',
+	'hate'],
+];
+const PHONE_FEEDBACK_BUTTON_ORDER: readonly ManualFeedbackAction[][] = [
+	['boost',
+	'accept'],
+	['reject',
+	'hate'],
+	['skip'],
+];
 
 interface Props {
 	readonly winner: Activity;
@@ -47,6 +106,8 @@ export function PostSpinActions(props: Props) {
 	} = props;
 	const canSpinAgain = remainingInPool > 0;
 	const hasNoTags = (winner.tags ?? []).length === 0;
+	const { isPhone } = useViewportBreakpoint();
+	const feedbackButtonOrder = isPhone ? PHONE_FEEDBACK_BUTTON_ORDER : DESKTOP_FEEDBACK_BUTTON_ORDER;
 
 	/* Quick inline tag input for the "Add a tag?" prompt */
 	const [tagPromptOpen, setTagPromptOpen] = useState(false);
@@ -163,7 +224,6 @@ export function PostSpinActions(props: Props) {
 					</span>
 				)}
 			</div>
-			{/* "Add a tag?" nudge. Only for untagged activities */}
 			{hasNoTags && onAddTag && !tagPromptOpen && (
 				<div className="post-spin-tag-nudge">
 					<span className="post-spin-tag-nudge-text">No tags yet.</span>
@@ -177,7 +237,6 @@ export function PostSpinActions(props: Props) {
 				</div>
 			)}
 
-			{/* Inline tag input (shown when nudge is clicked) */}
 			{tagPromptOpen && onAddTag && (
 				<div className="post-spin-tag-input-row">
 					<input
@@ -219,56 +278,26 @@ export function PostSpinActions(props: Props) {
 			)}
 
 			<div className="post-spin-feedback">
-				<button
-					type="button"
-					className="btn btn-love-it"
-					onClick={() => onChoose('boost')}
-					disabled={busy}
-					title={`Love It! (big weight boost) [${HOTKEYS.LOVE_IT.label}]`}
-				>
-					★ Love It!
-					<KbdHint label={HOTKEYS.LOVE_IT.label} />
-				</button>
-				<button
-					type="button"
-					className="btn btn-accept"
-					onClick={() => onChoose('accept')}
-					disabled={busy}
-					title={`Accept (${HOTKEYS.ACCEPT.label})`}
-				>
-					Accept
-					<KbdHint label={HOTKEYS.ACCEPT.label} />
-				</button>
-				<button
-					type="button"
-					className="btn btn-skip"
-					onClick={() => onChoose('skip')}
-					disabled={busy}
-					title={`Skip (${HOTKEYS.SKIP.label})`}
-				>
-					Skip
-					<KbdHint label={HOTKEYS.SKIP.label} />
-				</button>
-				<button
-					type="button"
-					className="btn btn-reject"
-					onClick={() => onChoose('reject')}
-					disabled={busy}
-					title={`Reject (${HOTKEYS.REJECT.label})`}
-				>
-					Reject
-					<KbdHint label={HOTKEYS.REJECT.label} />
-				</button>
-				<button
-					type="button"
-					className="btn btn-hate-it"
-					onClick={() => onChoose('hate')}
-					disabled={busy}
-					title={`Hate It! (big weight penalty) [${HOTKEYS.HATE_IT.label}]`}
-				>
-					✕ Hate It!
-					<KbdHint label={HOTKEYS.HATE_IT.label} />
-				</button>
+				{feedbackButtonOrder.map((actions) => 
+					<div className="post-spin-feedback-row"> 
+						{actions.map((action) => {
+							const config = FEEDBACK_BUTTON_CONFIGS[action];
+							return (
+								<button
+									key={action}
+									type="button"
+									className={config.className}
+									onClick={() => onChoose(action)}
+									disabled={busy}
+									title={config.title}
+								>
+									{config.label}
+									<KbdHint label={config.hotkeyLabel} />
+								</button>
+							);
+						})}
+					</div>
+				)}
 			</div>
 			<div className="post-spin-nav">
 				<button
@@ -278,7 +307,7 @@ export function PostSpinActions(props: Props) {
 					disabled={busy || !canSpinAgain}
 					title={canSpinAgain ? `Spin again (${HOTKEYS.SPIN_WHEEL.label})` : undefined}
 				>
-					Spin again ({remainingInPool} left)
+					Spin again
 					{canSpinAgain && <KbdHint label={HOTKEYS.SPIN_WHEEL.label} />}
 				</button>
 				<button type="button" className="btn btn-ghost" onClick={onResetSession} disabled={busy}>
