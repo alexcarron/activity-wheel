@@ -36,15 +36,13 @@ export function useTagFilter(
 	userId: string | null,
 	sharedWheelId: string | null,
 ): TagFilterApi {
-	const tagService: CloudTagService = useMemo(
-		() =>
-			sharedWheelId
-				? createSharedTagService()
-				: userId
-					? createCloudTagService(userId)
-					: localTagService,
-		[userId, sharedWheelId],
+	// Memoized separately from the owned-wheel backend so that userId changing (e.g. sign-out) while a shared wheel is active can't produce a new tagService reference and retrigger the fetch effect below under a session that no longer has access.
+	const sharedTagService = useMemo(() => createSharedTagService(), []);
+	const ownedTagService = useMemo(
+		() => (userId ? createCloudTagService(userId) : localTagService),
+		[userId],
 	);
+	const tagService: CloudTagService = sharedWheelId ? sharedTagService : ownedTagService;
 
 	const [activeTags, setActiveTags] = useState<readonly string[]>([]);
 	const [untaggedOnly, setUntaggedOnly] = useState(false);

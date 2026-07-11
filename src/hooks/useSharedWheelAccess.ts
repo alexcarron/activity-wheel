@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { Wheel } from '../domain-logic/types';
-import { onAuthStateChange } from '../services/auth-service';
+import { getSession, onAuthStateChange } from '../services/auth-service';
 import { getSharedWheelMetadata, listAccessibleSharedWheels } from '../services/cloud/shared-wheel-service';
 import {
 	doesSharedWheelExist,
@@ -42,22 +42,38 @@ export function useSharedWheelAccess(sharedWheelIdFromUrl: string | null): UseSh
 	const [unlocking, setUnlocking] = useState(false);
 	// Membership is scoped to whichever Supabase auth session (Google or anonymous) is active, so a sign-in/sign-out must re-verify access rather than trust what was resolved under the previous session.
 	const [sessionUserId, setSessionUserId] = useState<string | null>(null);
+	// Distinguishes "haven't checked yet" from "checked and there's no session", so the resolution effect below never runs its no-session branch before getSession() has actually reported one way or the other.
+	const [hasResolvedInitialSession, setHasResolvedInitialSession] = useState(false);
 
 	useEffect(() => {
+		let cancelled = false;
+		void getSession().then((session) => {
+			if (cancelled) return;
+			setSessionUserId(session?.user?.id ?? null);
+			persistAnonymousSessionIfPresent(session);
+			setHasResolvedInitialSession(true);
+		});
 		const subscription = onAuthStateChange((session) => {
 			setSessionUserId(session?.user?.id ?? null);
 			persistAnonymousSessionIfPresent(session);
+			setHasResolvedInitialSession(true);
 		});
-		return () => subscription.unsubscribe();
+		return () => {
+			cancelled = true;
+			subscription.unsubscribe();
+		};
 	}, []);
 
 	useEffect(() => {
 		let cancelled = false;
 
+		if (!hasResolvedInitialSession) return;
+
 		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setWasSharedWheelNotFound(false);
 
 		if (!sessionUserId && !sharedWheelIdFromUrl) {
+			setUnlockedWheels([]);
 			setLoading(false);
 			return;
 		}
@@ -81,7 +97,7 @@ export function useSharedWheelAccess(sharedWheelIdFromUrl: string | null): UseSh
 		return () => {
 			cancelled = true;
 		};
-	}, [sharedWheelIdFromUrl, sessionUserId]);
+	}, [sharedWheelIdFromUrl, sessionUserId, hasResolvedInitialSession]);
 
 	const unlock = useCallback(
 		async (password: string): Promise<boolean> => {

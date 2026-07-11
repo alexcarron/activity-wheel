@@ -35,24 +35,20 @@ export function useActivities(
 	/** Fires for every realtime change (shared wheels only), before it's merged into state. */
 	onRemoteActivityChange?: (change: SharedActivityChange) => void,
 ): UseActivitiesApi {
-	const activityService: CloudActivityService = useMemo(
-		() =>
-			sharedWheelId
-				? createSharedActivityService()
-				: userId
-					? createCloudActivityService(userId)
-					: localActivityService,
-		[userId, sharedWheelId],
+	// Memoized separately from the owned-wheel backend so that userId changing (e.g. sign-out) while a shared wheel is active can't produce a new activityService/ensureTagsExist reference and retrigger the fetch effect below under a session that no longer has access.
+	const sharedActivityService = useMemo(() => createSharedActivityService(), []);
+	const ownedActivityService = useMemo(
+		() => (userId ? createCloudActivityService(userId) : localActivityService),
+		[userId],
 	);
-	const ensureTagsExist = useMemo(
-		() =>
-			sharedWheelId
-				? createSharedTagService().ensureTagsExist
-				: userId
-					? createCloudTagService(userId).ensureTagsExist
-					: localTagService.ensureTagsExist,
-		[userId, sharedWheelId],
+	const activityService: CloudActivityService = sharedWheelId ? sharedActivityService : ownedActivityService;
+
+	const sharedEnsureTagsExist = useMemo(() => createSharedTagService().ensureTagsExist, []);
+	const ownedEnsureTagsExist = useMemo(
+		() => (userId ? createCloudTagService(userId).ensureTagsExist : localTagService.ensureTagsExist),
+		[userId],
 	);
+	const ensureTagsExist = sharedWheelId ? sharedEnsureTagsExist : ownedEnsureTagsExist;
 
 	const [activities, setActivities] = useState<readonly Activity[]>([]);
 	const [isLoading, setLoading] = useState(true);
