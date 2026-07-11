@@ -36,6 +36,8 @@ interface Props {
 	onRename(id: string, name: string): Promise<void>;
 	/** Called when user adds a tag from the post-spin "Add a tag?" prompt. */
 	onAddTagToActivity(activityId: string, tagName: string): Promise<void>;
+	/** Called whenever the currently-landed-on activity id changes (null when not landed). Used to detect confusing remote changes to a shared wheel's in-progress spin. */
+	onLandedActivityIdChange?(id: string | null): void;
 }
 
 export function WheelView({
@@ -51,6 +53,7 @@ export function WheelView({
 	onFeedback,
 	onRename,
 	onAddTagToActivity,
+	onLandedActivityIdChange,
 }: Props) {
 	const wheel = useWheel();
 	const [busy, setBusy] = useState(false);
@@ -143,6 +146,10 @@ export function WheelView({
 	const idle = wheel.phase === 'idle';
 	const animating = wheel.phase === 'spinning';
 	const landed = wheel.phase === 'landed';
+
+	useEffect(() => {
+		onLandedActivityIdChange?.(landed && liveWinner ? liveWinner.id : null);
+	}, [landed, liveWinner, onLandedActivityIdChange]);
 
 	// Space spins the wheel when idle. PostSpinActions mounts its own Space
 	// binding for "spin again" while landed. The two are mutually exclusive

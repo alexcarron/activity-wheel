@@ -9,6 +9,9 @@ import { totalEffective } from '../services/activity-service';
 import * as localTagService from '../services/tag-service';
 import { createCloudActivityService, type CloudActivityService } from '../services/cloud/activity-service';
 import { createCloudTagService } from '../services/cloud/tag-service';
+import { createSharedActivityService } from '../services/cloud/shared-activity-service';
+import { createSharedTagService } from '../services/cloud/shared-tag-service';
+import { useSharedWheelRealtimeSync, type SharedActivityChange } from './shared-wheel-realtime';
 import type { Activity, FeedbackAction } from '../domain-logic/types';
 import { toErrorMessage } from '../utils/error-message';
 
@@ -25,14 +28,30 @@ interface UseActivitiesApi {
 	clearEverything(): Promise<void>;
 }
 
-export function useActivities(wheelId: string, userId: string | null): UseActivitiesApi {
+export function useActivities(
+	wheelId: string,
+	userId: string | null,
+	sharedWheelId: string | null,
+	/** Fires for every realtime change (shared wheels only), before it's merged into state. */
+	onRemoteActivityChange?: (change: SharedActivityChange) => void,
+): UseActivitiesApi {
 	const activityService: CloudActivityService = useMemo(
-		() => (userId ? createCloudActivityService(userId) : localActivityService),
-		[userId],
+		() =>
+			sharedWheelId
+				? createSharedActivityService()
+				: userId
+					? createCloudActivityService(userId)
+					: localActivityService,
+		[userId, sharedWheelId],
 	);
 	const ensureTagsExist = useMemo(
-		() => (userId ? createCloudTagService(userId).ensureTagsExist : localTagService.ensureTagsExist),
-		[userId],
+		() =>
+			sharedWheelId
+				? createSharedTagService().ensureTagsExist
+				: userId
+					? createCloudTagService(userId).ensureTagsExist
+					: localTagService.ensureTagsExist,
+		[userId, sharedWheelId],
 	);
 
 	const [activities, setActivities] = useState<readonly Activity[]>([]);
@@ -89,6 +108,21 @@ export function useActivities(wheelId: string, userId: string | null): UseActivi
 			isMounted.current = false;
 		};
 	}, [wheelId, activityService]);
+
+	const applyRealtimeChange = useCallback((change: SharedActivityChange): void => {
+		onRemoteActivityChange?.(change);
+		if (change.type === 'delete') {
+			setActivities((prev) => prev.filter((activity) => activity.id !== change.activityId));
+			return;
+		}
+		setActivities((prev) => {
+			const exists = prev.some((activity) => activity.id === change.activity.id);
+			return exists
+				? prev.map((activity) => (activity.id === change.activity.id ? change.activity : activity))
+				: [...prev, change.activity];
+		});
+	}, [onRemoteActivityChange]);
+	useSharedWheelRealtimeSync(sharedWheelId, applyRealtimeChange);
 
 	const add = useCallback(
 		async (name: string): Promise<void> => {

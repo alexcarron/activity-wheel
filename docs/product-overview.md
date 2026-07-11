@@ -90,6 +90,20 @@ You can ignore all of this and just use the app signed out forever. Nothing abou
 
 For the full design (schema, RLS policies, the deploy story), see [`user-authentication-plan.md`](./user-authentication-plan.md).
 
+## Shared wheels
+
+A shared wheel is a password-protected wheel that multiple people can view and edit at once, updating live for everyone looking at it. Right now there's exactly one for testing.
+
+Visiting the app with `?sharedWheelId=[ID-HERE]` (with the id of test wheel) in the URL shows a password screen instead of the normal wheel UI. Enter the password once and you get permanent access from then on, on that same browser (or that same signed-in account, if you're signed in with Google) without needing the password again, even without the link. Behind the scenes, unlocking it registers you as a member of that wheel in the backend, so access is enforced by the database, not by anything the frontend remembers.
+
+If `?sharedWheelId=` names a wheel that doesn't exist, you're never shown the password screen. Instead the app loads normally, the bad link is cleaned out of the address bar, and a brief message lets you know no shared wheel exists with that link.
+
+Once unlocked, the shared wheel shows up as an extra tab next to your own wheels, marked with a small multi-user icon. It can't be renamed or deleted from that tab, since it isn't yours to rename or delete.
+
+Because other people can be spinning, adding, or editing activities on the same shared wheel at the same time, changes show up live without needing to refresh. If someone else's change lands on the exact activity you're mid-edit-name on, or the activity you just spun and are looking at the result for, you'll see a brief "Wheel updated by another user" notice so the sudden change doesn't look like a bug. Any other change to the wheel just updates quietly. If two people change the same thing at the same time, whichever write reaches the database last wins.
+
+While a shared wheel is the active tab, Backup & restore only offers Export JSON. Import, Clear wheel, and Clear all wheels are hidden, since it isn't just your data to overwrite or wipe.
+
 ## Backup and restore
 
 Open the **Backup & restore** panel at the bottom of the page for:

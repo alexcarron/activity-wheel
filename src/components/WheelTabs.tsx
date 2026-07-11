@@ -20,6 +20,18 @@ interface Props {
 	onDelete(id: string): Promise<void>;
 }
 
+/** Small multi-user glyph marking a shared (password-protected, multi-viewer) wheel's tab. */
+function SharedWheelIcon() {
+	return (
+		<svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true" className="wheel-tab-shared-icon">
+			<path
+				fill="currentColor"
+				d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"
+			/>
+		</svg>
+	);
+}
+
 export function WheelTabs({
 	wheels,
 	activeWheelId,
@@ -103,8 +115,6 @@ export function WheelTabs({
 		[wheels, onDelete],
 	);
 
-	const canDelete = wheels.length > 1;
-
 	// Sort tabs: keep insertion order but put active first? No. Keep stable order.
 	// Tabs are displayed in the order they appear in `wheels` (sorted by lastUsedAt
 	// desc in the service, but we use createdAt order for stable tab display).
@@ -116,6 +126,8 @@ export function WheelTabs({
 				{sortedWheels.map((wheel) => {
 					const isActive = wheel.id === activeWheelId;
 					const isRenaming = renamingId === wheel.id;
+					const isShared = wheel.kind === 'shared';
+					const canDelete = !isShared && wheels.filter((candidate) => candidate.kind !== 'shared').length > 1;
 					return (
 						<div
 							key={wheel.id}
@@ -141,9 +153,12 @@ export function WheelTabs({
 									type="button"
 									className="wheel-tab-btn"
 									onClick={() => onSwitch(wheel.id)}
-									onDoubleClick={() => startRename(wheel)}
-									title="Double-click to rename"
+									onDoubleClick={() => {
+										if (!isShared) startRename(wheel);
+									}}
+									title={isShared ? undefined : 'Double-click to rename'}
 								>
+									{isShared && <SharedWheelIcon />}
 									{wheel.name}
 									{/* {isActive && wheels.length > 1 && (
                     <span className="wheel-tab-hotkeys" aria-hidden="true">

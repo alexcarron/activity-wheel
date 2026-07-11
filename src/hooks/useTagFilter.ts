@@ -9,6 +9,7 @@ import type { TagMetadata } from '../domain-logic/types';
 import type { FilterMode } from '../domain-logic/tag-filter-logic';
 import * as localTagService from '../services/tag-service';
 import { createCloudTagService, type CloudTagService } from '../services/cloud/tag-service';
+import { createSharedTagService } from '../services/cloud/shared-tag-service';
 
 export type { FilterMode };
 
@@ -30,10 +31,19 @@ export interface TagFilterApi {
 	pruneTags(names: string[]): void;
 }
 
-export function useTagFilter(wheelId: string, userId: string | null): TagFilterApi {
+export function useTagFilter(
+	wheelId: string,
+	userId: string | null,
+	sharedWheelId: string | null,
+): TagFilterApi {
 	const tagService: CloudTagService = useMemo(
-		() => (userId ? createCloudTagService(userId) : localTagService),
-		[userId],
+		() =>
+			sharedWheelId
+				? createSharedTagService()
+				: userId
+					? createCloudTagService(userId)
+					: localTagService,
+		[userId, sharedWheelId],
 	);
 
 	const [activeTags, setActiveTags] = useState<readonly string[]>([]);

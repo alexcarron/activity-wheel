@@ -433,6 +433,8 @@ interface Props {
 	onSetTagColor(tagName: string, color: string | null): Promise<void>;
 	onSelectionMouseDown(id: string): void;
 	onRowMouseEnter(id: string): void;
+	/** Called whenever this row's inline rename editor opens/closes. Used to detect confusing remote changes to a shared wheel while a name edit is in progress. */
+	onEditingChange?(activityId: string, isEditing: boolean): void;
 }
 
 /** Returns a linear-gradient pill style that shows a bar-chart fill colored red (lowest) → amber (middle) → green (highest), matching --hate / --warn / --good, based on the value's position within the provided min/max range. */
@@ -485,6 +487,7 @@ function ActivityRowComponent({
 	onSetTagColor,
 	onSelectionMouseDown,
 	onRowMouseEnter,
+	onEditingChange,
 }: Props) {
 	const globalWeightContext = useWeightContext();
 	const now = useNow();
@@ -502,6 +505,14 @@ function ActivityRowComponent({
 			inputRef.current.select();
 		}
 	}, [isEditingName]);
+
+	useEffect(() => {
+		onEditingChange?.(activity.id, isEditingName);
+		// Cleanup handles the row unmounting mid-edit.
+		return () => {
+			if (isEditingName) onEditingChange?.(activity.id, false);
+		};
+	}, [activity.id, isEditingName, onEditingChange]);
 
 	const startEditing = useCallback(() => {
 		setDraft(activity.name);

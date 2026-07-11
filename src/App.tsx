@@ -3,7 +3,7 @@
  */
 
 import './App.css';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useWheels } from './hooks/useWheels';
 import { useActivities } from './hooks/useActivities';
 import { useAuth } from './hooks/useAuth';
@@ -11,9 +11,13 @@ import { useNow } from './hooks/useNow';
 import { useSession } from './hooks/useSession';
 import { useDebug } from './hooks/useDebug';
 import { useTagFilter } from './hooks/useTagFilter';
+import { useSharedWheelAccess } from './hooks/useSharedWheelAccess';
+import type { SharedActivityChange } from './hooks/shared-wheel-realtime';
 import { filterActivitiesByTags, isFilterActive } from './domain-logic/tag-filter-logic';
 import { AuthButton } from './components/AuthButton';
 import { LoadingSpinner } from './components/LoadingSpinner';
+import { SharedWheelPasswordGate } from './components/SharedWheelPasswordGate';
+import { Toast } from './components/Toast';
 import { WheelTabs } from './components/WheelTabs';
 import { WheelView } from './components/WheelView';
 import { ActivityList } from './components/ActivityList';
@@ -28,21 +32,92 @@ import * as localTagService from './services/tag-service';
 import * as localWheelService from './services/wheel-service';
 import { createCloudTagService } from './services/cloud/tag-service';
 import { createCloudWheelService } from './services/cloud/wheel-service';
+import { createSharedTagService } from './services/cloud/shared-tag-service';
+import { exportSharedWheelBackup } from './services/cloud/shared-wheel-service';
+import { getSharedWheelIdFromUrl, removeSharedWheelIdFromUrl } from './utils/url-params';
 
 function App() {
 	const auth = useAuth();
 	const userId = auth.user?.id ?? null;
 	const wheels = useWheels(userId, auth.loading);
-	// While wheels are still resolving (including while auth itself is still resolving, since useWheels stays in its loading state through that window) activeWheelId may be a stale or wrong-backend id. Withhold it from useActivities/useTagFilter (both already treat '' as "not resolved yet, keep waiting") so they never fetch against the wrong backend or an invalid id.
+	// '' means not resolved yet; withhold it so useActivities/useTagFilter don't fetch against a stale/wrong-backend id.
 	const resolvedWheelId = wheels.loading ? '' : wheels.activeWheelId;
-	const activityState = useActivities(resolvedWheelId, userId);
+
+	const sharedWheelIdFromUrl = useMemo(() => getSharedWheelIdFromUrl(), []);
+	const sharedAccess = useSharedWheelAccess(sharedWheelIdFromUrl);
+	// Kept separate from useWheels's own activeWheelId/localStorage bookkeeping.
+	const [activeSharedWheelId, setActiveSharedWheelId] = useState<string | null>(null);
+
+	// Only these two cases trigger the "updated by another user" toast.
+	const [landedActivityId, setLandedActivityId] = useState<string | null>(null);
+	const [activeEditActivityId, setActiveEditActivityId] = useState<string | null>(null);
+	const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+	useEffect(() => {
+		if (sharedWheelIdFromUrl && sharedAccess.hasAccess && activeSharedWheelId !== sharedWheelIdFromUrl) {
+			// eslint-disable-next-line react-hooks/set-state-in-effect
+			setActiveSharedWheelId(sharedWheelIdFromUrl);
+		}
+	}, [sharedWheelIdFromUrl, sharedAccess.hasAccess, activeSharedWheelId]);
+
+	useEffect(() => {
+		if (sharedAccess.wasSharedWheelNotFound) {
+			removeSharedWheelIdFromUrl();
+			// eslint-disable-next-line react-hooks/set-state-in-effect
+			setToastMessage('No shared wheel exists with that link.');
+		}
+	}, [sharedAccess.wasSharedWheelNotFound]);
+
+	const combinedWheelId = activeSharedWheelId ?? resolvedWheelId;
+
+	const handleEditingChange = useCallback((activityId: string, isEditing: boolean): void => {
+		setActiveEditActivityId((current) => {
+			if (isEditing) return activityId;
+			return current === activityId ? null : current;
+		});
+	}, []);
+
+	const handleRemoteActivityChange = useCallback(
+		(change: SharedActivityChange): void => {
+			const changedActivityId = change.type === 'delete' ? change.activityId : change.activity.id;
+			if (changedActivityId === landedActivityId || changedActivityId === activeEditActivityId) {
+				setToastMessage('Wheel updated by another user.');
+			}
+		},
+		[landedActivityId, activeEditActivityId],
+	);
+
+	const activityState = useActivities(combinedWheelId, userId, activeSharedWheelId, handleRemoteActivityChange);
 	const debug = useDebug();
 	const now = useNow();
-	const tagFilter = useTagFilter(resolvedWheelId, userId);
+	const tagFilter = useTagFilter(combinedWheelId, userId, activeSharedWheelId);
 	const [wheelPinned, setWheelPinned] = useState(false);
 
 	const tagService = userId ? createCloudTagService(userId) : localTagService;
 	const wheelService = userId ? createCloudWheelService(userId) : localWheelService;
+	// Tag-pruning must target whichever wheel is actually active, unlike `tagService`/`wheelService` above.
+	const activeTagService = activeSharedWheelId ? createSharedTagService() : tagService;
+	const activeWheelIdForTagOps = activeSharedWheelId ?? wheels.activeWheelId;
+
+	const tabWheels = useMemo(
+		() => [...wheels.wheels, ...sharedAccess.unlockedWheels],
+		[wheels.wheels, sharedAccess.unlockedWheels],
+	);
+	const combinedActiveWheelId = activeSharedWheelId ?? wheels.activeWheelId;
+
+	const handleSwitchTab = useCallback(
+		(id: string): void => {
+			const isShared = sharedAccess.unlockedWheels.some((wheel) => wheel.id === id);
+			if (isShared) {
+				setActiveSharedWheelId(id);
+			}
+			else {
+				setActiveSharedWheelId(null);
+				wheels.switchWheel(id);
+			}
+		},
+		[sharedAccess.unlockedWheels, wheels],
+	);
 
 	const globalWeightContext = useMemo(
 		() => ({
@@ -86,7 +161,7 @@ function App() {
 			const afterUpdate = activityState.activities.map((candidate) =>
 				candidate.id === id ? { ...candidate, tags } : candidate,
 			);
-			const pruned = await tagService.pruneOrphanTags(wheels.activeWheelId, afterUpdate, removedTags);
+			const pruned = await activeTagService.pruneOrphanTags(activeWheelIdForTagOps, afterUpdate, removedTags);
 			if (pruned.length > 0) tagFilter.pruneTags(pruned);
 		}
 	};
@@ -97,7 +172,7 @@ function App() {
 		await activityState.remove(id);
 		if (tagsToPrune.length > 0) {
 			const afterDelete = activityState.activities.filter((candidate) => candidate.id !== id);
-			const pruned = await tagService.pruneOrphanTags(wheels.activeWheelId, afterDelete, tagsToPrune);
+			const pruned = await activeTagService.pruneOrphanTags(activeWheelIdForTagOps, afterDelete, tagsToPrune);
 			if (pruned.length > 0) tagFilter.pruneTags(pruned);
 		}
 	};
@@ -116,6 +191,27 @@ function App() {
 		}
 		wheels.switchWheel(newWheel.id);
 	};
+
+	if (sharedWheelIdFromUrl && sharedAccess.loading) {
+		return (
+			<main className="app">
+				<div className="app-sync-indicator" role="status">
+					<LoadingSpinner />
+					Checking shared wheel access…
+				</div>
+			</main>
+		);
+	}
+	if (sharedWheelIdFromUrl && !sharedAccess.hasAccess && !sharedAccess.wasSharedWheelNotFound) {
+		return (
+			<SharedWheelPasswordGate
+				wheelName={sharedAccess.wheelName}
+				unlocking={sharedAccess.unlocking}
+				errorMessage={sharedAccess.errorMessage}
+				onUnlock={sharedAccess.unlock}
+			/>
+		);
+	}
 
 	// Full-app loading gate: true only while auth is resolving or while wheels is resolving which backend to use (initial load, sign-in, sign-out). It is NOT true for a same-backend wheel switch, since switchWheel doesn't touch wheels.loading. This intentionally hides every other component, including the sign-in button, so the user never sees a flash of the wrong backend's data (local vs. cloud) or an error caused by querying before the correct wheel is known.
 	const isBackendLoading = auth.loading || wheels.loading;
@@ -152,9 +248,9 @@ function App() {
 								</div>
 
 								<WheelTabs
-									wheels={wheels.wheels}
-									activeWheelId={wheels.activeWheelId}
-									onSwitch={wheels.switchWheel}
+									wheels={tabWheels}
+									activeWheelId={combinedActiveWheelId}
+									onSwitch={handleSwitchTab}
 									onCreate={handleCreateWheel}
 									onRename={wheels.renameWheel}
 									onDelete={wheels.deleteWheel}
@@ -176,6 +272,7 @@ function App() {
 									}}
 									onRename={activityState.rename}
 									onAddTagToActivity={handleAddTagToActivity}
+									onLandedActivityIdChange={setLandedActivityId}
 								/>
 							</section>
 
@@ -212,13 +309,19 @@ function App() {
 									onDelete={handleDelete}
 									onUpdateTags={handleUpdateTags}
 									onSetTagColor={tagFilter.setTagColor}
+									onEditingChange={handleEditingChange}
 								/>
 							</section>
 
 							<section className="app-panel app-panel-tight">
 								<DebugPanel debug={debug} />
 								<BackupControls
-									exportJson={wheelService.exportFullBackup}
+									readOnly={!!activeSharedWheelId}
+									exportJson={
+										activeSharedWheelId
+											? () => exportSharedWheelBackup(activeSharedWheelId)
+											: wheelService.exportFullBackup
+									}
 									importJson={async (json) => {
 										const firstWheelId = await wheelService.importFullBackup(json);
 										await wheels.reloadWheels();
@@ -251,6 +354,10 @@ function App() {
 										: "Data lives only in this browser. Sign in to save it to your account, or use Backup & restore to keep a copy."}
 								</p>
 							</footer>
+
+							{toastMessage && (
+								<Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />
+							)}
 						</>
 					)}
 				</main>

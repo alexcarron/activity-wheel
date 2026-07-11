@@ -24,6 +24,8 @@ interface ActivityListProps {
 	onDelete(id: string): Promise<void>;
 	onUpdateTags(id: string, tags: string[]): Promise<void>;
 	onSetTagColor(tagName: string, color: string | null): Promise<void>;
+	/** Forwarded to every row; see ActivityRow's onEditingChange doc comment. */
+	onEditingChange?(activityId: string, isEditing: boolean): void;
 }
 
 const SORTS: { key: SortKey; label: string }[] = [
@@ -47,6 +49,7 @@ export function ActivityList(props: ActivityListProps) {
 		onDelete,
 		onUpdateTags,
 		onSetTagColor,
+		onEditingChange,
 	} = props;
 	const globalWeightContext = useWeightContext();
 	const now = useNow();
@@ -384,6 +387,7 @@ export function ActivityList(props: ActivityListProps) {
 							onSetTagColor={onSetTagColor}
 							onSelectionMouseDown={handleSelectionMouseDown}
 							onRowMouseEnter={handleRowMouseEnter}
+							onEditingChange={onEditingChange}
 						/>
 					))}
 				</ul>

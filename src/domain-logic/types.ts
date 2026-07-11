@@ -61,6 +61,8 @@ export interface Wheel {
 	createdAt: number;
 	/** Unix ms when the wheel was last made active. Used for ordering. */
 	lastUsedAt: number;
+	/** 'shared' = a password-protected multi-user wheel. Omitted = a normal owned wheel. */
+	kind?: 'shared';
 }
 
 /**
