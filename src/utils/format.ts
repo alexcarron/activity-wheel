@@ -9,7 +9,7 @@ export function formatDate(timestamp: number): string {
 }
 
 export function formatPercent(probability: number): string {
-	if (!isFinite(probability)) return '—';
+	if (!isFinite(probability)) return '-';
 	return `${(probability * 100).toFixed(1)}%`;
 }
 

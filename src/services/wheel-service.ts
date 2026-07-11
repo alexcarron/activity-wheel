@@ -32,8 +32,8 @@ function activeWheelStorageKey(scopeUserId?: string): string {
 /**
  * `'default'` is only a meaningful fallback for the local/signed-out case (it's the
  * literal ID of the pre-multi-wheel migrated wheel, see schema.ts v3). Cloud wheel
- * IDs are UUIDs, so a signed-in user with nothing stored yet gets '' instead —
- * callers must treat '' as "no active wheel resolved yet", not query it directly.
+ * IDs are UUIDs, so a signed-in user with nothing stored yet gets '' instead.
+ * Callers must treat '' as "no active wheel resolved yet", not query it directly.
  */
 export function getStoredActiveWheelId(scopeUserId?: string): string {
 	const stored = localStorage.getItem(activeWheelStorageKey(scopeUserId));

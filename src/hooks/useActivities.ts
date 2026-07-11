@@ -58,7 +58,7 @@ export function useActivities(wheelId: string, userId: string | null): UseActivi
 	// Re-load whenever the wheelId or backend changes.
 	// An empty wheelId means useWheels hasn't resolved an active wheel yet
 	// (e.g. a freshly signed-in cloud account before its first wheel loads/is
-	// created) — there's nothing valid to query yet, so wait rather than fetch.
+	// created). There's nothing valid to query yet, so wait rather than fetch.
 	useEffect(() => {
 		isMounted.current = true;
 		// Intentional: this effect's job is to reset loading state for the newly

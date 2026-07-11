@@ -14,7 +14,7 @@ export const ACCEPT_STEP = 7;
 export const REJECT_STEP = 5;
 /** Large positive step applied on BOOST (intentional, user-driven enthusiasm). */
 export const BOOST_STEP = 25;
-/** Large negative step applied on HATE (strong dislike — ~5× reject, mirrors BOOST_STEP). */
+/** Large negative step applied on HATE (strong dislike, ~5× reject, mirrors BOOST_STEP). */
 export const HATE_STEP = 25;
 
 // Momentum (streak multiplier)

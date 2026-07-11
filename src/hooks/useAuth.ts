@@ -1,5 +1,5 @@
 /**
- * `useAuth` — owns the Supabase session and the current user's profile.
+ * `useAuth`. Owns the Supabase session and the current user's profile.
  * Restores any existing session on mount and subscribes to live auth changes
  * (sign-in, sign-out, token refresh) so the rest of the app can gate on `user`.
  */

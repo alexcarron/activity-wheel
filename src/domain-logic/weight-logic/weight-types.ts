@@ -5,7 +5,7 @@
 
 /**
  * Optional context passed to feedback and effective-weight calculations.
- * Providing pool context enables two features: 1. Dominance guard — suppresses accept growth if one activity already dominates the pool. 2. Context-aware recency boost — scales the new-activity bonus relative to the pool's current average weight rather than using a flat fallback. 
+ * Providing pool context enables two features: 1. Dominance guard. Suppresses accept growth if one activity already dominates the pool. 2. Context-aware recency boost. Scales the new-activity bonus relative to the pool's current average weight rather than using a flat fallback. 
  */
 export interface GlobalWeightContext {
 	/** Sum of all activities' effective weights in the current pool. */

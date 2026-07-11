@@ -1,5 +1,5 @@
 /**
- * Auth service — thin wrapper around Supabase Auth (Google OAuth) and the `profiles` table.
+ * Auth service. Thin wrapper around Supabase Auth (Google OAuth) and the `profiles` table.
  * getSession/onAuthStateChange must stay safe when Supabase isn't configured, since
  * useAuth calls them unconditionally on every load (including local-only usage).
  */
