@@ -1,126 +1,118 @@
-/* ---------------------------------------------------------------------- */
-/* Global styling. Theme variables live here; layout in App.css.           */
-/* ---------------------------------------------------------------------- */
-
 :root {
-  --bg: #f7fbfb;
-  --bg-elev: #ffffff;
-  --bg-soft: #eef5f4;
-  --text: #2d3436;
-  --text-soft: #636e72;
-  --text-mute: #a0a8ab;
-  --border: #dde6e6;
-  --border-strong: #c3cdcd;
-  --border-soft: #f7fbfb;
+	--bg: #f7fbfb;
+	--bg-elev: #ffffff;
+	--bg-soft: #eef5f4;
+	--text: #2d3436;
+	--text-soft: #636e72;
+	--text-mute: #a0a8ab;
+	--border: #dde6e6;
+	--border-strong: #c3cdcd;
+	--border-soft: #f7fbfb;
 
-  --accent: #4ecdc4;
-  --accent-strong: #2ba89f;
-  --accent-rgb: 78, 205, 196;
-  --accent-soft: rgba(var(--accent-rgb), 0.14);
+	--accent: #ed3a8e;
+	--accent-strong: #ed3a8e;
+	--accent-soft: rgba(var(--accent-rgb), 0.18);
+	--accent-rgb: 237, 58, 142;
 
-  --good: #37b24d;
-  --good-strong: #2b8c3e;
-  --warn: #f08c00;
-  --warn-strong: #cc7400;
-  --warn-rgb: 240, 140, 0;
-  --boost: #ff6b6b;
-  --boost-strong: #fa5252;
-  --hate: #c92a2a;
-  --hate-strong: #a61e1e;
-  --hate-rgb: 201, 42, 42;
-  --neutral: #9aa6a6;
+	--good: #37b24d;
+	--good-strong: #2b8c3e;
+	--warn: #f08c00;
+	--warn-strong: #cc7400;
+	--warn-rgb: 240, 140, 0;
+	--boost: #ff6b6b;
+	--boost-strong: #fa5252;
+	--hate: #c92a2a;
+	--hate-strong: #a61e1e;
+	--hate-rgb: 201, 42, 42;
+	--neutral: #9aa6a6;
 
-  --radius: 10px;
-  --radius-sm: 6px;
-  --shadow: 0 6px 24px rgba(45, 52, 54, 0.08), 0 2px 6px rgba(45, 52, 54, 0.05);
+	--radius: 10px;
+	--radius-sm: 6px;
+	--shadow: 0 6px 24px rgba(45, 52, 54, 0.08), 0 2px 6px rgba(45, 52, 54, 0.05);
 
-  --sans: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	--sans: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+	--mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  font: 16px/1.45 var(--sans);
-  color: var(--text);
-  background: var(--bg);
-  color-scheme: light dark;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
+	font: 16px/1.45 var(--sans);
+	color: var(--text);
+	background: var(--bg);
+	color-scheme: light dark;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	text-rendering: optimizeLegibility;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    /* Page bg sits darkest; each surface above it (soft, then elev) gets
-       progressively lighter so elevation reads as "closer to the viewer". */
-    --bg: #151819;
-    --bg-soft: #1e2224;
-    --bg-elev: #282d2f;
-    --text: #f1f4f4;
-    --text-soft: #b0b8ba;
-    --text-mute: #7c8688;
-    --border: #383f42;
-    --border-strong: #49545a;
-    --border-soft: #151819;
+	:root {
+		--bg: #0f0f0f;
+		--bg-soft: #212121;
+		--bg-elev: #141414;
+		--text: #f1f4f4;
+		--text-soft: #b0b8ba;
+		--text-mute: #7c8688;
+		--border: #383f42;
+		--border-strong: #49545a;
+		--border-soft: #151819;
+		
+		--accent: #0AA6B5;
+		--accent-strong: #0AA6B5;
+		--accent-soft: rgba(var(--accent-rgb), 0.18);
+		--accent-rgb: 9, 145, 165;
 
-    /* Saturation pulled back ~20% from the light-mode anchors below — fully
-       saturated hues read as neon against a near-black background. */
-    --accent: #7ad5cf;
-    --accent-strong: #4ecdc4;
-    --accent-rgb: 122, 213, 207;
-    --accent-soft: rgba(var(--accent-rgb), 0.18);
+		--boost: #06b354;
+		--boost-strong: #06b354;
+		--good: #08944F;
+		--good-strong: #08944F;
+		--warn: #C83A3A;
+		--warn-strong: #C83A3A;
+		--warn-rgb: 200, 58, 58;
+		--hate: #D93A4F;
+		--hate-strong: #D93A4F;
+		--hate-rgb: 217, 58, 79;
 
-    --good: #59c06c;
-    --good-strong: #37b24d;
-    --warn: #e29536;
-    --warn-strong: #f08c00;
-    --warn-rgb: 226, 149, 54;
-    --boost: #f07a7a;
-    --boost-strong: #fa5252;
-    --hate: #bc4e4e;
-    --hate-strong: #c92a2a;
-    --hate-rgb: 188, 78, 78;
-
-    --shadow: 0 6px 24px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.3);
-  }
+		--shadow: 0 6px 24px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.3);
+	}
 }
 
 body {
-  margin: 0;
-  min-height: 100svh;
+	margin: 0;
+	min-height: 100svh;
 }
 
 #root {
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
+	min-height: 100svh;
+	display: flex;
+	flex-direction: column;
 }
 
 * {
-  box-sizing: border-box;
+	box-sizing: border-box;
 }
 
 input,
 button,
 select,
 textarea {
-  font: inherit;
-  color: inherit;
+	font: inherit;
+	color: inherit;
 }
 
 button {
-  cursor: pointer;
+	cursor: pointer;
 }
 
 button:disabled {
-  cursor: not-allowed;
+	cursor: not-allowed;
 }
 
 .visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+	border: 0;
 }

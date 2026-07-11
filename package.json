@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Local-first weighted activity wheel — pick what to do next.",
+  "description": "Weighted activity wheel to pick what to do next.",
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "tsc -b && vite build",
@@ -12,8 +12,10 @@
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.110.2",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "react-dom": "^19.2.5",
+    "tslib": "^2.8.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

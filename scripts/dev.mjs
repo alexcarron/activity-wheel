@@ -26,7 +26,7 @@ async function isPortOpen(port) {
 }
 
 if (await isPortOpen(PORT)) {
-	console.log(`Dev server already running at http://localhost:${PORT} — leaving it running.`)
+	console.log(`Dev server already running at http://localhost:${PORT}. Leaving it running.`)
 	process.exit(0)
 }
 

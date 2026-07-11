@@ -1,333 +1,136 @@
-# Activity Wheel — Product Overview
-
-**Project:** Weighted Activity Wheel  
-**Tech Stack:** Vite + React + TypeScript + IndexedDB (fully client-side, no backend)
-
-> **For implementation details** (file map, type definitions, weight constants, invariants),
-> see [`claude-project-context.md`](./claude-project-context.md).  
-> **For per-feature deep dives**, see [`feature-super-fun.md`](./feature-super-fun.md)
-> and [`feature-tagging.md`](./feature-tagging.md).
-
----
-
-## 1. Product Vision
-
-The Activity Wheel solves **decision paralysis when choosing what to do for fun.**
+# Activity Wheel: Product Overview
 
-Instead of agonizing over options, users spin a wheel to get a suggestion. But this isn't a
-random dice roll — the wheel is *intelligent*. It learns which activities the user genuinely
-enjoys and increases their likelihood of appearing, while activities the user rejects gradually
-fade in priority. The system is conversational (no manual weight numbers), transparent in how
-it works, and designed to stabilize over time rather than lock into repetitive picks.
+This is the deeper companion to the [README](../README.md). The README tells you how to run the app and gives the short version of how it behaves. This doc walks through every feature in more detail, for anyone who wants to understand exactly what the app does before touching the code.
 
-### Core Promise
+## What it's for
 
-- **Fast decision-making:** Spin once, get a suggestion.
-- **Adaptive:** Learns what you enjoy without requiring explicit numeric input.
-- **Fair:** New activities get a fair chance; old favorites don't dominate forever.
-- **Recoverable:** Even rejected activities can make a comeback if your mood changes.
+You've got a list of things you could do and no idea which one you're in the mood for. You spin the wheel, it picks something, and you say whether that was a good idea or not. Over time the wheel gets better at guessing, without you ever typing in a number.
 
----
+## Spinning and selection
 
-## 2. User Workflows
+Pressing **Spin the wheel** (or `Space`) picks the winner immediately using a cumulative weighted random draw over the current session pool, then plays a deceleration animation that lands the canvas on that precomputed slice. The animation is purely visual: nothing about the outcome depends on how the wheel looks while it spins.
 
-### Daily Usage Scenario
+Slices are drawn heaviest-first starting at 12 o'clock, sized by each activity's *effective weight* (its stored weight plus any active recency boost, further exaggerated or compressed by the debug weight-spread slider if you've touched it).
 
-```
-User opens app → Sees wheel with list of activities
-
-1. "I feel like doing something fun but don't know what"
-   → Click SPIN button
-   → Wheel lands on: "Play Deadlock"
-   → Think: "Nah, not in the mood"
-   → Click REJECT
-   → Weight decreases; activity removed from current session
+Once it lands, you get four feedback buttons and two navigation buttons:
 
-2. Click SPIN again (Deadlock no longer available)
-   → Wheel lands on: "Play Celeste"
-   → Think: "Could work, but let me see if there's something better"
-   → Click SKIP
-   → Weight unchanged; activity removed from current session
+- **★ Love It!** (`L`): a large weight boost, roughly 3.5x an accept. This is the one feedback type that ignores the dominance guard (below), because it's a deliberate strong reaction.
+- **Accept** (`Y`): a moderate weight increase.
+- **Skip** (`S`): no weight change at all, but the activity still leaves the session pool since you've seen it.
+- **✕ Hate It!** (`H`): a large weight penalty, mirroring Love It in the other direction.
+- **Reject** (`N`): a moderate weight decrease.
+- **Spin again** (`Space`): spins from whatever's left in the session pool.
+- **Reset session**: puts every excluded activity back into the pool.
 
-3. Click SPIN again
-   → Wheel lands on: "Play Factorio"
-   → Think: "Yes! That sounds great"
-   → Plays Factorio, comes back
-   → Click ACCEPT → moderate weight increase
-   OR
-   → Click ★ SUPER FUN! → large weight increase (~3.5× Accept)
+Whatever you spin is excluded from the rest of the session no matter which button you press, including Skip, so the next spin always shows you something new. Accepting doesn't auto-reset the session, so you're free to keep spinning or stop whenever you want.
 
-4. [Later] Wants to add new activity
-   → Types "Watch Anime" in add field → clicks ADD
-   → Appears immediately with neutral weight + 7-day recency boost
+If the activity you land on has no tags yet, a small "No tags yet. Add a tag?" prompt appears so you can tag it on the spot instead of hunting for it in the list later. You can also rename the winning activity directly from this panel by clicking its name.
 
-5. [With many activities] Wants only gaming options tonight
-   → Clicks "Gaming" tag pill in filter bar
-   → Wheel now only spins gaming activities
-   → Filter cleared automatically on next page load
-```
+## The weight system
 
-### Adding & Managing Activities
+Every activity carries a numeric weight that only moves in response to your feedback.
 
-```
-User navigates to "Activities" section
-- See list of all activities sorted by name / date added / weight
-- Inline-edit any activity name (click name)
-- Search activities by name
-- Sort by name / date added / most enjoyed
-- Delete activity (with confirmation)
-- Manually adjust weight (★ / + / −  buttons per row)
-- Add tags to activities (pill UI in each row)
-- Warning flag shown if weight is dangerously low
-```
+A few things shape how much a single piece of feedback actually moves the needle:
 
-### Tag Filtering
+- **Momentum.** Giving the same kind of feedback several times in a row builds a streak multiplier, up to 2x. A run of five accepts in a row moves the weight more per-click than five isolated accepts spread across different sessions.
+- **Recency boost.** A newly added activity gets a temporary head start scaled to the pool's average weight, so it's competitive against activities that already have a history. It fades linearly over 7 days.
+- **Diminishing returns.** As a weight gets close to its floor or ceiling, further nudges in that direction matter less, so the system doesn't swing to an extreme from a single burst of clicks.
+- **Dominance guard.** If one activity already holds 60% or more of the pool's total effective weight, further Accept-driven increases on it are suppressed. Boost is exempt from this, since a real "Love It!" reaction should always count.
 
-```
-Tag filter bar lives between the wheel and the activity list.
+Nothing can be silenced completely and nothing can be guaranteed forever. There's always a floor beneath which a weight can't fall and a ceiling it can't cross, and both move automatically as your pool grows or shrinks: a floor that guarantees every activity has a realistic chance of showing up at least once over a typical month of spins (falling back to a fairness-based floor once the pool is too large for that to be mathematically possible), and a ceiling that keeps any single activity below roughly 50% selection probability. If an activity's effective weight drops close to its floor, its row gets a small warning icon as a hint that it might be worth deleting.
 
-- Click a tag pill → wheel + list restricted to that tag
-- Click a second tag → both active (OR by default: either tag matches)
-- Toggle AND/OR button → require all active tags
-- Click "Untagged" → see only activities with no tags (cleanup tool)
-- "All" pill always resets the filter
-- Filter does NOT persist across page loads (by design)
-- Digit keys 1–9 activate the 9 most-popular tags
-```
+None of this changes what the weight numbers mean, only how much influence a single click carries at that moment.
 
-### Resetting a Session
+If you want the exact constants (step sizes, momentum cap, dominance threshold, and so on), they all live with comments explaining the reasoning in `src/domain-logic/weight-logic/weight-constants.ts`, and the floor/ceiling math itself is in `weight-minimum-logic.ts` and `weight-maximum-logic.ts`.
 
-```
-At any time:
-- Click RESET SESSION → clears current spin exclusions, full pool restored
-- Page refresh → automatic session reset
-- After accepting, user can spin again (remaining pool) or reset manually
-```
+## Wheels
 
----
+You're not limited to one list of activities. The tab bar above the wheel lets you keep separate wheels for separate contexts, like a "Games" wheel and a "Weekend" wheel, each with its own activities, tags, and weights.
 
-## 3. Core Features
+- Click `+` to create a new wheel, either blank or copied from an existing one. Copying gives you the option to carry over the source wheel's weights or reset everything to the default.
+- Double-click a tab to rename it.
+- Hover a tab to reveal its `×` delete button. You can't delete your last wheel: there always has to be at least one.
+- `[` and `]` cycle between wheels without touching the mouse.
+- Click the 📌 button above the wheel to pin the wheel header in place while you scroll through a long activity list.
 
-### 3.1 Spinning & Selection
+## Tag filtering
 
-**What happens when user spins:**
+The pill bar between the wheel and the activity list lets you narrow the spin pool down to a subset of activities.
 
-1. Cumulative weighted random selection picks the winner *before* the animation starts.
-2. Wheel animates smoothly with deceleration curve; lands exactly on the selected slice.
-3. Selected activity is shown with action buttons.
+- Click a tag pill to filter to it. Click a second tag and, by default, activities matching *either* tag qualify (OR). An AND/OR toggle appears once you've got two or more tags active, letting you require all of them instead.
+- Click **Untagged** to see only activities with no tags at all, useful for finding things you haven't gotten around to organizing.
+- Click **All** to clear the filter.
+- Typing in the search box narrows the pill list itself, it doesn't touch the wheel directly.
+- Digit keys `1`-`9` are bound to the nine most-used tags, sorted by how many activities carry them.
 
-**Post-spin feedback (determines weight change):**
+The filter is intentionally session-only. It resets on page load and whenever you switch wheels, so you never get stuck wondering why the wheel seems to be ignoring half your activities.
 
-| Button | Hotkey | Effect |
-|--------|--------|--------|
-| ★ Super Fun! | `F` | Large weight boost (~3.5× Accept); bypasses dominance guard |
-| Accept | `Y` | Moderate weight increase |
-| Skip | `S` | No weight change; activity excluded from session |
-| Reject | `N` | Weight decrease; activity excluded from session |
-
-**Post-spin navigation:**
-
-| Button | Hotkey | Effect |
-|--------|--------|--------|
-| Spin again | `Space` | Spin from remaining session pool |
-| Reset session | — | Restore full pool, clear exclusions |
-
-**Key behavior:**
-- Accepting does NOT auto-reset; user decides when to reset.
-- Activities cannot be spun twice in the same session.
-- If the landed activity has no tags, a subtle "Add a tag?" prompt appears.
-
-### 3.2 Weight System Philosophy
-
-The weight system is the heart of the app. Design goals:
-
-- **Conversational:** Users never enter numbers — only press feedback buttons.
-- **Stable:** Converges over time; doesn't lock into the same pick forever.
-- **Fair:** Rejects fade but remain possible (redemption arc).
-- **Balanced:** New activities are viable but not dominant.
-- **Meaningful at scale:** With 100+ activities, feedback should still noticeably shift probabilities over time.
-
-**Short-term reactivity:**
-- Boost/Accept → weight increase; Reject → decrease; Skip → no change.
-- Changes get stronger with repetition (momentum multiplier up to 2×).
-
-**Long-term adaptation:**
-- Repeated accepts → increasingly stronger gains (diminishing returns prevent monopoly).
-- New activities get a temporary recency boost that fades linearly over 7 days.
-
-**Bounds and stability:**
-- Minimum floor (~20): if weight hits this, a warning flag appears (candidate for deletion).
-- Maximum ceiling (300): diminishing returns prevent any one activity from dominating.
-- No activity can ever reach weight = 0 — everything remains spinnable.
-
-For exact constants and math, see [`claude-project-context.md`](./claude-project-context.md#weight-system).
-
-### 3.3 Activity List & Management
-
-- **List view** with all activities (or tag-filtered subset when a filter is active).
-- **Inline editing** of activity names (click to edit).
-- **Search bar** to filter by name.
-- **Sort options:** name, date added, most enjoyed.
-- **Delete button** (trash icon) with confirmation per activity.
-- **Manual weight controls:** ★ Super Fun! | + Increase | − Decrease.
-- **Tag pills** on each row: show tags, ＋ to add (combobox with autocomplete), ✕ to remove, right-click to set color. Tag count badge shown subtly on each pill (fades to ✕ on row hover).
-- **Visual indicators:** warning flag for low weight; optional weight/probability debug view.
-- **Compact mode:** Toggle button (dense-lines icon) in the list controls. Collapses each row to a single line showing name + weight (if debug) + all four action buttons. Removes the list height cap so the full activity list can fill the entire viewport — designed for scanning and acting on many activities at once without scrolling.
-
-### 3.4 Tagging
-
-Activities can be labelled with any number of freeform text tags (e.g. "Gaming", "PC", "TV Show").
-Tags drive the filter bar. For full tagging spec see [`feature-tagging.md`](./feature-tagging.md).
-
-Key facts:
-- Tags are stored as `string[]` on the Activity.
-- Tag colors are global per tag name (stored in a separate `tag-metadata` IDB store).
-- Every tag name ever used is remembered for autocomplete.
-- The active tag filter is **session-only** — it never persists across page loads.
-
-### 3.5 Wheel Animation
-
-- Smooth 60fps spinning animation via `requestAnimationFrame`.
-- Natural deceleration (ease-out curve).
-- Supports ~200 activities without lag.
-- Selection is computed before animation starts — animation is purely visual.
-
-### 3.6 Session Management
-
-A "session" is the current spin pool.
-
-- **Start:** All activities (or filtered subset) available.
-- **Each spin:** Selected activity is excluded for the rest of the session.
-- **Reset session:** Restores full pool.
-- **Page refresh:** Automatic session reset.
-- **With tag filter active:** Pool = filtered activities ∩ not yet spun this session.
-
-### 3.7 Data Persistence & Backup
-
-**IndexedDB Storage:**
-- All activities, weights, and tag metadata persisted locally.
-- No backend required; fully client-side.
-- Automatic save on every action.
-
-**Backup/Import:**
-- Export current data as JSON.
-- Import JSON to restore state.
-- Useful for switching devices, recovering data, sharing setups.
-
-**Current export format (simplified):**
-```json
-{
-  "name": "activity-wheel",
-  "version": 2,
-  "exportedAt": 1700000000000,
-  "stores": {
-    "activities": [
-      {
-        "id": "uuid-1",
-        "name": "Play Factorio",
-        "weight": 115,
-        "createdAt": 1700000000000,
-        "acceptCount": 5,
-        "rejectCount": 1,
-        "streak": 2,
-        "tags": ["Gaming", "PC"]
-      }
-    ],
-    "tag-metadata": [
-      { "name": "Gaming", "color": "#3b82f6" },
-      { "name": "PC" }
-    ]
-  }
-}
-```
-
----
-
-## 4. UI Structure
-
-### Layout (top to bottom)
-
-1. **Header** — title + subtitle
-2. **Wheel Canvas** — visual wheel with slice labels; pointer at top
-3. **Post-Spin Panel** — appears after landing; shows activity name + feedback buttons
-4. **Tag Filter Bar** — pill strip between wheel and list; "All" | "Untagged" | tag pills
-5. **Activities Panel** — heading + AddActivity input + ActivityList (search, sort, rows)
-6. **Debug Panel** (collapsed by default) — weights, probabilities, RNG seed
-7. **Backup Controls** (collapsed by default) — export/import/clear
-
-### Styling
-
-- Plain CSS (`App.css` + `index.css`); no CSS framework.
-- Theme via CSS custom properties in `index.css`; full dark-mode support via `@media (prefers-color-scheme: dark)`.
-- Responsive but optimized for desktop (primary use case).
-
----
-
-## 5. Selection Algorithm
-
-### Cumulative Weighted Random Selection
-
-```
-Activities: [A, B, C, D]
-Weights:    [50, 100, 75, 150]
-Cumulative: [50, 150, 225, 375]
-
-Random value 0–375: say 180
-  → Falls in B's range (50–150)
-  → Selects B
-
-Probability:
-  A: 50/375 = 13%   B: 100/375 = 27%
-  C: 75/375 = 20%   D: 150/375 = 40%
-```
-
-- O(n) selection time — fast for ~200 items.
-- Deterministic when seeded (useful for debugging via the RNG seed input).
-- Uses *effective weight* (stored weight + recency boost) for selection, not raw stored weight.
-
----
-
-## 6. Edge Cases
-
-| Scenario | Behavior |
-|----------|----------|
-| Zero activities | Empty-state message; invite user to add first activity |
-| One activity | Spins deterministically |
-| All activities spun in session | Empty-state; offer Reset Session |
-| Tag filter active + no matches | "No activities match this filter" + Clear Filter button |
-| Tag filter active + all matches spun | Offers both Reset Session and Clear Filter |
-| Activity deleted mid-session | Safely removed from pool; no crash |
-| Weight at minimum | Warning flag shown on row |
-| IndexedDB unavailable | Error state with explanation |
-
----
-
-## 7. Performance Targets
-
-| Metric | Target |
-|--------|--------|
-| Wheel animation | 60fps with 200 activities |
-| Feedback response | < 50ms perceived |
-| Startup with full list | < 1 second |
-| Search/sort 200 activities | No noticeable lag |
-
-Primary device: desktop/tablet. Typical usage: 10–50 activities, 5–20 spins per session.
-
----
-
-## 8. Success Metrics
-
-### User Success
-
-- User opens app unsure what to do → gets suggestion → does the activity.
-- Over weeks, the wheel increasingly surfaces genuinely enjoyed activities.
-- Disliked activities fade without the user having to manually manage weights.
-- New activities are discovered naturally without dominating.
-
-### System Success
-
-- No weight runaway (single activity > 60% probability is guarded against).
-- No permanent stale bias (feedback always has a meaningful effect).
-- Selection unbiased relative to weights.
-- Smooth performance at 200 activities.
-- Schema migrations never destroy existing data.
+## Managing activities
+
+The activity list below the wheel shows every activity (or the tag-filtered subset, if a filter's active), with search and three sort options: date added, name, and most enjoyed (by weight).
+
+Each row supports:
+
+- Click the name to rename it inline.
+- The same four feedback buttons as the post-spin panel (★ / + / − / ✕), so you can nudge a weight without spinning for it.
+- Tags: add via the `+` combobox (autocompletes from every tag you've ever used, or lets you create a new one), remove with the `×` on hover, right-click a tag to change its color from a preset palette or a custom picker.
+- Delete, with a confirmation prompt.
+
+Click-and-drag across the circular selector on the left of multiple rows to multi-select them, which opens a batch action bar for adding a tag to everything selected at once.
+
+The compact-view toggle (the dense-lines icon next to sort) collapses each row to a single line and removes the list's height cap, so it can fill the whole viewport. It's meant for scanning and acting on a large activity list quickly rather than admiring one row at a time.
+
+## Signing in (optional, cloud sync)
+
+By default your data lives entirely in this browser's IndexedDB and the app never makes a network call. Signing in with Google switches you over to a private Supabase-backed account instead, so your wheels follow you across browsers and devices. Every table is scoped to your account via Postgres row-level security, not by anything the frontend enforces.
+
+The first time you sign in, an **Import local wheels** button appears that copies whatever's currently in this browser's IndexedDB into your new account, one time only, and never touches the local copy. It refuses to run again once your account already has a wheel with activities in it, so you can't accidentally double-import.
+
+You can ignore all of this and just use the app signed out forever. Nothing about local-only behavior changes based on whether cloud sync is configured.
+
+For the full design (schema, RLS policies, the deploy story), see [`user-authentication-plan.md`](./user-authentication-plan.md).
+
+## Backup and restore
+
+Open the **Backup & restore** panel at the bottom of the page for:
+
+- **Export JSON**: downloads every wheel, activity, and tag as a single JSON file.
+- **Import JSON**: replaces *all* wheels with the contents of a file you pick, after a confirmation, since this is destructive.
+- **Clear wheel**: wipes activities and tags from the wheel you currently have open.
+- **Clear all wheels**: wipes everything and leaves you with one blank wheel.
+
+This is the same escape hatch whether you're signed in or not: it always operates on whichever backend (local or cloud) you're currently using.
+
+## Debug mode
+
+Open the **Debug** disclosure to toggle:
+
+- **Show weights**: adds an effective-weight pill to each activity row.
+- **Show probabilities**: adds a pill showing that activity's odds on the next spin, computed over whatever pool (filtered or not) is currently in play.
+- **RNG seed**: when set, every spin is driven by a Mulberry32 generator seeded from your string plus the current pool size and a tick counter, so the same starting state and seed reproduces the same sequence of spins.
+- **Weight spread**: a slider that exaggerates or compresses the *displayed* differences between activities' weights, for previewing how a lopsided pool would feel, without touching anything actually stored.
+- **Allow extreme weight spread**: unlocks a much wider range on that slider for stress-testing very unbalanced pools.
+
+All of these persist to `localStorage`, so they survive a page reload.
+
+## Edge cases worth knowing about
+
+- **No activities at all** shows a prompt to add your first one instead of an empty wheel.
+- **One activity** always wins, deterministically.
+- **Session pool exhausted** (everything's been spun) offers a Reset session button instead of a spin button.
+- **Tag filter matches nothing** offers a Clear filter button.
+- **Tag filter matches something, but you've spun through all of it this session** offers both Reset session and Clear filter.
+- **Deleting an activity mid-animation** is handled gracefully: the wheel resets rather than trying to land on something that no longer exists.
+
+## Layout, top to bottom
+
+1. Auth control (sign in / account name), top-right of the wheel header.
+2. Wheel tabs, for switching between wheels.
+3. The wheel canvas itself, with the pin button.
+4. Post-spin panel, once you've landed on something.
+5. Tag filter bar.
+6. Activities panel: add-activity field, search/sort/compact controls, the list itself.
+7. Debug panel (collapsed by default).
+8. Backup & restore (collapsed by default).
+
+Styling is plain CSS, no framework, with theme variables in `src/index.css` and full dark-mode support via `prefers-color-scheme`.

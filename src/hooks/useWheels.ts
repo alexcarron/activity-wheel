@@ -1,199 +1,239 @@
 /**
- * `useWheels` — owns the list of wheels and the currently active wheel.
- *
- * The active wheel ID is persisted in localStorage so it survives page reloads.
- * When the active wheel changes, downstream hooks (useActivities, useTagFilter)
- * re-initialise automatically because they receive the new wheelId as a prop.
+ * `useWheels`. Owns the list of wheels and the currently active wheel.
+ * Signed-out users are backed by IndexedDB (local-only); signed-in users are backed
+ * by Supabase, private to their account. The active wheel ID is persisted in
+ * localStorage (scoped per signed-in user) so it survives page reloads. When the
+ * active wheel changes, downstream hooks (useActivities, useTagFilter) re-initialise
+ * automatically because they receive the new wheelId as a prop.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Wheel } from '../domain-logic/types';
-import {
-  listWheels,
-  createWheel as svcCreate,
-  renameWheel as svcRename,
-  deleteWheel as svcDelete,
-  copyWheel as svcCopy,
-  touchWheel,
-  getStoredActiveWheelId,
-  persistActiveWheelId,
-} from '../services/wheel-service';
+import * as localWheelService from '../services/wheel-service';
+import { getStoredActiveWheelId, persistActiveWheelId } from '../services/wheel-service';
+import { createCloudWheelService, type CloudWheelService } from '../services/cloud/wheel-service';
 import { useHotkey } from './useHotkey';
-import { HOTKEYS } from '../hotkeys';
+import { HOTKEYS } from '../constants/hotkeys';
+import { toErrorMessage } from '../utils/error-message';
 
 export interface UseWheelsApi {
-  readonly wheels: readonly Wheel[];
-  readonly activeWheelId: string;
-  readonly loading: boolean;
-  /** Switch the active wheel. Resets session + tag filter via downstream hooks. */
-  switchWheel(id: string): void;
-  /** Cycle to the wheel before the active one (wraps). */
-  prevWheel(): void;
-  /** Cycle to the wheel after the active one (wraps). */
-  nextWheel(): void;
-  /** Create a brand-new empty wheel. */
-  createWheel(name: string): Promise<Wheel>;
-  /**
-   * Duplicate a wheel.
-   * @param fromWheelId  Source wheel to copy from.
-   * @param name         Name for the new wheel.
-   * @param resetWeights If true, all copied activities start at default weight.
-   */
-  copyWheel(fromWheelId: string, name: string, resetWeights: boolean): Promise<Wheel>;
-  /** Rename a wheel (inline). */
-  renameWheel(id: string, name: string): Promise<void>;
-  /** Delete a wheel and all its activities. Refuses if it's the only wheel. */
-  deleteWheel(id: string): Promise<void>;
-  /** Re-fetch the wheel list from IDB and sync React state. Use after bulk import/clear. */
-  reloadWheels(): Promise<void>;
+	readonly wheels: readonly Wheel[];
+	readonly activeWheelId: string;
+	readonly loading: boolean;
+	readonly errorMessage: string | null;
+	/** Switch the active wheel. Resets session + tag filter via downstream hooks. */
+	switchWheel(id: string): void;
+	/** Cycle to the wheel before the active one (wraps). */
+	prevWheel(): void;
+	/** Cycle to the wheel after the active one (wraps). */
+	nextWheel(): void;
+	/** Create a brand-new empty wheel. */
+	createWheel(name: string): Promise<Wheel>;
+	/**
+	 * Duplicate a wheel.
+	 * @param fromWheelId - Source wheel to copy from.
+	 * @param name - Name for the new wheel.
+	 * @param resetWeights - If true, all copied activities start at default weight.
+	 */
+	copyWheel(fromWheelId: string, name: string, resetWeights: boolean): Promise<Wheel>;
+	/** Rename a wheel (inline). */
+	renameWheel(id: string, name: string): Promise<void>;
+	/** Delete a wheel and all its activities. Refuses if it's the only wheel. */
+	deleteWheel(id: string): Promise<void>;
+	/** Re-fetch the wheel list from storage and sync React state. Use after bulk import/clear. */
+	reloadWheels(): Promise<void>;
 }
 
-export function useWheels(): UseWheelsApi {
-  const [wheels, setWheels] = useState<readonly Wheel[]>([]);
-  const [activeWheelId, setActiveWheelId] = useState<string>(getStoredActiveWheelId);
-  const [loading, setLoading] = useState(true);
-  const mounted = useRef(true);
+export function useWheels(userId: string | null): UseWheelsApi {
+	const wheelService: CloudWheelService = useMemo(
+		() => (userId ? createCloudWheelService(userId) : localWheelService),
+		[userId],
+	);
 
-  useEffect(() => {
-    mounted.current = true;
-    void (async () => {
-      const list = await listWheels();
-      if (!mounted.current) return;
+	const [wheels, setWheels] = useState<readonly Wheel[]>([]);
+	const [activeWheelId, setActiveWheelId] = useState<string>(() => getStoredActiveWheelId(userId ?? undefined));
+	const [loading, setLoading] = useState(true);
+	const [errorMessage, setErrorMessage] = useState<string | null>(null);
+	const mounted = useRef(true);
 
-      // Ensure the stored active wheel actually exists; fall back if not.
-      const stored = getStoredActiveWheelId();
-      const exists = list.some((w) => w.id === stored);
-      let validId = stored;
-      if (!exists && list.length > 0) {
-        validId = list[0].id;
-        persistActiveWheelId(validId);
-        setActiveWheelId(validId);
-      }
+	useEffect(() => {
+		mounted.current = true;
+		// Intentional: this effect's job is to reset loading state before fetching
+		// wheels for the newly selected backend (local vs. cloud).
+		// eslint-disable-next-line react-hooks/set-state-in-effect
+		setLoading(true);
+		void (async () => {
+			try {
+				const list = await wheelService.listWheels();
+				if (!mounted.current) return;
+				setErrorMessage(null);
 
-      // If there are no wheels at all (shouldn't happen after migration, but
-      // handle defensively), create the default wheel.
-      if (list.length === 0) {
-        const defaultWheel = await svcCreate('My Wheel');
-        validId = defaultWheel.id;
-        persistActiveWheelId(validId);
-        setActiveWheelId(validId);
-        setWheels([defaultWheel]);
-      } else {
-        setWheels(list);
-      }
+				// Sync activeWheelId to the freshly-scoped stored value (userId may have
+				// changed since the initial useState ran, e.g. once auth resolves after
+				// mount) and fall back if the stored wheel doesn't actually exist.
+				const stored = getStoredActiveWheelId(userId ?? undefined);
+				const exists = list.some((wheel) => wheel.id === stored);
+				if (exists) {
+					setActiveWheelId(stored);
+				}
+				else if (list.length > 0) {
+					const fallbackId = list[0].id;
+					persistActiveWheelId(fallbackId, userId ?? undefined);
+					setActiveWheelId(fallbackId);
+				}
 
-      setLoading(false);
-    })();
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
+				// If there are no wheels at all, create a default one.
+				if (list.length === 0) {
+					const defaultWheel = await wheelService.createWheel('My Wheel');
+					if (!mounted.current) return;
+					persistActiveWheelId(defaultWheel.id, userId ?? undefined);
+					setActiveWheelId(defaultWheel.id);
+					setWheels([defaultWheel]);
+				}
+				else {
+					setWheels(list);
+				}
+			}
+			catch (error) {
+				if (mounted.current) setErrorMessage(toErrorMessage(error));
+			}
+			finally {
+				if (mounted.current) setLoading(false);
+			}
+		})();
+		return () => {
+			mounted.current = false;
+		};
+	}, [wheelService, userId]);
 
-  const switchWheel = useCallback((id: string): void => {
-    persistActiveWheelId(id);
-    setActiveWheelId(id);
-    void touchWheel(id);
-    setWheels((prev) =>
-      prev.map((w) => (w.id === id ? { ...w, lastUsedAt: Date.now() } : w)),
-    );
-  }, []);
+	const switchWheel = useCallback(
+		(id: string): void => {
+			persistActiveWheelId(id, userId ?? undefined);
+			setActiveWheelId(id);
+			void wheelService.touchWheel(id);
+			setWheels((prev) =>
+				prev.map((wheel) => (wheel.id === id ? { ...wheel, lastUsedAt: Date.now() } : wheel)),
+			);
+		},
+		[wheelService, userId],
+	);
 
-  const prevWheel = useCallback((): void => {
-    setWheels((current) => {
-      const idx = current.findIndex((w) => w.id === activeWheelId);
-      if (current.length < 2 || idx === -1) return current;
-      const prev = current[(idx - 1 + current.length) % current.length];
-      persistActiveWheelId(prev.id);
-      setActiveWheelId(prev.id);
-      void touchWheel(prev.id);
-      return current.map((w) => (w.id === prev.id ? { ...w, lastUsedAt: Date.now() } : w));
-    });
-  }, [activeWheelId]);
+	const prevWheel = useCallback((): void => {
+		setWheels((current) => {
+			const index = current.findIndex((wheel) => wheel.id === activeWheelId);
+			if (current.length < 2 || index === -1) return current;
+			const previousWheel = current[(index - 1 + current.length) % current.length];
+			persistActiveWheelId(previousWheel.id, userId ?? undefined);
+			setActiveWheelId(previousWheel.id);
+			void wheelService.touchWheel(previousWheel.id);
+			return current.map((wheel) =>
+				wheel.id === previousWheel.id ? { ...wheel, lastUsedAt: Date.now() } : wheel,
+			);
+		});
+	}, [activeWheelId, wheelService, userId]);
 
-  const nextWheel = useCallback((): void => {
-    setWheels((current) => {
-      const idx = current.findIndex((w) => w.id === activeWheelId);
-      if (current.length < 2 || idx === -1) return current;
-      const next = current[(idx + 1) % current.length];
-      persistActiveWheelId(next.id);
-      setActiveWheelId(next.id);
-      void touchWheel(next.id);
-      return current.map((w) => (w.id === next.id ? { ...w, lastUsedAt: Date.now() } : w));
-    });
-  }, [activeWheelId]);
+	const nextWheel = useCallback((): void => {
+		setWheels((current) => {
+			const index = current.findIndex((wheel) => wheel.id === activeWheelId);
+			if (current.length < 2 || index === -1) return current;
+			const nextWheelEntry = current[(index + 1) % current.length];
+			persistActiveWheelId(nextWheelEntry.id, userId ?? undefined);
+			setActiveWheelId(nextWheelEntry.id);
+			void wheelService.touchWheel(nextWheelEntry.id);
+			return current.map((wheel) =>
+				wheel.id === nextWheelEntry.id ? { ...wheel, lastUsedAt: Date.now() } : wheel,
+			);
+		});
+	}, [activeWheelId, wheelService, userId]);
 
-  useHotkey(HOTKEYS.PREV_WHEEL.code, prevWheel, wheels.length > 1);
-  useHotkey(HOTKEYS.NEXT_WHEEL.code, nextWheel, wheels.length > 1);
+	useHotkey(HOTKEYS.SWITCH_TO_PREV_WHEEL.code, prevWheel, wheels.length > 1);
+	useHotkey(HOTKEYS.SWITCH_TO_NEXT_WHEEL.code, nextWheel, wheels.length > 1);
 
-  const createWheel = useCallback(async (name: string): Promise<Wheel> => {
-    const w = await svcCreate(name);
-    if (mounted.current) setWheels((prev) => [...prev, w]);
-    return w;
-  }, []);
+	const createWheel = useCallback(
+		async (name: string): Promise<Wheel> => {
+			const wheel = await wheelService.createWheel(name);
+			if (mounted.current) setWheels((prev) => [...prev, wheel]);
+			return wheel;
+		},
+		[wheelService],
+	);
 
-  const copyWheel = useCallback(
-    async (fromWheelId: string, name: string, resetWeights: boolean): Promise<Wheel> => {
-      const w = await svcCopy(fromWheelId, name, resetWeights);
-      if (mounted.current) setWheels((prev) => [...prev, w]);
-      return w;
-    },
-    [],
-  );
+	const copyWheel = useCallback(
+		async (fromWheelId: string, name: string, resetWeights: boolean): Promise<Wheel> => {
+			const wheel = await wheelService.copyWheel(fromWheelId, name, resetWeights);
+			if (mounted.current) setWheels((prev) => [...prev, wheel]);
+			return wheel;
+		},
+		[wheelService],
+	);
 
-  const renameWheel = useCallback(async (id: string, name: string): Promise<void> => {
-    const updated = await svcRename(id, name);
-    if (mounted.current) {
-      setWheels((prev) => prev.map((w) => (w.id === id ? updated : w)));
-    }
-  }, []);
+	const renameWheel = useCallback(
+		async (id: string, name: string): Promise<void> => {
+			const updated = await wheelService.renameWheel(id, name);
+			if (mounted.current) {
+				setWheels((prev) => prev.map((wheel) => (wheel.id === id ? updated : wheel)));
+			}
+		},
+		[wheelService],
+	);
 
-  const deleteWheel = useCallback(
-    async (id: string): Promise<void> => {
-      if (wheels.length <= 1) throw new Error('Cannot delete the only wheel');
-      await svcDelete(id);
-      setWheels((prev) => {
-        const next = prev.filter((w) => w.id !== id);
-        // If we deleted the active wheel, switch to the first remaining one.
-        if (activeWheelId === id && next.length > 0) {
-          persistActiveWheelId(next[0].id);
-          setActiveWheelId(next[0].id);
-        }
-        return next;
-      });
-    },
-    [wheels.length, activeWheelId],
-  );
+	const deleteWheel = useCallback(
+		async (id: string): Promise<void> => {
+			if (wheels.length <= 1) throw new Error('Cannot delete the only wheel');
+			await wheelService.deleteWheel(id);
+			setWheels((prev) => {
+				const next = prev.filter((wheel) => wheel.id !== id);
+				// If we deleted the active wheel, switch to the first remaining one.
+				if (activeWheelId === id && next.length > 0) {
+					persistActiveWheelId(next[0].id, userId ?? undefined);
+					setActiveWheelId(next[0].id);
+				}
+				return next;
+			});
+		},
+		[wheels.length, activeWheelId, wheelService, userId],
+	);
 
-  const reloadWheels = useCallback(async (): Promise<void> => {
-    const list = await listWheels();
-    if (!mounted.current) return;
-    setWheels(list);
-    // If the stored active wheel no longer exists, fall back to first.
-    const stored = getStoredActiveWheelId();
-    if (!list.some((w) => w.id === stored) && list.length > 0) {
-      persistActiveWheelId(list[0].id);
-      setActiveWheelId(list[0].id);
-    }
-  }, []);
+	const reloadWheels = useCallback(async (): Promise<void> => {
+		const list = await wheelService.listWheels();
+		if (!mounted.current) return;
+		setWheels(list);
+		// If the stored active wheel no longer exists, fall back to first.
+		const stored = getStoredActiveWheelId(userId ?? undefined);
+		if (!list.some((wheel) => wheel.id === stored) && list.length > 0) {
+			persistActiveWheelId(list[0].id, userId ?? undefined);
+			setActiveWheelId(list[0].id);
+		}
+	}, [wheelService, userId]);
 
-  return useMemo<UseWheelsApi>(
-    () => ({
-      wheels,
-      activeWheelId,
-      loading,
-      switchWheel,
-      prevWheel,
-      nextWheel,
-      createWheel,
-      copyWheel,
-      renameWheel,
-      deleteWheel,
-      reloadWheels,
-    }),
-    [
-      wheels, activeWheelId, loading,
-      switchWheel, prevWheel, nextWheel,
-      createWheel, copyWheel, renameWheel, deleteWheel, reloadWheels,
-    ],
-  );
+	return useMemo<UseWheelsApi>(
+		() => ({
+			wheels,
+			activeWheelId,
+			loading,
+			errorMessage,
+			switchWheel,
+			prevWheel,
+			nextWheel,
+			createWheel,
+			copyWheel,
+			renameWheel,
+			deleteWheel,
+			reloadWheels,
+		}),
+		[
+			wheels,
+			activeWheelId,
+			loading,
+			errorMessage,
+			switchWheel,
+			prevWheel,
+			nextWheel,
+			createWheel,
+			copyWheel,
+			renameWheel,
+			deleteWheel,
+			reloadWheels,
+		],
+	);
 }

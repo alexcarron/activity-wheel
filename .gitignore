@@ -18,24 +18,25 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Node Modules
 node_modules
-dist
-dist-ssr
+
+# Local Files
 *.local
 
-# Editor directories and files
+# VSCode Files
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
 
 # Local Launcher Files
 *.lnk
 
-# Backup exports
+# Backup Exports
 /backups/*.json
+
+# Dev Planning
+*TODO.md
+docs/*-plan.md
+
+# Migration Files
+supabase/migrations/*.sql

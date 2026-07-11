@@ -1,150 +1,168 @@
 /**
- * `useTagFilter` — owns the tag filter UI state (session-only) and the
- * per-wheel tag metadata (IDB-persisted).
- *
- * Filter state is intentionally NOT persisted — it resets on every page
- * reload AND whenever the active wheel changes, by design.
- *
- * Tag metadata IS persisted via tag-service and is loaded on mount and
- * whenever the wheelId changes.
+ * `useTagFilter`. Owns the tag filter UI state (session-only) and the per-wheel tag metadata (persisted).
+ * Filter state is intentionally NOT persisted. It resets on every page reload AND whenever the active wheel changes, by design.
+ * Tag metadata IS persisted via tag-service (IndexedDB when signed out, Supabase when signed in) and is loaded on mount and whenever the wheelId or auth state changes.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { TagMetadata } from '../domain-logic/types';
 import type { FilterMode } from '../domain-logic/tag-filter-logic';
-import {
-  listTagMetadata,
-  setTagColor as persistTagColor,
-  ensureTagsExist,
-} from '../services/tag-service';
+import * as localTagService from '../services/tag-service';
+import { createCloudTagService, type CloudTagService } from '../services/cloud/tag-service';
 
 export type { FilterMode };
 
 export interface TagFilterApi {
-  readonly activeTags: readonly string[];
-  readonly untaggedOnly: boolean;
-  readonly filterMode: FilterMode;
+	readonly activeTags: readonly string[];
+	readonly untaggedOnly: boolean;
+	readonly filterMode: FilterMode;
 
-  toggleTag(name: string): void;
-  toggleUntagged(): void;
-  clearFilter(): void;
-  toggleMode(): void;
+	toggleTag(name: string): void;
+	toggleUntagged(): void;
+	clearFilter(): void;
+	toggleMode(): void;
 
-  readonly tagMetadata: readonly TagMetadata[];
+	readonly tagMetadata: readonly TagMetadata[];
 
-  setTagColor(name: string, color: string | null): Promise<void>;
-  registerTags(names: string[]): Promise<void>;
-  reloadMetadata(): Promise<void>;
-  pruneTags(names: string[]): void;
+	setTagColor(name: string, color: string | null): Promise<void>;
+	registerTags(names: string[]): Promise<void>;
+	reloadMetadata(): Promise<void>;
+	pruneTags(names: string[]): void;
 }
 
-export function useTagFilter(wheelId: string): TagFilterApi {
-  const [activeTags, setActiveTags] = useState<readonly string[]>([]);
-  const [untaggedOnly, setUntaggedOnly] = useState(false);
-  const [filterMode, setFilterMode] = useState<FilterMode>('OR');
-  const [tagMetadata, setTagMetadata] = useState<readonly TagMetadata[]>([]);
-  const mounted = useRef(true);
-  const wheelRef = useRef(wheelId);
-  wheelRef.current = wheelId;
+export function useTagFilter(wheelId: string, userId: string | null): TagFilterApi {
+	const tagService: CloudTagService = useMemo(
+		() => (userId ? createCloudTagService(userId) : localTagService),
+		[userId],
+	);
 
-  // Reload tag metadata whenever the active wheel changes.
-  // Also reset all filter state so the new wheel starts clean.
-  useEffect(() => {
-    mounted.current = true;
-    setActiveTags([]);
-    setUntaggedOnly(false);
-    setFilterMode('OR');
-    void listTagMetadata(wheelId).then((meta) => {
-      if (mounted.current) setTagMetadata(meta);
-    });
-    return () => {
-      mounted.current = false;
-    };
-  }, [wheelId]);
+	const [activeTags, setActiveTags] = useState<readonly string[]>([]);
+	const [untaggedOnly, setUntaggedOnly] = useState(false);
+	const [filterMode, setFilterMode] = useState<FilterMode>('OR');
+	const [tagMetadata, setTagMetadata] = useState<readonly TagMetadata[]>([]);
+	const mounted = useRef(true);
+	const wheelRef = useRef(wheelId);
+	useEffect(() => {
+		wheelRef.current = wheelId;
+	}, [wheelId]);
 
-  const toggleTag = useCallback((name: string): void => {
-    setUntaggedOnly(false);
-    setActiveTags((prev) =>
-      prev.includes(name) ? prev.filter((t) => t !== name) : [...prev, name],
-    );
-  }, []);
+	// Reload tag metadata whenever the active wheel or backend changes.
+	// Also reset all filter state so the new wheel starts clean.
+	// An empty wheelId means useWheels hasn't resolved an active wheel yet.
+	useEffect(() => {
+		mounted.current = true;
+		// Intentional: this effect's job is to reset filter state for the newly
+		// active wheel before fetching its tag metadata.
+		// eslint-disable-next-line react-hooks/set-state-in-effect
+		setActiveTags([]);
+		setUntaggedOnly(false);
+		setFilterMode('OR');
+		if (!wheelId) {
+			setTagMetadata([]);
+			return;
+		}
+		void tagService.listTagMetadata(wheelId).then((metadata) => {
+			if (mounted.current) setTagMetadata(metadata);
+		});
+		return () => {
+			mounted.current = false;
+		};
+	}, [wheelId, tagService]);
 
-  const toggleUntagged = useCallback((): void => {
-    setActiveTags([]);
-    setUntaggedOnly((prev) => !prev);
-  }, []);
+	const toggleTag = useCallback((name: string): void => {
+		setUntaggedOnly(false);
+		setActiveTags((prev) =>
+			prev.includes(name) ? prev.filter((tag) => tag !== name) : [...prev, name],
+		);
+	}, []);
 
-  const clearFilter = useCallback((): void => {
-    setActiveTags([]);
-    setUntaggedOnly(false);
-    setFilterMode('OR');
-  }, []);
+	const toggleUntagged = useCallback((): void => {
+		setActiveTags([]);
+		setUntaggedOnly((prev) => !prev);
+	}, []);
 
-  const toggleMode = useCallback((): void => {
-    setFilterMode((m) => (m === 'OR' ? 'AND' : 'OR'));
-  }, []);
+	const clearFilter = useCallback((): void => {
+		setActiveTags([]);
+		setUntaggedOnly(false);
+		setFilterMode('OR');
+	}, []);
 
-  const setTagColor = useCallback(
-    async (name: string, color: string | null): Promise<void> => {
-      await persistTagColor(wheelRef.current, name, color);
-      setTagMetadata((prev) => {
-        const exists = prev.some((t) => t.name === name);
-        const key = `${wheelRef.current}:${name}`;
-        if (exists) {
-          return prev.map((t) =>
-            t.name === name
-              ? color
-                ? { key, wheelId: wheelRef.current, name, color }
-                : { key, wheelId: wheelRef.current, name }
-              : t,
-          );
-        }
-        return color
-          ? [...prev, { key, wheelId: wheelRef.current, name, color }]
-          : [...prev, { key, wheelId: wheelRef.current, name }];
-      });
-    },
-    [],
-  );
+	const toggleMode = useCallback((): void => {
+		setFilterMode((mode) => (mode === 'OR' ? 'AND' : 'OR'));
+	}, []);
 
-  const registerTags = useCallback(async (names: string[]): Promise<void> => {
-    if (names.length === 0) return;
-    await ensureTagsExist(wheelRef.current, names);
-    setTagMetadata((prev) => {
-      const existing = new Set(prev.map((t) => t.name));
-      const fresh = names
-        .map((n) => n.trim())
-        .filter((n) => n && !existing.has(n))
-        .map((name): TagMetadata => ({
-          key: `${wheelRef.current}:${name}`,
-          wheelId: wheelRef.current,
-          name,
-        }));
-      return fresh.length === 0 ? prev : [...prev, ...fresh];
-    });
-  }, []);
+	const setTagColor = useCallback(
+		async (name: string, color: string | null): Promise<void> => {
+			const saved = await tagService.setTagColor(wheelRef.current, name, color);
+			setTagMetadata((prev) => {
+				const exists = prev.some((tag) => tag.name === name);
+				return exists
+					? prev.map((tag) => (tag.name === name ? saved : tag))
+					: [...prev, saved];
+			});
+		},
+		[tagService],
+	);
 
-  const reloadMetadata = useCallback(async (): Promise<void> => {
-    const meta = await listTagMetadata(wheelRef.current);
-    if (mounted.current) setTagMetadata(meta);
-  }, []);
+	const registerTags = useCallback(
+		async (names: string[]): Promise<void> => {
+			if (names.length === 0) return;
+			await tagService.ensureTagsExist(wheelRef.current, names);
+			setTagMetadata((prev) => {
+				const existing = new Set(prev.map((tag) => tag.name));
+				const fresh = names
+					.map((tagName) => tagName.trim())
+					.filter((tagName) => tagName && !existing.has(tagName))
+					.map((name): TagMetadata => ({
+						key: `${wheelRef.current}:${name}`,
+						wheelId: wheelRef.current,
+						name,
+					}));
+				return fresh.length === 0 ? prev : [...prev, ...fresh];
+			});
+		},
+		[tagService],
+	);
 
-  const pruneTags = useCallback((names: string[]): void => {
-    const pruned = new Set(names);
-    setTagMetadata((prev) => prev.filter((t) => !pruned.has(t.name)));
-    setActiveTags((prev) => prev.filter((t) => !pruned.has(t)));
-  }, []);
+	const reloadMetadata = useCallback(async (): Promise<void> => {
+		const metadata = await tagService.listTagMetadata(wheelRef.current);
+		if (mounted.current) setTagMetadata(metadata);
+	}, [tagService]);
 
-  return useMemo<TagFilterApi>(
-    () => ({
-      activeTags, untaggedOnly, filterMode,
-      toggleTag, toggleUntagged, clearFilter, toggleMode,
-      tagMetadata, setTagColor, registerTags, reloadMetadata, pruneTags,
-    }),
-    [
-      activeTags, untaggedOnly, filterMode,
-      toggleTag, toggleUntagged, clearFilter, toggleMode,
-      tagMetadata, setTagColor, registerTags, reloadMetadata, pruneTags,
-    ],
-  );
+	const pruneTags = useCallback((names: string[]): void => {
+		const pruned = new Set(names);
+		setTagMetadata((prev) => prev.filter((tag) => !pruned.has(tag.name)));
+		setActiveTags((prev) => prev.filter((tag) => !pruned.has(tag)));
+	}, []);
+
+	return useMemo<TagFilterApi>(
+		() => ({
+			activeTags,
+			untaggedOnly,
+			filterMode,
+			toggleTag,
+			toggleUntagged,
+			clearFilter,
+			toggleMode,
+			tagMetadata,
+			setTagColor,
+			registerTags,
+			reloadMetadata,
+			pruneTags,
+		}),
+		[
+			activeTags,
+			untaggedOnly,
+			filterMode,
+			toggleTag,
+			toggleUntagged,
+			clearFilter,
+			toggleMode,
+			tagMetadata,
+			setTagColor,
+			registerTags,
+			reloadMetadata,
+			pruneTags,
+		],
+	);
 }
