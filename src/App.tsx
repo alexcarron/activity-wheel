@@ -117,132 +117,142 @@ function App() {
 		wheels.switchWheel(newWheel.id);
 	};
 
-	const isSyncing = wheels.loading || activityState.isLoading;
+	// Full-app loading gate: true only while auth is resolving or while wheels is resolving which backend to use (initial load, sign-in, sign-out). It is NOT true for a same-backend wheel switch, since switchWheel doesn't touch wheels.loading. This intentionally hides every other component, including the sign-in button, so the user never sees a flash of the wrong backend's data (local vs. cloud) or an error caused by querying before the correct wheel is known.
+	const isBackendLoading = auth.loading || wheels.loading;
+	// Lighter-weight sync indicator shown without hiding the rest of the UI, e.g. while activities are refetching for a newly-switched wheel.
+	const isSyncing = isBackendLoading || activityState.isLoading;
 
 	return (
 		<SpinCountProvider>
 			<WeightProvider value={globalWeightContext}>
 				<main className="app">
-					{isSyncing && (
+					{isBackendLoading ? (
 						<div className="app-sync-indicator" role="status">
 							<LoadingSpinner />
 							Loading your data…
 						</div>
-					)}
-
-					{(wheels.errorMessage || activityState.errorMessage) && (
-						<div className="app-error" role="alert">
-							{wheels.errorMessage ?? activityState.errorMessage}
-						</div>
-					)}
-
-					<section className={`wheel-header${wheelPinned ? ' is-pinned' : ''}`}>
-						<div className="wheel-header-auth-row">
-							<AuthButton onLocalDataImported={() => void wheels.reloadWheels()} />
-						</div>
-
-						{!wheels.loading && (
-							<WheelTabs
-								wheels={wheels.wheels}
-								activeWheelId={wheels.activeWheelId}
-								onSwitch={wheels.switchWheel}
-								onCreate={handleCreateWheel}
-								onRename={wheels.renameWheel}
-								onDelete={wheels.deleteWheel}
-							/>
-						)}
-
-						<WheelView
-							activities={filteredActivities}
-							session={session}
-							rngSeed={debug.rngSeed}
-							spreadFactor={debug.spreadFactor}
-							tagFilterActive={filterOn}
-							allTagMetadata={tagFilter.tagMetadata}
-							wheelPinned={wheelPinned}
-							onToggleWheelPinned={() => setWheelPinned((wasPinned) => !wasPinned)}
-							onClearTagFilter={tagFilter.clearFilter}
-							onFeedback={async (id, action) => {
-								await activityState.applyFeedback(id, action);
-								session.exclude(id);
-							}}
-							onRename={activityState.rename}
-							onAddTagToActivity={handleAddTagToActivity}
-						/>
-					</section>
-
-					<TagFilterBar
-						allActivities={activityState.activities}
-						tagMetadata={tagFilter.tagMetadata}
-						activeTags={tagFilter.activeTags}
-						untaggedOnly={tagFilter.untaggedOnly}
-						filterMode={tagFilter.filterMode}
-						onToggleTag={tagFilter.toggleTag}
-						onToggleUntagged={tagFilter.toggleUntagged}
-						onClearFilter={tagFilter.clearFilter}
-						onToggleMode={tagFilter.toggleMode}
-					/>
-
-					<section className="app-panel">
-						<h2>
-							Activities
-							{filterOn && (
-								<span className="app-panel-filter-badge">
-									{filteredActivities.length} shown
-								</span>
+					) : (
+						<>
+							{isSyncing && (
+								<div className="app-sync-indicator" role="status">
+									<LoadingSpinner />
+									Loading your data…
+								</div>
 							)}
-						</h2>
-						<AddActivity onAdd={activityState.add} />
-						<ActivityList
-							activities={filterOn ? filteredActivities : activityState.activities}
-							showWeights={debug.showWeights}
-							showProbabilities={debug.showProbabilities}
-							spreadFactor={debug.spreadFactor}
-							allTagMetadata={tagFilter.tagMetadata}
-							onRename={activityState.rename}
-							onFeedback={activityState.applyFeedback}
-							onDelete={handleDelete}
-							onUpdateTags={handleUpdateTags}
-							onSetTagColor={tagFilter.setTagColor}
-						/>
-					</section>
 
-					<section className="app-panel app-panel-tight">
-						<DebugPanel debug={debug} />
-						<BackupControls
-							exportJson={wheelService.exportFullBackup}
-							importJson={async (json) => {
-								const firstWheelId = await wheelService.importFullBackup(json);
-								await wheels.reloadWheels();
-								wheels.switchWheel(firstWheelId);
-								// If the active wheel ID didn't change, force-reload activities + tags.
-								if (firstWheelId === wheels.activeWheelId) {
-									await activityState.reload();
-									tagFilter.clearFilter();
-									await tagFilter.reloadMetadata();
-								}
-							}}
-							clearWheel={async () => {
-								await activityState.clearEverything();
-								await tagService.clearWheelTagMetadata(wheels.activeWheelId);
-								tagFilter.clearFilter();
-								await tagFilter.reloadMetadata();
-							}}
-							clearAllWheels={async () => {
-								const newWheel = await wheelService.resetToBlankWheel();
-								await wheels.reloadWheels();
-								wheels.switchWheel(newWheel.id);
-							}}
-						/>
-					</section>
+							{(wheels.errorMessage || activityState.errorMessage) && (
+								<div className="app-error" role="alert">
+									{wheels.errorMessage ?? activityState.errorMessage}
+								</div>
+							)}
 
-					<footer className="app-footer">
-						<p>
-							{userId
-								? 'Signed in. Your wheels are saved privately to your account.'
-								: "Data lives only in this browser. Sign in to save it to your account, or use Backup & restore to keep a copy."}
-						</p>
-					</footer>
+							<section className={`wheel-header${wheelPinned ? ' is-pinned' : ''}`}>
+								<div className="wheel-header-auth-row">
+									<AuthButton onLocalDataImported={() => void wheels.reloadWheels()} />
+								</div>
+
+								<WheelTabs
+									wheels={wheels.wheels}
+									activeWheelId={wheels.activeWheelId}
+									onSwitch={wheels.switchWheel}
+									onCreate={handleCreateWheel}
+									onRename={wheels.renameWheel}
+									onDelete={wheels.deleteWheel}
+								/>
+
+								<WheelView
+									activities={filteredActivities}
+									session={session}
+									rngSeed={debug.rngSeed}
+									spreadFactor={debug.spreadFactor}
+									tagFilterActive={filterOn}
+									allTagMetadata={tagFilter.tagMetadata}
+									wheelPinned={wheelPinned}
+									onToggleWheelPinned={() => setWheelPinned((wasPinned) => !wasPinned)}
+									onClearTagFilter={tagFilter.clearFilter}
+									onFeedback={async (id, action) => {
+										await activityState.applyFeedback(id, action);
+										session.exclude(id);
+									}}
+									onRename={activityState.rename}
+									onAddTagToActivity={handleAddTagToActivity}
+								/>
+							</section>
+
+							<TagFilterBar
+								allActivities={activityState.activities}
+								tagMetadata={tagFilter.tagMetadata}
+								activeTags={tagFilter.activeTags}
+								untaggedOnly={tagFilter.untaggedOnly}
+								filterMode={tagFilter.filterMode}
+								onToggleTag={tagFilter.toggleTag}
+								onToggleUntagged={tagFilter.toggleUntagged}
+								onClearFilter={tagFilter.clearFilter}
+								onToggleMode={tagFilter.toggleMode}
+							/>
+
+							<section className="app-panel">
+								<h2>
+									Activities
+									{filterOn && (
+										<span className="app-panel-filter-badge">
+											{filteredActivities.length} shown
+										</span>
+									)}
+								</h2>
+								<AddActivity onAdd={activityState.add} />
+								<ActivityList
+									activities={filterOn ? filteredActivities : activityState.activities}
+									showWeights={debug.showWeights}
+									showProbabilities={debug.showProbabilities}
+									spreadFactor={debug.spreadFactor}
+									allTagMetadata={tagFilter.tagMetadata}
+									onRename={activityState.rename}
+									onFeedback={activityState.applyFeedback}
+									onDelete={handleDelete}
+									onUpdateTags={handleUpdateTags}
+									onSetTagColor={tagFilter.setTagColor}
+								/>
+							</section>
+
+							<section className="app-panel app-panel-tight">
+								<DebugPanel debug={debug} />
+								<BackupControls
+									exportJson={wheelService.exportFullBackup}
+									importJson={async (json) => {
+										const firstWheelId = await wheelService.importFullBackup(json);
+										await wheels.reloadWheels();
+										wheels.switchWheel(firstWheelId);
+										// If the active wheel ID didn't change, force-reload activities + tags.
+										if (firstWheelId === wheels.activeWheelId) {
+											await activityState.reload();
+											tagFilter.clearFilter();
+											await tagFilter.reloadMetadata();
+										}
+									}}
+									clearWheel={async () => {
+										await activityState.clearEverything();
+										await tagService.clearWheelTagMetadata(wheels.activeWheelId);
+										tagFilter.clearFilter();
+										await tagFilter.reloadMetadata();
+									}}
+									clearAllWheels={async () => {
+										const newWheel = await wheelService.resetToBlankWheel();
+										await wheels.reloadWheels();
+										wheels.switchWheel(newWheel.id);
+									}}
+								/>
+							</section>
+
+							<footer className="app-footer">
+								<p>
+									{userId
+										? 'Signed in. Your wheels are saved privately to your account.'
+										: "Data lives only in this browser. Sign in to save it to your account, or use Backup & restore to keep a copy."}
+								</p>
+							</footer>
+						</>
+					)}
 				</main>
 			</WeightProvider>
 		</SpinCountProvider>
