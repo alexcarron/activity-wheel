@@ -4,11 +4,11 @@
  * or the resolved display name (click to edit) when signed in.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { DisplayNameEditor } from './DisplayNameEditor';
 import { LoadingSpinner } from './LoadingSpinner';
-import { migrateLocalDataToCloud } from '../services/cloud/migration-service';
+import { hasSavedCloudWheels, migrateLocalDataToCloud } from '../services/cloud/migration-service';
 import { toErrorMessage } from '../utils/error-message';
 
 interface AuthButtonProps {
@@ -43,6 +43,13 @@ export function AuthButton({ onLocalDataImported }: AuthButtonProps) {
 	const auth = useAuth();
 	const [isEditingName, setIsEditingName] = useState(false);
 	const [importStatus, setImportStatus] = useState<string | null>(null);
+	const [canImportLocalWheels, setCanImportLocalWheels] = useState(false);
+
+	const userId = auth.user?.id;
+	useEffect(() => {
+		if (!userId) return;
+		hasSavedCloudWheels(userId).then((hasSavedWheels) => setCanImportLocalWheels(!hasSavedWheels));
+	}, [userId]);
 
 	if (auth.loading) {
 		return (
@@ -90,6 +97,7 @@ export function AuthButton({ onLocalDataImported }: AuthButtonProps) {
 		try {
 			const count = await migrateLocalDataToCloud(auth.user.id);
 			setImportStatus(count > 0 ? `Imported ${count} wheel(s).` : 'No local wheels to import.');
+			setCanImportLocalWheels(false);
 			onLocalDataImported();
 		}
 		catch (error) {
@@ -102,9 +110,11 @@ export function AuthButton({ onLocalDataImported }: AuthButtonProps) {
 			<button type="button" className="auth-button-name" onClick={() => setIsEditingName(true)}>
 				{auth.displayName}
 			</button>
-			<button type="button" className="auth-button-import" onClick={() => void handleImportLocalData()}>
-				Import local wheels
-			</button>
+			{canImportLocalWheels && (
+				<button type="button" className="auth-button-import" onClick={() => void handleImportLocalData()}>
+					Import local wheels
+				</button>
+			)}
 			<button type="button" className="auth-button-signout" onClick={() => void auth.signOut()}>
 				Sign out
 			</button>

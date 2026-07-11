@@ -8,22 +8,29 @@ import * as localWheelService from '../wheel-service';
 import { createCloudWheelService } from './wheel-service';
 import { createCloudActivityService } from './activity-service';
 
-export async function migrateLocalDataToCloud(userId: string): Promise<number> {
+/**
+ * Whether the signed-in account already has any cloud wheel with real activities in it.
+ * useWheels auto-creates a blank "My Wheel" the first time a signed-in account has zero
+ * wheels, so a freshly signed-in user will always have exactly that one empty wheel. That
+ * case still counts as "no real data".
+ */
+export async function hasSavedCloudWheels(userId: string): Promise<boolean> {
 	const cloudWheelService = createCloudWheelService(userId);
 	const cloudActivityService = createCloudActivityService(userId);
 
-	// importFullBackup replaces ALL existing wheels for the target account, so this
-	// must only ever run against an account with no real data. useWheels auto-creates
-	// a blank "My Wheel" the first time a signed-in account has zero wheels, so a
-	// freshly signed-in user will always have exactly that one empty wheel by the
-	// time they reach this button. Treat that case as "empty" too, and only refuse
-	// if any existing cloud wheel actually has activities in it.
 	const existingCloudWheels = await cloudWheelService.listWheels();
 	const existingActivityCounts = await Promise.all(
 		existingCloudWheels.map((wheel) => cloudActivityService.listActivities(wheel.id)),
 	);
-	const hasRealCloudData = existingActivityCounts.some((activities) => activities.length > 0);
-	if (hasRealCloudData) {
+	return existingActivityCounts.some((activities) => activities.length > 0);
+}
+
+export async function migrateLocalDataToCloud(userId: string): Promise<number> {
+	const cloudWheelService = createCloudWheelService(userId);
+
+	// importFullBackup replaces ALL existing wheels for the target account, so this
+	// must only ever run against an account with no real data.
+	if (await hasSavedCloudWheels(userId)) {
 		throw new Error('This account already has saved wheels. Import would overwrite them.');
 	}
 
