@@ -32,11 +32,13 @@ import { createCloudWheelService } from './services/cloud/wheel-service';
 function App() {
 	const auth = useAuth();
 	const userId = auth.user?.id ?? null;
-	const wheels = useWheels(userId);
-	const activityState = useActivities(wheels.activeWheelId, userId);
+	const wheels = useWheels(userId, auth.loading);
+	// While wheels are still resolving (including while auth itself is still resolving, since useWheels stays in its loading state through that window) activeWheelId may be a stale or wrong-backend id. Withhold it from useActivities/useTagFilter (both already treat '' as "not resolved yet, keep waiting") so they never fetch against the wrong backend or an invalid id.
+	const resolvedWheelId = wheels.loading ? '' : wheels.activeWheelId;
+	const activityState = useActivities(resolvedWheelId, userId);
 	const debug = useDebug();
 	const now = useNow();
-	const tagFilter = useTagFilter(wheels.activeWheelId, userId);
+	const tagFilter = useTagFilter(resolvedWheelId, userId);
 	const [wheelPinned, setWheelPinned] = useState(false);
 
 	const tagService = userId ? createCloudTagService(userId) : localTagService;

@@ -44,7 +44,7 @@ export interface UseWheelsApi {
 	reloadWheels(): Promise<void>;
 }
 
-export function useWheels(userId: string | null): UseWheelsApi {
+export function useWheels(userId: string | null, authLoading: boolean): UseWheelsApi {
 	const wheelService: CloudWheelService = useMemo(
 		() => (userId ? createCloudWheelService(userId) : localWheelService),
 		[userId],
@@ -58,14 +58,11 @@ export function useWheels(userId: string | null): UseWheelsApi {
 
 	useEffect(() => {
 		mounted.current = true;
-		// Intentional: this effect's job is to reset loading state before fetching
-		// wheels for the newly selected backend (local vs. cloud). It also resets
-		// activeWheelId to the newly-scoped stored value immediately (rather than
-		// waiting on the listWheels() call below) so that useActivities/useTagFilter
-		// never query the previous backend's wheelId (e.g. the local 'default' id)
-		// against the new backend.
+		// Intentional: this effect's job is to reset loading state before fetching wheels for the newly selected backend (local vs. cloud). It also resets activeWheelId to the newly-scoped stored value immediately (rather than waiting on the listWheels() call below) so that useActivities/useTagFilter never query the previous backend's wheelId (e.g. the local 'default' id) against the new backend.
 		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setLoading(true);
+		// While useAuth is still restoring the session, userId is always null, which would make this hook fetch as the signed-out/local backend even for a user who is about to be signed back in. Wait until auth resolves before fetching, so we never briefly show local data to a soon-to-be-signed-in user.
+		if (authLoading) return;
 		setActiveWheelId(getStoredActiveWheelId(userId ?? undefined));
 		void (async () => {
 			try {
@@ -109,7 +106,7 @@ export function useWheels(userId: string | null): UseWheelsApi {
 		return () => {
 			mounted.current = false;
 		};
-	}, [wheelService, userId]);
+	}, [wheelService, userId, authLoading]);
 
 	const switchWheel = useCallback(
 		(id: string): void => {
