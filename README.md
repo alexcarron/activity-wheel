@@ -26,7 +26,9 @@ Everything lives in your browser via IndexedDB by default, with no backend and n
 
 ### Using the Github Pages Site
 
-TO BE WRITTEN
+1. Go to [https://alexcarron.github.io/activity-wheel/](https://alexcarron.github.io/activity-wheel/)
+2. Use the web app locally without switching browser or devices or clearing site data
+3. If you want to use the app on different browsers and devices, click "Sign in with Google"
 
 ### Running Locally
 
