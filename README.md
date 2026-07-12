@@ -24,20 +24,13 @@ Everything lives in your browser via IndexedDB by default, with no backend and n
 
 ## Get Started
 
-### Using the Github Pages Site
-
-1. Go to [https://alexcarron.github.io/activity-wheel/](https://alexcarron.github.io/activity-wheel/)
-2. Start adding activities right away. (Your wheels are saved in this browser, so they'll still be here next time you visit from the same browser and device)
-3. If you want your wheels on another browser or device, click "Sign in with Google" then "Import local wheels" to sync them to your account
-
-### Running Locally
-
-Requires Node 20+.
-
-```bash
-npm install
-npm run dev
-```
+1. Open https://alexcarron.github.io/activity-wheel/
+2. Add activities you might want to do next (games, movies, hobbies, anything you'd be happy doing)
+3. Spin the wheel
+4. If the suggestion sounds good, accept it. If not, reject it and spin again.
+5. Repeat until you get an activity you actually want
+6. Keep giving feedback as you use the app. Over time, the wheel will learn your preferences and becomes more likely to suggest activities you enjoy
+7. If you want to access your wheels and activities on another browser or device, click "Sign in with Google" and then "Import local wheels"
 
 ## How it works
 
