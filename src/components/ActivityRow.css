@@ -433,83 +433,6 @@
 	list-style: none;
 }
 
-.tag-color-picker {
-	background: var(--bg-elev);
-	border: 1px solid var(--border);
-	border-radius: var(--radius-sm);
-	box-shadow: var(--shadow);
-	padding: 10px 12px;
-	z-index: 9001;
-	min-width: 200px;
-	max-width: calc(100vw - 16px);
-}
-
-.tag-color-picker-label {
-	font-size: 0.75rem;
-	font-weight: 600;
-	color: var(--text-soft);
-	margin-bottom: 8px;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	max-width: 200px;
-}
-
-.tag-color-presets {
-	display: flex;
-	gap: 5px;
-	flex-wrap: wrap;
-	margin-bottom: 8px;
-}
-
-.tag-color-swatch {
-	position: relative;
-	width: 22px;
-	height: 22px;
-	border-radius: 50%;
-	border: 2px solid transparent;
-	cursor: pointer;
-	transition:
-		transform 80ms,
-		border-color 80ms;
-	padding: 0;
-}
-
-.tag-color-swatch:hover {
-	transform: scale(1.2);
-}
-
-.tag-color-swatch-active {
-	border-color: var(--text);
-}
-
-.tag-color-picker-actions {
-	display: flex;
-	gap: 6px;
-	align-items: center;
-	flex-wrap: wrap;
-	padding-top: 6px;
-	border-top: 1px solid var(--border);
-}
-
-.tag-color-custom-label {
-	font-size: 0.75rem;
-	color: var(--text-soft);
-	display: flex;
-	align-items: center;
-	gap: 5px;
-}
-
-.tag-color-custom-input {
-	width: 32px;
-	height: 22px;
-	border: 1px solid var(--border);
-	border-radius: 4px;
-	padding: 1px;
-	cursor: pointer;
-	background: transparent;
-}
-
 @media (pointer: coarse) {
 	.icon-btn {
 		min-width: 44px;
@@ -524,13 +447,6 @@
 	.activity-row.is-compact .icon-btn {
 		min-width: 34px;
 		min-height: 34px;
-	}
-
-
-	.tag-color-swatch::after {
-		content: '';
-		position: absolute;
-		inset: -11px;
 	}
 }
 

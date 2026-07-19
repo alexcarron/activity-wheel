@@ -15,7 +15,9 @@ import type { Activity, TagMetadata } from '../domain-logic/types';
 import type { FilterMode } from '../domain-logic/tag-filter-logic';
 import { computeTagCounts, countUntagged, isFilterActive } from '../domain-logic/tag-filter-logic';
 import { useHotkey } from '../hooks/useHotkey';
+import { useTagColorPickerPopover } from '../hooks/useTagColorPickerPopover';
 import { TAG_HOTKEYS } from '../constants/hotkeys';
+import { TagColorPickerPopover } from './TagColorPicker';
 import './TagFilterBar.css';
 
 interface Props {
@@ -29,6 +31,7 @@ interface Props {
 	onToggleUntagged(): void;
 	onClearFilter(): void;
 	onToggleMode(): void;
+	onSetTagColor(name: string, color: string | null): Promise<void>;
 }
 
 export function TagFilterBar({
@@ -41,6 +44,7 @@ export function TagFilterBar({
 	onToggleUntagged,
 	onClearFilter,
 	onToggleMode,
+	onSetTagColor,
 }: Props) {
 	const [searchQuery, setSearchQuery] = useState('');
 	const searchRef = useRef<HTMLInputElement>(null);
@@ -177,32 +181,76 @@ export function TagFilterBar({
 					const hotkey = globalIndex >= 0 && globalIndex < 9 ? TAG_HOTKEYS[globalIndex].label : null;
 					const isActive = activeTags.includes(tag.name);
 
-					const pillStyle =
-						tag.color && isActive
-							? { backgroundColor: tag.color, borderColor: tag.color, color: '#fff' }
-							: tag.color
-								? { borderColor: tag.color, color: tag.color }
-								: undefined;
-
 					return (
-						<button
+						<TagFilterPill
 							key={tag.name}
-							type="button"
-							className={`tag-pill${isActive ? ' tag-pill-active' : ''}`}
-							style={pillStyle}
-							onClick={() => onToggleTag(tag.name)}
-							aria-pressed={isActive}
-							title={
-								hotkey ? `Toggle "${tag.name}" filter (${hotkey})` : `Toggle "${tag.name}" filter`
-							}
-						>
-							{tag.name}
-							<span className="tag-pill-count"> ({tag.count})</span>
-							{hotkey && <kbd className="tag-pill-hotkey">{hotkey}</kbd>}
-						</button>
+							name={tag.name}
+							count={tag.count}
+							color={tag.color}
+							isActive={isActive}
+							hotkeyLabel={hotkey}
+							onToggle={() => onToggleTag(tag.name)}
+							onSetColor={(color) => onSetTagColor(tag.name, color)}
+						/>
 					);
 				})}
 			</div>
 		</div>
+	);
+}
+
+interface TagFilterPillProps {
+	name: string;
+	count: number;
+	color?: string;
+	isActive: boolean;
+	hotkeyLabel: string | null;
+	onToggle(): void;
+	onSetColor(color: string | null): Promise<void>;
+}
+
+function TagFilterPill({ name, count, color, isActive, hotkeyLabel, onToggle, onSetColor }: TagFilterPillProps) {
+	const pillRef = useRef<HTMLButtonElement>(null);
+	const { isOpen, position, popoverRef, open, close } = useTagColorPickerPopover(pillRef);
+
+	const pillStyle =
+		color && isActive
+			? { backgroundColor: color, borderColor: color, color: '#fff' }
+			: color
+				? { borderColor: color, color: color }
+				: undefined;
+
+	return (
+		<>
+			<button
+				ref={pillRef}
+				type="button"
+				className={`tag-pill${isActive ? ' tag-pill-active' : ''}`}
+				style={pillStyle}
+				onClick={onToggle}
+				onContextMenu={open}
+				aria-pressed={isActive}
+				title={
+					hotkeyLabel
+						? `Toggle "${name}" filter (${hotkeyLabel}). Right-click to change color`
+						: `Toggle "${name}" filter. Right-click to change color`
+				}
+			>
+				{name}
+				<span className="tag-pill-count"> ({count})</span>
+				{hotkeyLabel && <kbd className="tag-pill-hotkey">{hotkeyLabel}</kbd>}
+			</button>
+
+			{isOpen && (
+				<TagColorPickerPopover
+					tagName={name}
+					color={color}
+					position={position}
+					popoverRef={popoverRef}
+					onSetColor={(newColor) => void onSetColor(newColor)}
+					onClose={close}
+				/>
+			)}
+		</>
 	);
 }

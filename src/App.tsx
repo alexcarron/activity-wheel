@@ -300,6 +300,7 @@ function App() {
 								onToggleUntagged={tagFilter.toggleUntagged}
 								onClearFilter={tagFilter.clearFilter}
 								onToggleMode={tagFilter.toggleMode}
+								onSetTagColor={tagFilter.setTagColor}
 							/>
 
 							<section className="app-panel">
@@ -317,6 +318,7 @@ function App() {
 								<AddActivity onAdd={activityState.add} mobileButtonContainer={addActivityButtonContainer} />
 								<ActivityList
 									activities={filterOn ? filteredActivities : activityState.activities}
+									allActivities={activityState.activities}
 									showWeights={debug.showWeights}
 									showProbabilities={debug.showProbabilities}
 									spreadFactor={debug.spreadFactor}

@@ -1,21 +1,17 @@
 /**
- * One row in the activity list. Supports:
- * - Inline editing of the name (Enter to save, Esc to cancel).
- * - Manual feedback buttons (= same as accept/reject from the wheel).
- * - Delete.
- * - Tag pills: display, add (combobox), remove (✕ on hover), color-pick (right-click).
- * Pure presentation: actual persistence is done by the parent's callbacks. 
+ * One row in the activity list.
  */
-
-import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { CSSProperties, KeyboardEvent, MouseEvent } from 'react';
+import type { CSSProperties, KeyboardEvent } from 'react';
 import type { Activity, FeedbackAction, TagMetadata } from '../domain-logic/types';
 import { getEffectiveWeight } from '../domain-logic/weight-logic/effective-weight-logic';
 import { formatDate, formatPercent, formatWeight } from '../utils/format';
 import { clampToViewport } from '../utils/clamp-to-viewport';
 import { useWeightContext } from '../context/WeightContext';
 import { useNow } from '../hooks/useNow';
+import { useTagColorPickerPopover } from '../hooks/useTagColorPickerPopover';
+import { TagColorPickerPopover } from './TagColorPicker';
 import './ActivityRow.css';
 
 function TrashIcon() {
@@ -79,18 +75,6 @@ function DeleteButton({ onClick, disabled }: { onClick(): void; disabled: boolea
 	);
 }
 
-const TAG_COLOR_PRESETS = [
-	{ color: '#ef4444', label: 'Red' },
-	{ color: '#f97316', label: 'Orange' },
-	{ color: '#f59e0b', label: 'Amber' },
-	{ color: '#22c55e', label: 'Green' },
-	{ color: '#06b6d4', label: 'Cyan' },
-	{ color: '#3b82f6', label: 'Blue' },
-	{ color: '#8b5cf6', label: 'Purple' },
-	{ color: '#ec4899', label: 'Pink' },
-	{ color: '#6b7280', label: 'Gray' },
-];
-
 interface TagPillProps {
 	name: string;
 	color?: string;
@@ -100,61 +84,8 @@ interface TagPillProps {
 }
 
 function TagPill({ name, color, count, onRemove, onSetColor }: TagPillProps) {
-	const [colorPickerOpen, setColorPickerOpen] = useState(false);
-	const [pickerPos, setPickerPos] = useState({ top: 0, left: 0 });
 	const pillRef = useRef<HTMLSpanElement>(null);
-	const pickerPopoverRef = useRef<HTMLDivElement>(null);
-	const customColorRef = useRef<HTMLInputElement>(null);
-
-	// .tag-color-picker's real width isn't known until it's rendered (its content, e.g. the tag name label, varies), so this is an estimate corrected below.
-	const ESTIMATED_PICKER_WIDTH = 220;
-	const ESTIMATED_PICKER_HEIGHT = 140;
-
-	const openColorPicker = useCallback((event: MouseEvent) => {
-		event.preventDefault();
-		if (pillRef.current) {
-			const rect = pillRef.current.getBoundingClientRect();
-			setPickerPos(
-				clampToViewport(
-					rect.left + window.scrollX,
-					rect.bottom + window.scrollY + 4,
-					ESTIMATED_PICKER_WIDTH,
-					ESTIMATED_PICKER_HEIGHT,
-				),
-			);
-		}
-		setColorPickerOpen(true);
-	}, []);
-
-	const closeColorPicker = useCallback(() => setColorPickerOpen(false), []);
-
-	// Corrects the estimate above once the popover's actual rendered size is known.
-	useLayoutEffect(() => {
-		if (!colorPickerOpen || !pickerPopoverRef.current) return;
-		const rect = pickerPopoverRef.current.getBoundingClientRect();
-		const clamped = clampToViewport(
-			rect.left + window.scrollX,
-			rect.top + window.scrollY,
-			rect.width,
-			rect.height,
-		);
-		if (clamped.left !== rect.left + window.scrollX || clamped.top !== rect.top + window.scrollY) {
-			setPickerPos(clamped);
-		}
-	}, [colorPickerOpen]);
-
-	// Close picker on outside click
-	useEffect(() => {
-		if (!colorPickerOpen) return;
-		const handler = (event: globalThis.MouseEvent) => {
-			const target = event.target as HTMLElement;
-			if (!target.closest('.tag-color-picker')) {
-				closeColorPicker();
-			}
-		};
-		document.addEventListener('mousedown', handler);
-		return () => document.removeEventListener('mousedown', handler);
-	}, [colorPickerOpen, closeColorPicker]);
+	const { isOpen, position, popoverRef, open, close } = useTagColorPickerPopover(pillRef);
 
 	const pillStyle: CSSProperties = color ? { borderColor: color, color: color } : {};
 
@@ -164,8 +95,9 @@ function TagPill({ name, color, count, onRemove, onSetColor }: TagPillProps) {
 				ref={pillRef}
 				className="activity-tag-pill"
 				style={pillStyle}
-				onContextMenu={openColorPicker}
-				title={`${name} (right-click to change color)`}
+				onClick={open}
+				onContextMenu={open}
+				title={`${name} (click to change color)`}
 			>
 				{name}
 				<span className="activity-tag-pill-suffix">
@@ -185,57 +117,16 @@ function TagPill({ name, color, count, onRemove, onSetColor }: TagPillProps) {
 				</span>
 			</span>
 
-			{colorPickerOpen &&
-				createPortal(
-					<div
-						ref={pickerPopoverRef}
-						className="tag-color-picker"
-						style={{ position: 'absolute', top: pickerPos.top, left: pickerPos.left }}
-						role="dialog"
-						aria-label={`Color picker for tag "${name}"`}
-					>
-						<div className="tag-color-picker-label">Color for "{name}"</div>
-						<div className="tag-color-presets">
-							{TAG_COLOR_PRESETS.map((preset) => (
-								<button
-									key={preset.color}
-									type="button"
-									className={`tag-color-swatch${color === preset.color ? ' tag-color-swatch-active' : ''}`}
-									style={{ backgroundColor: preset.color }}
-									title={preset.label}
-									onClick={() => {
-										onSetColor(preset.color);
-										closeColorPicker();
-									}}
-									aria-label={preset.label}
-								/>
-							))}
-						</div>
-						<div className="tag-color-picker-actions">
-							<label className="tag-color-custom-label">
-								Custom:
-								<input
-									ref={customColorRef}
-									type="color"
-									className="tag-color-custom-input"
-									defaultValue={color ?? '#3b82f6'}
-									onChange={(event) => onSetColor(event.target.value)}
-								/>
-							</label>
-							<button
-								type="button"
-								className="btn btn-ghost btn-small"
-								onClick={() => {
-									onSetColor(null);
-									closeColorPicker();
-								}}
-							>
-								Remove color
-							</button>
-						</div>
-					</div>,
-					document.body,
-				)}
+			{isOpen && (
+				<TagColorPickerPopover
+					tagName={name}
+					color={color}
+					position={position}
+					popoverRef={popoverRef}
+					onSetColor={onSetColor}
+					onClose={close}
+				/>
+			)}
 		</>
 	);
 }

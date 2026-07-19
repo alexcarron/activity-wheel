@@ -16,6 +16,8 @@ import './ActivityList.css';
 interface ActivityListProps {
 	/** The possibly tag-filtered activities to display. */
 	readonly activities: readonly Activity[];
+	/** Every activity in the wheel, regardless of tag filtering. */
+	readonly allActivities: readonly Activity[];
 	readonly showWeights: boolean;
 	readonly showProbabilities: boolean;
 	readonly spreadFactor: number;
@@ -41,6 +43,7 @@ const SORTS: { key: SortKey; label: string }[] = [
 export function ActivityList(props: ActivityListProps) {
 	const {
 		activities,
+		allActivities,
 		showWeights,
 		showProbabilities,
 		spreadFactor,
@@ -94,20 +97,20 @@ export function ActivityList(props: ActivityListProps) {
 	}, []);
 
 	const weightRange = useMemo<{ min: number; max: number }>(() => {
-		if (activities.length === 0) return { min: 0, max: 1 };
+		if (allActivities.length === 0) return { min: 0, max: 1 };
 		let minWeight = Infinity;
 		let maxWeight = -Infinity;
-		for (const activity of activities) {
+		for (const activity of allActivities) {
 			const effectiveWeight = getEffectiveWeight(activity, now, globalWeightContext);
 			if (effectiveWeight < minWeight) minWeight = effectiveWeight;
 			if (effectiveWeight > maxWeight) maxWeight = effectiveWeight;
 		}
 		return { min: minWeight, max: maxWeight };
-	}, [activities, globalWeightContext, now]);
+	}, [allActivities, globalWeightContext, now]);
 
 	/**
 	 * Probabilities computed over the filtered activities only so they match what the wheel shows when a tag filter is active. Spread is applied here too so the debug pill matches the wheel's actual odds. 
- */
+	 */
 	const probabilities = useMemo<Map<string, number>>(() => {
 		const map = new Map<string, number>();
 		const effectiveWeights = activities.map((activity) => getEffectiveWeight(activity, now, globalWeightContext));
