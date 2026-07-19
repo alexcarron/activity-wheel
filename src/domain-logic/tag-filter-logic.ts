@@ -1,15 +1,9 @@
-/**
- * Pure tag-filter functions. No React, no IO.
- * filterActivitiesByTags is the core function used everywhere a tag filter needs to be applied. Wheel pool, activity list, debug panel, etc. 
- */
-
 import type { Activity } from './types';
 
 export type FilterMode = 'OR' | 'AND';
 
 /**
  * Filter an activity list based on the active tag filter.
- *
  * @param activities - Full or partial activity list to filter.
  * @param activeTags - Tag names the user has toggled on. Empty = no filter.
  * @param mode - 'OR' = at least one tag matches; 'AND' = all tags match.

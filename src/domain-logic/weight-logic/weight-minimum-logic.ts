@@ -1,24 +1,11 @@
 /**
- * Capacity-aware minimum weight guarantee.
- * Goal: every activity should have a reasonable chance of appearing over a typical month of spins. Without imposing mathematically impossible constraints when the pool is large.
- * For each activity, we compute a minimum *probability* it must hold: p_min = min(ln(2) / SPINS ← "50% visibility" threshold (~0.00231 for 300 spins), SAMPLING_FACTOR / N ← "sampling fairness" threshold).
- * Then convert back to a minimum weight: w_min = p_min × totalEffectiveWeight.
- * The visibility term (ln(2)/SPINS) is the ideal: every item appears at least once with ≥50% probability over the reference period. This is mathematically impossible when the pool is large enough (> ~433 items for 300 spins), so the sampling-fairness term (c/N) kicks in as a graceful fallback. It guarantees that no item can be more than 1/c times less likely than a uniform pick.
- * MIN_VISIBILITY_SPINS is the reference spin count (default 300). MIN_VISIBILITY_PROBABILITY is derived from above; do not edit directly. MIN_VISIBILITY_SAMPLING_FACTOR is the fairness factor c (default 0.25).
- * If pool context is unavailable (unit tests, isolated calls) the function returns WEIGHT_MIN so the hard floor still applies. 
+ * Logic for determining the minimum weight of an activity based on all existing activities.
  */
-
 import type { Activity } from '../types';
 import type { GlobalWeightContext } from './weight-types';
 
-/**
- * The absolute minimum weight any activity can have, regardless of pool context. 
- */
 export const WEIGHT_HARD_MINIMUM = 1;
 
-/**
- * The number of spins estimated to be done in a typical month of user activity. Reference number of spins used for the visibility guarantee. 
- */
 export const EST_SPINS_PER_MONTH = 300;
 
 /**
@@ -47,9 +34,7 @@ export const getMinProbabilityForLargeItemTotal = (numTotalItems: number) =>
 	getPercentageItemsSeenInMonth(numTotalItems) * MIN_PROBABILITY_FOR_SMALL_ITEM_TOTAL;
 
 /**
- * Returns the minimum selection probability any item must hold. Switches automatically between:
- * - the "50% monthly visibility" guarantee for small / medium pools, and
- * - a "sampling fairness" floor for large pools where full visibility is mathematically impossible.
+ * Returns the minimum selection probability any item must hold.
  * @param numItems - Total number of activities in the pool. 
  */
 export function computeMinimumProbability(numItems: number): number {
@@ -60,8 +45,8 @@ export function computeMinimumProbability(numItems: number): number {
 }
 
 /**
- * Converts a minimum probability into a minimum weight, given the  total effective weight.
- * @param minProbability - Minimum probability (from computeMinimumProbability).
+ * Converts a minimum probability into a minimum weight, given the total effective weight.
+ * @param minProbability - Minimum probability
  * @param totalEffectiveWeight - Sum of all activities' effective weights. 
  */
 export function probabilityToWeight(minProbability: number, totalEffectiveWeight: number): number {
@@ -70,7 +55,7 @@ export function probabilityToWeight(minProbability: number, totalEffectiveWeight
 
 /**
  * Returns the minimum effective weight this activity must have so it remains visible over a typical month of spins.
- * @param _activity - The activity being evaluated (reserved for future per-activity overrides, e.g. pinned favourites).
+ * @param _activity - The activity being evaluated
  * @param globalWeightContext - Information about the pool's current total effective weight and number of activities. 
  */
 export function getMinimumWeight(

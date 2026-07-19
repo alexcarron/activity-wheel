@@ -103,7 +103,7 @@ function App() {
 
 	const activityState = useActivities(combinedWheelId, userId, activeSharedWheelId, handleRemoteActivityChange);
 	const debug = useDebug();
-	const now = useNow();
+	const now = useNow(activityState.activities);
 	const tagFilter = useTagFilter(combinedWheelId, userId, activeSharedWheelId);
 	const [wheelPinned, setWheelPinned] = useState(false);
 

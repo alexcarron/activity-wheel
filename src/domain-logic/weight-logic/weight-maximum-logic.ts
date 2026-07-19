@@ -1,8 +1,8 @@
 import type { Activity } from '../types';
-import { WEIGHT_DEFAULT } from './weight-constants';
+import { DEFAULT_WEIGHT } from './weight-constants';
 import type { GlobalWeightContext } from './weight-types';
 
-export const WEIGHT_HARD_MAXIMUM = WEIGHT_DEFAULT * 100;
+export const WEIGHT_HARD_MAXIMUM = DEFAULT_WEIGHT * 100;
 
 export const MAX_PROBABILITY = 0.5;
 
@@ -32,7 +32,7 @@ export function getMaximumWeight(
 	}
 
 	if (numTotalActivities !== undefined)
-		return WEIGHT_DEFAULT * numTotalActivities * MAX_PROBABILITY;
+		return DEFAULT_WEIGHT * numTotalActivities * MAX_PROBABILITY;
 
 	return WEIGHT_HARD_MAXIMUM;
 }

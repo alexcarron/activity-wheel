@@ -1,121 +1,97 @@
 /**
- * applyFeedback. The heart of the weight system. Applies a single user action to an activity and returns a new (immutable) Activity reflecting the updated weight and metadata. Never mutates input.
- * Actions:
- * - skip: no weight change whatsoever. Activity is returned unchanged. Streak is also left untouched so momentum isn't broken.
- * - accept: moderate positive step, scaled by momentum (increases with consecutive accepts), diminishing returns, and the dominance guard (suppresses growth if activity already dominates the pool. Only on accept, not boost). Stores the applied delta in lastAcceptDelta to enable undo.
- * - reject: negative step, scaled by momentum and diminishing returns. Dominance guard never fires on the negative path. We always fully honour "I don't like this right now".
- * - boost: large intentional positive step (BOOST_STEP ≈ 3.5× accept). Applies momentum and diminishing returns but bypasses the dominance guard. The user explicitly asked for a big jump. Stores delta in lastAcceptDelta (undo can reverse it).
- * - undo: reverses the last stored positive delta (lastAcceptDelta). If no delta is stored, it's a no-op. Clears streak to 0 since the user is stepping backwards.
- * Invariants: all arithmetic is rounded to 4 decimal places to avoid float drift, and there is no IO or side effects. This is a pure function suitable for React state updates. 
+ * Logic for the change to activity data applied for each possible feedback response
  */
-
 import type { Activity, FeedbackAction } from '../types';
-import {
-	ACCEPT_STEP,
-	BOOST_STEP,
-	DOMINANCE_GUARD,
-	HATE_STEP,
-	REJECT_STEP,
-} from './weight-constants';
 import { getDiminishingFactor } from './weight-diminishing-returns-logic';
-import { getEffectiveWeight } from './effective-weight-logic';
-import { getMomentumInfoFor } from './weight-momentum-logic';
 import type { GlobalWeightContext } from './weight-types';
 import { getMinimumWeight } from './weight-minimum-logic';
 import { getMaximumWeight } from './weight-maximum-logic';
+import { clamp, roundTo4DecimalPlaces } from '../../utils/math-utils';
 
-const clamp = (number: number, minimum: number, maximum: number): number =>
-	number < minimum ? minimum : number > maximum ? maximum : number;
+const ACCEPT_FEEDBACK_STEP = 7;
+const REJECT_FEEDBACK_STEP = 5;
+const LOVE_IT_FEEDBACK_STEP = 25;
+const HATE_IT_FEEDBACK_STEP = 25;
 
-/** Round to 4 decimal places to keep stored values clean. */
-const roundTo4DecimalPlaces = (value: number): number => Math.round(value * 10000) / 10000;
+type StreakDirection = 'positive' | 'negative' | 'neutral';
+
+function getStreakDirectionFromAction(action: FeedbackAction): StreakDirection {
+	if (action === 'accept' || action === 'boost') return 'positive';
+	if (action === 'reject' || action === 'hate') return 'negative';
+	return 'neutral';
+}
+
+function getNextStreak(action: FeedbackAction, prevStreak: number): number {
+	const direction = getStreakDirectionFromAction(action);
+	if (direction === 'neutral') return 0;
+
+	const isSameDirection =
+		(direction === 'positive' && prevStreak > 0) || (direction === 'negative' && prevStreak < 0);
+
+	if (isSameDirection) return prevStreak + (direction === 'positive' ? 1 : -1);
+	return direction === 'positive' ? 1 : -1;
+}
 
 export function applyFeedback(
 	activity: Activity,
 	action: FeedbackAction,
-	now: number,
+	_now: number,
 	globalWeightContext: GlobalWeightContext = {},
 ): Activity {
 	const minWeight = getMinimumWeight(activity, globalWeightContext);
 	const maxWeight = getMaximumWeight(activity, globalWeightContext);
 
-	// skip
-	if (action === 'skip') {
-		// Streak intentionally preserved. Skipping doesn't reset momentum.
-		return activity;
-	}
+	if (action === 'skip') return activity;
 
-	// undo
 	if (action === 'undo') {
 		const delta = activity.lastAcceptDelta ?? 0;
-		if (delta === 0) return activity; // nothing stored to reverse
+		if (delta === 0) return activity;
 
 		const next = roundTo4DecimalPlaces(clamp(activity.weight - delta, minWeight, maxWeight));
 		return {
 			...activity,
 			weight: next,
-			lastAcceptDelta: undefined, // consumed. Can't undo twice
-			streak: 0, // reversal resets direction
+			lastAcceptDelta: undefined,
+			streak: 0,
 		};
 	}
 
-	// reject
 	if (action === 'reject') {
-		const { multiplier, newStreak } = getMomentumInfoFor(action, activity.streak);
 		const factor = getDiminishingFactor(activity, 'negative', globalWeightContext);
-		const delta = roundTo4DecimalPlaces(REJECT_STEP * multiplier * factor);
+		const delta = roundTo4DecimalPlaces(REJECT_FEEDBACK_STEP * factor);
 		const next = roundTo4DecimalPlaces(clamp(activity.weight - delta, minWeight, maxWeight));
 
 		return {
 			...activity,
 			weight: next,
-			streak: newStreak,
+			streak: getNextStreak(action, activity.streak),
 			rejectCount: activity.rejectCount + 1,
-			// lastAcceptDelta preserved. User may still want to undo a prior accept
 		};
 	}
 
-	// hate: large intentional negative step, always fully honoured (no dominance guard equivalent on the negative side; we never suppress "I hate this").
 	if (action === 'hate') {
-		const { multiplier, newStreak } = getMomentumInfoFor(action, activity.streak);
 		const factor = getDiminishingFactor(activity, 'negative', globalWeightContext);
-		const delta = roundTo4DecimalPlaces(HATE_STEP * multiplier * factor);
+		const delta = roundTo4DecimalPlaces(HATE_IT_FEEDBACK_STEP * factor);
 		const next = roundTo4DecimalPlaces(clamp(activity.weight - delta, minWeight, maxWeight));
 
 		return {
 			...activity,
 			weight: next,
-			streak: newStreak,
+			streak: getNextStreak(action, activity.streak),
 			rejectCount: activity.rejectCount + 1,
 		};
 	}
 
-	// accept / boost
-	const baseStep = action === 'boost' ? BOOST_STEP : ACCEPT_STEP;
-	const { multiplier, newStreak } = getMomentumInfoFor(action, activity.streak);
+	const baseStep = action === 'boost' ? LOVE_IT_FEEDBACK_STEP : ACCEPT_FEEDBACK_STEP;
 	const factor = getDiminishingFactor(activity, 'positive', globalWeightContext);
-	let rawDelta = baseStep * multiplier * factor;
-
-	// Dominance guard: only on 'accept', never on 'boost'. If this activity already commands ≥ DOMINANCE_GUARD of the pool's effective weight, mute further growth to a tenth. The user can still move the needle with boost if they really want to.
-	if (
-		action === 'accept' &&
-		globalWeightContext.totalEffectiveWeight !== undefined &&
-		globalWeightContext.totalEffectiveWeight > 0
-	) {
-		const share =
-			getEffectiveWeight(activity, now, globalWeightContext) /
-			globalWeightContext.totalEffectiveWeight;
-		if (share > DOMINANCE_GUARD) rawDelta *= 0.1;
-	}
-
-	const delta = roundTo4DecimalPlaces(rawDelta);
+	const delta = roundTo4DecimalPlaces(baseStep * factor);
 	const next = roundTo4DecimalPlaces(clamp(activity.weight + delta, minWeight, maxWeight));
 
 	return {
 		...activity,
 		weight: next,
-		streak: newStreak,
+		streak: getNextStreak(action, activity.streak),
 		acceptCount: activity.acceptCount + 1,
-		lastAcceptDelta: delta, // stored so undo can reverse this exact amount
+		lastAcceptDelta: delta,
 	};
 }

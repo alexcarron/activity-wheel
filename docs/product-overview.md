@@ -14,7 +14,7 @@ Slices are drawn heaviest-first starting at 12 o'clock, sized by each activity's
 
 Once it lands, you get four feedback buttons and two navigation buttons:
 
-- **★ Love It!** (`L`): a large weight boost, roughly 3.5x an accept. This is the one feedback type that ignores the dominance guard (below), because it's a deliberate strong reaction.
+- **★ Love It!** (`L`): a large weight boost, roughly 3.5x an accept, because it's a deliberate strong reaction.
 - **Accept** (`Y`): a moderate weight increase.
 - **Skip** (`S`): no weight change at all, but the activity still leaves the session pool since you've seen it.
 - **✕ Hate It!** (`H`): a large weight penalty, mirroring Love It in the other direction.
@@ -32,16 +32,12 @@ Every activity carries a numeric weight that only moves in response to your feed
 
 A few things shape how much a single piece of feedback actually moves the needle:
 
-- **Momentum.** Giving the same kind of feedback several times in a row builds a streak multiplier, up to 2x. A run of five accepts in a row moves the weight more per-click than five isolated accepts spread across different sessions.
-- **Recency boost.** A newly added activity gets a temporary head start scaled to the pool's average weight, so it's competitive against activities that already have a history. It fades linearly over 7 days.
+- **Recency boost.** A newly added activity gets a temporary head start scaled to the pool's average weight, so it's competitive against activities that already have a history. It steps down once per full day it's existed, reaching zero after 7 days, rather than shrinking continuously, so activities created around the same time show the same boost.
 - **Diminishing returns.** As a weight gets close to its floor or ceiling, further nudges in that direction matter less, so the system doesn't swing to an extreme from a single burst of clicks.
-- **Dominance guard.** If one activity already holds 60% or more of the pool's total effective weight, further Accept-driven increases on it are suppressed. Boost is exempt from this, since a real "Love It!" reaction should always count.
 
-Nothing can be silenced completely and nothing can be guaranteed forever. There's always a floor beneath which a weight can't fall and a ceiling it can't cross, and both move automatically as your pool grows or shrinks: a floor that guarantees every activity has a realistic chance of showing up at least once over a typical month of spins (falling back to a fairness-based floor once the pool is too large for that to be mathematically possible), and a ceiling that keeps any single activity below roughly 50% selection probability. If an activity's effective weight drops close to its floor, its row gets a small warning icon as a hint that it might be worth deleting.
+Nothing can be silenced completely and nothing can be guaranteed forever. There's always a floor beneath which a weight can't fall and a ceiling it can't cross, and both move automatically as your pool grows or shrinks: a floor that guarantees every activity has a realistic chance of showing up at least once over a typical month of spins (falling back to a fairness-based floor once the pool is too large for that to be mathematically possible), and a ceiling that keeps any single activity below roughly 50% selection probability.
 
 None of this changes what the weight numbers mean, only how much influence a single click carries at that moment.
-
-If you want the exact constants (step sizes, momentum cap, dominance threshold, and so on), they all live with comments explaining the reasoning in `src/domain-logic/weight-logic/weight-constants.ts`, and the floor/ceiling math itself is in `weight-minimum-logic.ts` and `weight-maximum-logic.ts`.
 
 ## Wheels
 

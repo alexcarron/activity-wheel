@@ -6,10 +6,10 @@
  */
 
 import { applyFeedback } from '../domain-logic/weight-logic/weight-feedback-response-logic';
-import { DAY_MS } from '../domain-logic/weight-logic/weight-constants';
+import { MILLISECONDS_PER_DAY } from '../domain-logic/weight-logic/recency-boost-logic';
 import { getEffectiveWeight } from '../domain-logic/weight-logic/effective-weight-logic';
 import { newActivity } from '../domain-logic/activity-logic/activity-factory';
-import { pick } from '../domain-logic/weighted-selection-logic';
+import { pickFromWeightedPool } from '../domain-logic/weighted-selection-logic';
 import { makeRng } from '../utils/random-utils';
 import type { Activity, FeedbackAction } from '../domain-logic/types';
 
@@ -62,13 +62,13 @@ export function runSim(opts: Partial<SimOptions> = {}): SimRow[] {
 
 	const totalSpins = options.days * options.spinsPerDay;
 	for (let spinIndex = 0; spinIndex < totalSpins; spinIndex++) {
-		now += DAY_MS / options.spinsPerDay;
+		now += MILLISECONDS_PER_DAY / options.spinsPerDay;
 
 		const weighted = activities.map((activity) => ({
 			item: activity,
 			weight: getEffectiveWeight(activity, now, {}),
 		}));
-		const winner = pick(weighted, rng);
+		const winner = pickFromWeightedPool(weighted, rng);
 		if (!winner) break;
 
 		const activityIndex = activities.indexOf(winner);

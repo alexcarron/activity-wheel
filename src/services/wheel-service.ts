@@ -15,7 +15,7 @@ import {
 	ensureTagsExist,
 	listTagMetadata,
 } from './tag-service';
-import { WEIGHT_DEFAULT } from '../domain-logic/weight-logic/weight-constants';
+import { DEFAULT_WEIGHT } from '../domain-logic/weight-logic/weight-constants';
 
 const wheelStore = (): TypedStore<Wheel> => db.store<Wheel>(WHEELS_STORE.name);
 
@@ -248,7 +248,7 @@ export async function copyWheel(
 		await bulkPut(
 			created.map((activity) => {
 				const source = nameToSource.get(activity.name);
-				return source ? { ...activity, weight: WEIGHT_DEFAULT, tags: source.tags } : activity;
+				return source ? { ...activity, weight: DEFAULT_WEIGHT, tags: source.tags } : activity;
 			}),
 		);
 	}

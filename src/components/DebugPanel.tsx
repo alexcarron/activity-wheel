@@ -8,10 +8,8 @@
 
 import type { UseDebugApi } from '../hooks/useDebug';
 import {
-	SPREAD_FACTOR_MAX,
-	SPREAD_FACTOR_MAX_EXTENDED,
-} from '../domain-logic/weight-logic/weight-constants';
-import {
+	MAXIMUM_SPREAD_FACTOR,
+	MAXIMUM_SPREAD_FACTOR_WHEN_EXTREME_ENABLED,
 	sliderPositionToSpreadFactor,
 	spreadFactorToSliderPosition,
 } from '../domain-logic/weight-logic/weight-spread-logic';
@@ -22,7 +20,9 @@ interface Props {
 }
 
 export function DebugPanel({ debug }: Props) {
-	const spreadMax = debug.allowExtremeSpread ? SPREAD_FACTOR_MAX_EXTENDED : SPREAD_FACTOR_MAX;
+	const spreadMax = debug.allowExtremeSpread
+		? MAXIMUM_SPREAD_FACTOR_WHEN_EXTREME_ENABLED
+		: MAXIMUM_SPREAD_FACTOR;
 	return (
 		<details className="debug-panel">
 			<summary className="debug-panel-summary">Debug</summary>
@@ -73,7 +73,7 @@ export function DebugPanel({ debug }: Props) {
 						checked={debug.allowExtremeSpread}
 						onChange={(event) => debug.setAllowExtremeSpread(event.target.checked)}
 					/>
-					Allow extreme weight spread (up to {SPREAD_FACTOR_MAX_EXTENDED}×)
+					Allow extreme weight spread (up to {MAXIMUM_SPREAD_FACTOR_WHEN_EXTREME_ENABLED}×)
 				</label>
 			</div>
 		</details>

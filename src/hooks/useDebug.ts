@@ -5,11 +5,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-	SPREAD_FACTOR_DEFAULT,
-	SPREAD_FACTOR_MAX,
-	SPREAD_FACTOR_MAX_EXTENDED,
-	SPREAD_FACTOR_MIN,
-} from '../domain-logic/weight-logic/weight-constants';
+	DEFAULT_SPREAD_FACTOR,
+	MAXIMUM_SPREAD_FACTOR,
+	MAXIMUM_SPREAD_FACTOR_WHEN_EXTREME_ENABLED,
+	MINIMUM_SPREAD_FACTOR,
+} from '../domain-logic/weight-logic/weight-spread-logic';
 
 const KEY = 'activity-wheel.debug';
 
@@ -20,7 +20,7 @@ export interface DebugState {
 	rngSeed: string;
 	/** How much to exaggerate (>1) or compress (<1) differences between weights. 1 = unchanged. */
 	spreadFactor: number;
-	/** When true, the spread slider's range extends to SPREAD_FACTOR_MAX_EXTENDED. */
+	/** When true, the spread slider's range extends to MAXIMUM_SPREAD_FACTOR_WHEN_EXTREME_ENABLED. */
 	allowExtremeSpread: boolean;
 }
 
@@ -28,16 +28,16 @@ const DEFAULT: DebugState = {
 	showWeights: false,
 	showProbabilities: false,
 	rngSeed: '',
-	spreadFactor: SPREAD_FACTOR_DEFAULT,
+	spreadFactor: DEFAULT_SPREAD_FACTOR,
 	allowExtremeSpread: false,
 };
 
 function maxSpreadFactorFor(allowExtremeSpread: boolean): number {
-	return allowExtremeSpread ? SPREAD_FACTOR_MAX_EXTENDED : SPREAD_FACTOR_MAX;
+	return allowExtremeSpread ? MAXIMUM_SPREAD_FACTOR_WHEN_EXTREME_ENABLED : MAXIMUM_SPREAD_FACTOR;
 }
 
 function clampSpreadFactor(value: number, allowExtremeSpread: boolean): number {
-	return Math.min(maxSpreadFactorFor(allowExtremeSpread), Math.max(SPREAD_FACTOR_MIN, value));
+	return Math.min(maxSpreadFactorFor(allowExtremeSpread), Math.max(MINIMUM_SPREAD_FACTOR, value));
 }
 
 function read(): DebugState {
@@ -53,7 +53,7 @@ function read(): DebugState {
 			spreadFactor:
 				typeof parsed.spreadFactor === 'number'
 					? clampSpreadFactor(parsed.spreadFactor, allowExtremeSpread)
-					: SPREAD_FACTOR_DEFAULT,
+					: DEFAULT_SPREAD_FACTOR,
 			allowExtremeSpread,
 		};
 	}

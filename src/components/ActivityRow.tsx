@@ -12,7 +12,6 @@ import { createPortal } from 'react-dom';
 import type { CSSProperties, KeyboardEvent, MouseEvent } from 'react';
 import type { Activity, FeedbackAction, TagMetadata } from '../domain-logic/types';
 import { getEffectiveWeight } from '../domain-logic/weight-logic/effective-weight-logic';
-import { hasWarningWeight as isLowWeight } from '../domain-logic/weight-logic/warning-weight-logic';
 import { formatDate, formatPercent, formatWeight } from '../utils/format';
 import { clampToViewport } from '../utils/clamp-to-viewport';
 import { useWeightContext } from '../context/WeightContext';
@@ -526,7 +525,6 @@ function ActivityRowComponent({
 	const [busy, setBusy] = useState(false);
 	const inputRef = useRef<HTMLInputElement>(null);
 	const effectiveWeight = getEffectiveWeight(activity, now, globalWeightContext);
-	const low = isLowWeight(activity, now, globalWeightContext);
 	const hasTags = (activity.tags ?? []).length > 0;
 
 	useEffect(() => {
@@ -642,7 +640,7 @@ function ActivityRowComponent({
 	if (isCompact) {
 		return (
 			<li
-				className={`activity-row is-compact${low ? ' is-low' : ''}${isSelected ? ' is-selected' : ''}${isSelectMode ? ' is-select-mode' : ''}`}
+				className={`activity-row is-compact${isSelected ? ' is-selected' : ''}${isSelectMode ? ' is-select-mode' : ''}`}
 				onMouseEnter={() => onRowMouseEnter(activity.id)}
 				onMouseDown={(event) => {
 					if (!isSelectMode) return;
@@ -694,11 +692,6 @@ function ActivityRowComponent({
 							title={isSelectMode ? undefined : 'Click to rename'}
 						>
 							{activity.name}
-							{low && (
-								<span className="activity-row-warn" title="Low weight">
-									⚠
-								</span>
-							)}
 						</button>
 					)}
 					{showWeights && (
@@ -769,7 +762,7 @@ function ActivityRowComponent({
 
 	return (
 		<li
-			className={`activity-row${low ? ' is-low' : ''}${isSelected ? ' is-selected' : ''}${isSelectMode ? ' is-select-mode' : ''}`}
+			className={`activity-row${isSelected ? ' is-selected' : ''}${isSelectMode ? ' is-select-mode' : ''}`}
 			onMouseEnter={() => onRowMouseEnter(activity.id)}
 			onMouseDown={(event) => {
 				if (!isSelectMode) return;
@@ -826,11 +819,6 @@ function ActivityRowComponent({
 								title={isSelectMode ? undefined : 'Click to rename'}
 							>
 								{activity.name}
-								{low && (
-									<span className="activity-row-warn" title="Low weight (consider deleting)">
-										⚠
-									</span>
-								)}
 							</button>
 						)}
 						{!isEditingName && (

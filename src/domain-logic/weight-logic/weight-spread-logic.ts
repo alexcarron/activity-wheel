@@ -1,13 +1,13 @@
 /**
- * Debug-only transform that exaggerates or compresses the differences between a pool's weights, without touching the stored weights themselves.
- * Each weight's deviation from the pool's mean is scaled by `spreadFactor`:
- * - 1.0. Identity, matches default behaviour.
- * - > 1. Amplifies deviations (heavy activities get heavier, light ones lighter).
- * - < 1. Compresses deviations toward the mean (toward equal odds at 0). 
+ * Logic for the debug weight spread transform that exaggerates or compresses the differences between a pool's weights, without touching the stored weights
  */
 
 import { WEIGHT_HARD_MINIMUM } from './weight-minimum-logic';
-import { SPREAD_FACTOR_DEFAULT, SPREAD_FACTOR_MIN } from './weight-constants';
+
+export const DEFAULT_SPREAD_FACTOR = 1;
+export const MINIMUM_SPREAD_FACTOR = 0;
+export const MAXIMUM_SPREAD_FACTOR = 3;
+export const MAXIMUM_SPREAD_FACTOR_WHEN_EXTREME_ENABLED = 1000;
 
 export function applySpreadToWeights(weights: readonly number[], spreadFactor: number): number[] {
 	if (weights.length === 0) return [];
@@ -18,29 +18,31 @@ export function applySpreadToWeights(weights: readonly number[], spreadFactor: n
 }
 
 /**
- * Maps a slider position in [0, 1] to a spreadFactor, anchoring 0.5 at SPREAD_FACTOR_DEFAULT. Left half is linear (the compress range is small); right half is exponential so the slider stays controllable near the default even when spreadFactorMax is huge. 
+ * Maps a slider position in [0, 1] to a spreadFactor, anchoring 0.5 at DEFAULT_SPREAD_FACTOR. Left half is linear and right half is exponential.
  */
 export function sliderPositionToSpreadFactor(position: number, spreadFactorMax: number): number {
 	if (position <= 0.5) {
 		const ratio = position / 0.5;
-		return SPREAD_FACTOR_MIN + (SPREAD_FACTOR_DEFAULT - SPREAD_FACTOR_MIN) * ratio;
+		return MINIMUM_SPREAD_FACTOR + (DEFAULT_SPREAD_FACTOR - MINIMUM_SPREAD_FACTOR) * ratio;
 	}
 	const ratio = (position - 0.5) / 0.5;
-	return SPREAD_FACTOR_DEFAULT * Math.pow(spreadFactorMax / SPREAD_FACTOR_DEFAULT, ratio);
+	return DEFAULT_SPREAD_FACTOR * Math.pow(spreadFactorMax / DEFAULT_SPREAD_FACTOR, ratio);
 }
 
 /**
- * Inverse of sliderPositionToSpreadFactor. Derives the slider's displayed position from a stored spreadFactor (e.g. on load, or when the extreme-mode max changes). 
+ * Inverse of sliderPositionToSpreadFactor. Derives the slider's displayed position from a stored spreadFactor
  */
 export function spreadFactorToSliderPosition(
 	spreadFactor: number,
 	spreadFactorMax: number,
 ): number {
-	if (spreadFactor <= SPREAD_FACTOR_DEFAULT) {
-		return (0.5 * (spreadFactor - SPREAD_FACTOR_MIN)) / (SPREAD_FACTOR_DEFAULT - SPREAD_FACTOR_MIN);
+	if (spreadFactor <= DEFAULT_SPREAD_FACTOR) {
+		return (
+			(0.5 * (spreadFactor - MINIMUM_SPREAD_FACTOR)) /
+			(DEFAULT_SPREAD_FACTOR - MINIMUM_SPREAD_FACTOR)
+		);
 	}
 	const ratio =
-		Math.log(spreadFactor / SPREAD_FACTOR_DEFAULT) /
-		Math.log(spreadFactorMax / SPREAD_FACTOR_DEFAULT);
+		Math.log(spreadFactor / DEFAULT_SPREAD_FACTOR) / Math.log(spreadFactorMax / DEFAULT_SPREAD_FACTOR);
 	return 0.5 + 0.5 * ratio;
 }

@@ -8,12 +8,14 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react';
 import type { Activity } from '../../domain-logic/types';
-import { applySpreadToWeights } from '../../domain-logic/weight-logic/weight-spread-logic';
+import {
+	applySpreadToWeights,
+	DEFAULT_SPREAD_FACTOR,
+} from '../../domain-logic/weight-logic/weight-spread-logic';
 import { getEffectiveWeight } from '../../domain-logic/weight-logic/effective-weight-logic';
-import { SPREAD_FACTOR_DEFAULT } from '../../domain-logic/weight-logic/weight-constants';
 import { useWeightContext } from '../../context/WeightContext';
 import { useSpinCount } from '../../context/SpinCountContext';
-import { pick } from '../../domain-logic/weighted-selection-logic';
+import { pickFromWeightedPool } from '../../domain-logic/weighted-selection-logic';
 import { makeRng } from '../../utils/random-utils';
 import { getNextSpinTiming } from './spin-duration-logic';
 
@@ -54,7 +56,7 @@ export function useWheel(): UseWheelApi {
 		(
 			pool: readonly Activity[],
 			seed?: string,
-			spreadFactor: number = SPREAD_FACTOR_DEFAULT,
+			spreadFactor: number = DEFAULT_SPREAD_FACTOR,
 		): boolean => {
 			if (pool.length === 0) return false;
 			if (phase === 'spinning') return false;
@@ -69,7 +71,7 @@ export function useWheel(): UseWheelApi {
 				weight: spreadWeights[index],
 			}));
 			const rng = makeRng(seed);
-			const winner = pick(weighted, rng);
+			const winner = pickFromWeightedPool(weighted, rng);
 			if (!winner) return false;
 
 			const index = pool.indexOf(winner);

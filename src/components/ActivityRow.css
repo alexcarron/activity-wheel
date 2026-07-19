@@ -13,11 +13,6 @@
 	padding: 4px 10px 4px 0;
 }
 
-.activity-row.is-low:not(.is-selected) {
-	border-color: var(--warn);
-	background: rgba(var(--warn-rgb), 0.06);
-}
-
 .activity-row.is-selected {
 	border-color: var(--accent);
 	background: var(--accent-soft);
@@ -129,11 +124,6 @@
 
 .activity-row-name:hover {
 	color: var(--text-soft);
-}
-
-.activity-row-warn {
-	color: var(--warn);
-	font-size: 0.8125rem;
 }
 
 .activity-row-edit {

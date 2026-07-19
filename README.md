@@ -56,11 +56,10 @@ Every activity has a preference weight that quietly shifts based on how you resp
 
 A few things shape how much a single piece of feedback actually moves the needle:
 
-- Giving the same kind of feedback several times in a row builds momentum, so a streak of accepts (or rejects) carries more weight than a single one-off click.
 - A newly added activity can also get a temporary head start so it has a fair chance of being seen early on, fading away over its first week or so.
 - As a weight gets close to its upper or lower bound, further nudges in that direction matter less and less, which keeps things from swinging to an extreme too abruptly.
 
-No activity can ever be silenced completely, and none can be guaranteed either: there is always a floor beneath which a weight cannot fall and a ceiling it cannot cross, both of which loosen or tighten automatically depending on how many activities are in the wheel. The wheel also resists letting a single favorite dominate every spin, softening further ordinary increases once something is already winning far more often than its peers, though a deliberate strong "love it" reaction can still push past that resistance.
+No activity can ever be silenced completely, and none can be guaranteed either: there is always a floor beneath which a weight cannot fall and a ceiling it cannot cross, both of which loosen or tighten automatically depending on how many activities are in the wheel.
 
 None of this changes what the numbers mean, only how much influence each one carries when the wheel is spun.
 

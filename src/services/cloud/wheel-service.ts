@@ -8,7 +8,7 @@ import { requireSupabase } from '../supabase-client';
 import type { Activity, Wheel } from '../../domain-logic/types';
 import { newId } from '../../utils/id';
 import { isValidUuid } from '../../utils/uuid';
-import { WEIGHT_DEFAULT } from '../../domain-logic/weight-logic/weight-constants';
+import { DEFAULT_WEIGHT } from '../../domain-logic/weight-logic/weight-constants';
 import { createCloudActivityService } from './activity-service';
 import { createCloudTagService } from './tag-service';
 import type { FullBackup, FullBackupEntry } from '../wheel-service';
@@ -123,7 +123,7 @@ export function createCloudWheelService(userId: string): CloudWheelService {
 				id: newId(),
 				wheelId: newWheel.id,
 				createdAt: now,
-				weight: resetWeights ? WEIGHT_DEFAULT : activity.weight,
+				weight: resetWeights ? DEFAULT_WEIGHT : activity.weight,
 				lastAcceptDelta: undefined,
 			}));
 			if (copiedActivities.length > 0) await activityService.bulkPut(copiedActivities);
