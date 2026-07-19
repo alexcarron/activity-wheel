@@ -81,9 +81,11 @@ interface TagPillProps {
 	count: number;
 	onRemove(): void;
 	onSetColor(color: string | null): void;
+	onRename(newName: string): Promise<void>;
+	onDelete(): Promise<void>;
 }
 
-function TagPill({ name, color, count, onRemove, onSetColor }: TagPillProps) {
+function TagPill({ name, color, count, onRemove, onSetColor, onRename, onDelete }: TagPillProps) {
 	const pillRef = useRef<HTMLSpanElement>(null);
 	const { isOpen, position, popoverRef, open, close } = useTagColorPickerPopover(pillRef);
 
@@ -97,7 +99,7 @@ function TagPill({ name, color, count, onRemove, onSetColor }: TagPillProps) {
 				style={pillStyle}
 				onClick={open}
 				onContextMenu={open}
-				title={`${name} (click to change color)`}
+				title={`${name} (click to edit)`}
 			>
 				{name}
 				<span className="activity-tag-pill-suffix">
@@ -124,6 +126,8 @@ function TagPill({ name, color, count, onRemove, onSetColor }: TagPillProps) {
 					position={position}
 					popoverRef={popoverRef}
 					onSetColor={onSetColor}
+					onRename={onRename}
+					onDelete={onDelete}
 					onClose={close}
 				/>
 			)}
@@ -132,7 +136,7 @@ function TagPill({ name, color, count, onRemove, onSetColor }: TagPillProps) {
 }
 
 interface AddTagComboboxProps {
-	activityTags: string[];
+	activityTagIds: string[];
 	allTagMetadata: readonly TagMetadata[];
 	onAdd(name: string): void;
 	/** When provided, renders a full button instead of the ＋ pill. */
@@ -140,7 +144,7 @@ interface AddTagComboboxProps {
 }
 
 export function AddTagCombobox({
-	activityTags,
+	activityTagIds,
 	allTagMetadata,
 	onAdd,
 	triggerLabel,
@@ -199,8 +203,8 @@ export function AddTagCombobox({
 	const suggestions = (() => {
 		const queryText = query.trim().toLowerCase();
 		return allTagMetadata
+			.filter((tag) => !activityTagIds.includes(tag.id)) // exclude already-added
 			.map((tag) => tag.name)
-			.filter((name) => !activityTags.includes(name)) // exclude already-added
 			.filter((name) => !queryText || name.toLowerCase().includes(queryText))
 			.slice(0, 12);
 	})();
@@ -349,8 +353,11 @@ interface Props {
 	onRename(id: string, name: string): Promise<void>;
 	onFeedback(id: string, action: FeedbackAction): Promise<void>;
 	onDelete(id: string): Promise<void>;
-	onUpdateTags(id: string, tags: string[]): Promise<void>;
-	onSetTagColor(tagName: string, color: string | null): Promise<void>;
+	onUpdateTags(id: string, tagIds: string[]): Promise<void>;
+	onAddTag(id: string, tagName: string): Promise<void>;
+	onSetTagColor(tagId: string, color: string | null): Promise<void>;
+	onRenameTag(tagId: string, newName: string): Promise<void>;
+	onDeleteTag(tagId: string): Promise<void>;
 	onSelectionMouseDown(id: string): void;
 	onRowMouseEnter(id: string): void;
 	/** Called whenever this row's inline rename editor opens/closes. Used to detect confusing remote changes to a shared wheel while a name edit is in progress. */
@@ -404,7 +411,10 @@ function ActivityRowComponent({
 	onFeedback,
 	onDelete,
 	onUpdateTags,
+	onAddTag,
 	onSetTagColor,
+	onRenameTag,
+	onDeleteTag,
 	onSelectionMouseDown,
 	onRowMouseEnter,
 	onEditingChange,
@@ -416,7 +426,7 @@ function ActivityRowComponent({
 	const [busy, setBusy] = useState(false);
 	const inputRef = useRef<HTMLInputElement>(null);
 	const effectiveWeight = getEffectiveWeight(activity, now, globalWeightContext);
-	const hasTags = (activity.tags ?? []).length > 0;
+	const hasTags = (activity.tagIds ?? []).length > 0;
 
 	useEffect(() => {
 		if (isEditingName && inputRef.current) {
@@ -501,32 +511,44 @@ function ActivityRowComponent({
 
 	const handleAddTag = useCallback(
 		async (tagName: string) => {
-			const current = activity.tags ?? [];
-			if (current.includes(tagName)) return; // already on this activity
-			await onUpdateTags(activity.id, [...current, tagName]);
+			await onAddTag(activity.id, tagName);
 		},
-		[activity.id, activity.tags, onUpdateTags],
+		[activity.id, onAddTag],
 	);
 
 	const handleRemoveTag = useCallback(
-		async (tagName: string) => {
-			const current = activity.tags ?? [];
+		async (tagId: string) => {
+			const current = activity.tagIds ?? [];
 			await onUpdateTags(
 				activity.id,
-				current.filter((tag) => tag !== tagName),
+				current.filter((id) => id !== tagId),
 			);
 		},
-		[activity.id, activity.tags, onUpdateTags],
+		[activity.id, activity.tagIds, onUpdateTags],
 	);
 
 	const handleSetTagColor = useCallback(
-		async (tagName: string, color: string | null) => {
-			await onSetTagColor(tagName, color);
+		async (tagId: string, color: string | null) => {
+			await onSetTagColor(tagId, color);
 		},
 		[onSetTagColor],
 	);
 
-	const tags = activity.tags ?? [];
+	const handleRenameTag = useCallback(
+		async (tagId: string, newName: string) => {
+			await onRenameTag(tagId, newName);
+		},
+		[onRenameTag],
+	);
+
+	const handleDeleteTag = useCallback(
+		async (tagId: string) => {
+			await onDeleteTag(tagId);
+		},
+		[onDeleteTag],
+	);
+
+	const tagIds = activity.tagIds ?? [];
 
 	if (isCompact) {
 		return (
@@ -743,7 +765,7 @@ function ActivityRowComponent({
 						)}
 						{!hasTags && !isEditingName && (
 							<AddTagCombobox
-								activityTags={tags}
+								activityTagIds={tagIds}
 								allTagMetadata={allTagMetadata}
 								onAdd={(name) => void handleAddTag(name)}
 							/>
@@ -798,21 +820,24 @@ function ActivityRowComponent({
 				{/* Tags row. Only rendered when the activity has tags */}
 				{hasTags && (
 					<div className="activity-row-tags">
-						{tags.map((tag) => {
-							const matchedMetadata = allTagMetadata.find((metadata) => metadata.name === tag);
+						{tagIds.map((tagId) => {
+							const metadata = allTagMetadata.find((tag) => tag.id === tagId);
+							if (!metadata) return null;
 							return (
 								<TagPill
-									key={tag}
-									name={tag}
-									color={matchedMetadata?.color}
-									count={tagCounts.get(tag) ?? 1}
-									onRemove={() => void handleRemoveTag(tag)}
-									onSetColor={(color) => void handleSetTagColor(tag, color)}
+									key={tagId}
+									name={metadata.name}
+									color={metadata.color}
+									count={tagCounts.get(tagId) ?? 1}
+									onRemove={() => void handleRemoveTag(tagId)}
+									onSetColor={(color) => void handleSetTagColor(tagId, color)}
+									onRename={(newName) => handleRenameTag(tagId, newName)}
+									onDelete={() => handleDeleteTag(tagId)}
 								/>
 							);
 						})}
 						<AddTagCombobox
-							activityTags={tags}
+							activityTagIds={tagIds}
 							allTagMetadata={allTagMetadata}
 							onAdd={(name) => void handleAddTag(name)}
 						/>

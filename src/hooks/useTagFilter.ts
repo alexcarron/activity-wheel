@@ -14,21 +14,22 @@ import { createSharedTagService } from '../services/cloud/shared-tag-service';
 export type { FilterMode };
 
 export interface TagFilterApi {
-	readonly activeTags: readonly string[];
+	readonly activeTagIds: readonly string[];
 	readonly untaggedOnly: boolean;
 	readonly filterMode: FilterMode;
 
-	toggleTag(name: string): void;
+	toggleTag(id: string): void;
 	toggleUntagged(): void;
 	clearFilter(): void;
 	toggleMode(): void;
 
 	readonly tagMetadata: readonly TagMetadata[];
 
-	setTagColor(name: string, color: string | null): Promise<void>;
-	registerTags(names: string[]): Promise<void>;
+	setTagColor(id: string, color: string | null): Promise<void>;
+	renameTag(id: string, newName: string): Promise<TagMetadata>;
+	registerTags(names: string[]): Promise<TagMetadata[]>;
 	reloadMetadata(): Promise<void>;
-	pruneTags(names: string[]): void;
+	pruneTags(ids: string[]): void;
 }
 
 export function useTagFilter(
@@ -44,7 +45,7 @@ export function useTagFilter(
 	);
 	const tagService: CloudTagService = sharedWheelId ? sharedTagService : ownedTagService;
 
-	const [activeTags, setActiveTags] = useState<readonly string[]>([]);
+	const [activeTagIds, setActiveTagIds] = useState<readonly string[]>([]);
 	const [untaggedOnly, setUntaggedOnly] = useState(false);
 	const [filterMode, setFilterMode] = useState<FilterMode>('OR');
 	const [tagMetadata, setTagMetadata] = useState<readonly TagMetadata[]>([]);
@@ -62,7 +63,7 @@ export function useTagFilter(
 		// Intentional: this effect's job is to reset filter state for the newly
 		// active wheel before fetching its tag metadata.
 		// eslint-disable-next-line react-hooks/set-state-in-effect
-		setActiveTags([]);
+		setActiveTagIds([]);
 		setUntaggedOnly(false);
 		setFilterMode('OR');
 		if (!wheelId) {
@@ -77,20 +78,20 @@ export function useTagFilter(
 		};
 	}, [wheelId, tagService]);
 
-	const toggleTag = useCallback((name: string): void => {
+	const toggleTag = useCallback((id: string): void => {
 		setUntaggedOnly(false);
-		setActiveTags((prev) =>
-			prev.includes(name) ? prev.filter((tag) => tag !== name) : [...prev, name],
+		setActiveTagIds((prev) =>
+			prev.includes(id) ? prev.filter((tagId) => tagId !== id) : [...prev, id],
 		);
 	}, []);
 
 	const toggleUntagged = useCallback((): void => {
-		setActiveTags([]);
+		setActiveTagIds([]);
 		setUntaggedOnly((prev) => !prev);
 	}, []);
 
 	const clearFilter = useCallback((): void => {
-		setActiveTags([]);
+		setActiveTagIds([]);
 		setUntaggedOnly(false);
 		setFilterMode('OR');
 	}, []);
@@ -100,34 +101,37 @@ export function useTagFilter(
 	}, []);
 
 	const setTagColor = useCallback(
-		async (name: string, color: string | null): Promise<void> => {
-			const saved = await tagService.setTagColor(wheelRef.current, name, color);
+		async (id: string, color: string | null): Promise<void> => {
+			const saved = await tagService.setTagColor(wheelRef.current, id, color);
 			setTagMetadata((prev) => {
-				const exists = prev.some((tag) => tag.name === name);
+				const exists = prev.some((tag) => tag.id === id);
 				return exists
-					? prev.map((tag) => (tag.name === name ? saved : tag))
+					? prev.map((tag) => (tag.id === id ? saved : tag))
 					: [...prev, saved];
 			});
 		},
 		[tagService],
 	);
 
+	const renameTag = useCallback(
+		async (id: string, newName: string): Promise<TagMetadata> => {
+			const saved = await tagService.renameTag(wheelRef.current, id, newName);
+			setTagMetadata((prev) => prev.map((tag) => (tag.id === id ? saved : tag)));
+			return saved;
+		},
+		[tagService],
+	);
+
 	const registerTags = useCallback(
-		async (names: string[]): Promise<void> => {
-			if (names.length === 0) return;
-			await tagService.ensureTagsExist(wheelRef.current, names);
+		async (names: string[]): Promise<TagMetadata[]> => {
+			if (names.length === 0) return [];
+			const resolved = await tagService.ensureTagsExist(wheelRef.current, names);
 			setTagMetadata((prev) => {
-				const existing = new Set(prev.map((tag) => tag.name));
-				const fresh = names
-					.map((tagName) => tagName.trim())
-					.filter((tagName) => tagName && !existing.has(tagName))
-					.map((name): TagMetadata => ({
-						key: `${wheelRef.current}:${name}`,
-						wheelId: wheelRef.current,
-						name,
-					}));
+				const existingIds = new Set(prev.map((tag) => tag.id));
+				const fresh = resolved.filter((tag) => !existingIds.has(tag.id));
 				return fresh.length === 0 ? prev : [...prev, ...fresh];
 			});
+			return resolved;
 		},
 		[tagService],
 	);
@@ -137,15 +141,15 @@ export function useTagFilter(
 		if (mounted.current) setTagMetadata(metadata);
 	}, [tagService]);
 
-	const pruneTags = useCallback((names: string[]): void => {
-		const pruned = new Set(names);
-		setTagMetadata((prev) => prev.filter((tag) => !pruned.has(tag.name)));
-		setActiveTags((prev) => prev.filter((tag) => !pruned.has(tag)));
+	const pruneTags = useCallback((ids: string[]): void => {
+		const pruned = new Set(ids);
+		setTagMetadata((prev) => prev.filter((tag) => !pruned.has(tag.id)));
+		setActiveTagIds((prev) => prev.filter((id) => !pruned.has(id)));
 	}, []);
 
 	return useMemo<TagFilterApi>(
 		() => ({
-			activeTags,
+			activeTagIds,
 			untaggedOnly,
 			filterMode,
 			toggleTag,
@@ -154,12 +158,13 @@ export function useTagFilter(
 			toggleMode,
 			tagMetadata,
 			setTagColor,
+			renameTag,
 			registerTags,
 			reloadMetadata,
 			pruneTags,
 		}),
 		[
-			activeTags,
+			activeTagIds,
 			untaggedOnly,
 			filterMode,
 			toggleTag,
@@ -168,6 +173,7 @@ export function useTagFilter(
 			toggleMode,
 			tagMetadata,
 			setTagColor,
+			renameTag,
 			registerTags,
 			reloadMetadata,
 			pruneTags,

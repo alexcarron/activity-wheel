@@ -105,7 +105,7 @@ export function PostSpinActions(props: Props) {
 		onAddTag,
 	} = props;
 	const canSpinAgain = remainingInPool > 0;
-	const hasNoTags = (winner.tags ?? []).length === 0;
+	const hasNoTags = (winner.tagIds ?? []).length === 0;
 	const { isPhone } = useViewportBreakpoint();
 	const feedbackButtonOrder = isPhone ? PHONE_FEEDBACK_BUTTON_ORDER : DESKTOP_FEEDBACK_BUTTON_ORDER;
 
@@ -142,8 +142,8 @@ export function PostSpinActions(props: Props) {
 	const tagSuggestions = (() => {
 		const queryText = tagDraft.trim().toLowerCase();
 		return allTagMetadata
+			.filter((tag) => !(winner.tagIds ?? []).includes(tag.id))
 			.map((tag) => tag.name)
-			.filter((tagName) => !(winner.tags ?? []).includes(tagName))
 			.filter((tagName) => !queryText || tagName.toLowerCase().includes(queryText))
 			.slice(0, 6);
 	})();

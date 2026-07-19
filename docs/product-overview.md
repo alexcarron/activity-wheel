@@ -69,7 +69,7 @@ Each row supports:
 
 - Click the name to rename it inline.
 - The same four feedback buttons as the post-spin panel (★ / + / − / ✕), so you can nudge a weight without spinning for it.
-- Tags: add via the `+` combobox (autocompletes from every tag you've ever used, or lets you create a new one), remove with the `×` on hover, right-click a tag to change its color from a preset palette or a custom picker.
+- Tags: add via the `+` combobox (autocompletes from every tag you've ever used, or lets you create a new one), remove with the `×` on hover, right-click a tag to open a small popover where you can rename it (rejecting a name that collides with another tag), change its color from a preset palette or a custom picker, or delete it entirely (with a confirmation prompt, since it strips the tag from every activity that has it).
 - Delete, with a confirmation prompt.
 
 Click-and-drag across the circular selector on the left of multiple rows to multi-select them, which opens a batch action bar for adding a tag to everything selected at once.

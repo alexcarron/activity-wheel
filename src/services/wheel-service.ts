@@ -9,12 +9,7 @@ import { db } from './activity-service';
 import { TAG_METADATA_STORE, WHEELS_STORE } from './schema';
 import { newId } from '../utils/id';
 import { addActivity, bulkPut, clearWheelActivities, listActivities } from './activity-service';
-import {
-	clearWheelTagMetadata,
-	copyTagMetadata,
-	ensureTagsExist,
-	listTagMetadata,
-} from './tag-service';
+import { clearWheelTagMetadata, copyTagMetadata, listTagMetadata } from './tag-service';
 import { DEFAULT_WEIGHT } from '../domain-logic/weight-logic/weight-constants';
 
 const wheelStore = (): TypedStore<Wheel> => db.store<Wheel>(WHEELS_STORE.name);
@@ -115,9 +110,69 @@ export interface FullBackupEntry {
 }
 
 export interface FullBackup {
-	format: 'full-backup-v2';
+	format: 'full-backup-v3';
 	exportedAt: number;
 	wheels: FullBackupEntry[];
+}
+
+interface LegacyActivity {
+	id: string;
+	wheelId: string;
+	name: string;
+	weight: number;
+	createdAt: number;
+	acceptCount: number;
+	rejectCount: number;
+	streak: number;
+	lastAcceptDelta?: number;
+	tags?: string[];
+}
+
+interface LegacyTagMetadata {
+	key: string;
+	wheelId: string;
+	name: string;
+	color?: string;
+}
+
+interface LegacyFullBackupEntry {
+	wheel: Wheel;
+	activities: LegacyActivity[];
+	tags: LegacyTagMetadata[];
+}
+
+export interface LegacyFullBackup {
+	format: 'full-backup-v2';
+	exportedAt: number;
+	wheels: LegacyFullBackupEntry[];
+}
+
+export function convertLegacyBackupEntry(entry: LegacyFullBackupEntry): FullBackupEntry {
+	const tags: TagMetadata[] = entry.tags.map((legacyTag) => {
+		const tag: TagMetadata = { id: newId(), wheelId: legacyTag.wheelId, name: legacyTag.name };
+		if (legacyTag.color) tag.color = legacyTag.color;
+		return tag;
+	});
+	const idByName = new Map(tags.map((tag) => [tag.name, tag.id]));
+	const activities: Activity[] = entry.activities.map((legacyActivity) => {
+		const tagIds = (legacyActivity.tags ?? [])
+			.map((name) => idByName.get(name))
+			.filter((id): id is string => !!id);
+		const activity: Activity = {
+			id: legacyActivity.id,
+			wheelId: legacyActivity.wheelId,
+			name: legacyActivity.name,
+			weight: legacyActivity.weight,
+			createdAt: legacyActivity.createdAt,
+			acceptCount: legacyActivity.acceptCount,
+			rejectCount: legacyActivity.rejectCount,
+			streak: legacyActivity.streak,
+			tagIds,
+		};
+		if (legacyActivity.lastAcceptDelta !== undefined) activity.lastAcceptDelta = legacyActivity.lastAcceptDelta;
+		return activity;
+	});
+	return { wheel: entry.wheel, activities, tags };
 }
 
 /** Export all wheels, their activities, and tag metadata as a portable JSON snapshot. */
@@ -131,7 +186,7 @@ export async function exportFullBackup(): Promise<string> {
 		})),
 	);
 	return JSON.stringify(
-		{ format: 'full-backup-v2', exportedAt: Date.now(), wheels: data },
+		{ format: 'full-backup-v3', exportedAt: Date.now(), wheels: data },
 		null,
 		2,
 	);
@@ -150,7 +205,18 @@ export async function importFullBackup(json: string): Promise<string> {
 		return wheels[0]?.id ?? 'default';
 	}
 
-	if (!isFullBackup(parsed)) {
+	let backup: FullBackup;
+	if (isFullBackup(parsed)) {
+		backup = parsed;
+	}
+	else if (isLegacyFullBackupV2(parsed)) {
+		backup = {
+			format: 'full-backup-v3',
+			exportedAt: parsed.exportedAt,
+			wheels: parsed.wheels.map(convertLegacyBackupEntry),
+		};
+	}
+	else {
 		const asObj =
 			typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : null;
 		if (asObj?.format === 'wheel-backup-v1') {
@@ -170,17 +236,17 @@ export async function importFullBackup(json: string): Promise<string> {
 	// Write imported wheels, activities, and tags.
 	const wheelsStore = db.store<Wheel>(WHEELS_STORE.name);
 	const tagMetadataStore = db.store<TagMetadata>(TAG_METADATA_STORE.name);
-	for (const { wheel, activities, tags } of parsed.wheels) {
+	for (const { wheel, activities, tags } of backup.wheels) {
 		await wheelsStore.put(wheel);
 		if (activities.length > 0) await bulkPut(activities);
 		for (const tag of tags) await tagMetadataStore.put(tag);
 	}
 
-	if (parsed.wheels.length === 0) {
+	if (backup.wheels.length === 0) {
 		const fallback = await createWheel('My Wheel');
 		return fallback.id;
 	}
-	return parsed.wheels[0].wheel.id;
+	return backup.wheels[0].wheel.id;
 }
 
 /** Delete all wheels and their data, then create one fresh blank wheel. */
@@ -193,6 +259,12 @@ export async function resetToBlankWheel(): Promise<Wheel> {
 }
 
 function isFullBackup(value: unknown): value is FullBackup {
+	if (typeof value !== 'object' || value === null) return false;
+	const obj = value as Record<string, unknown>;
+	return obj.format === 'full-backup-v3' && Array.isArray(obj.wheels);
+}
+
+export function isLegacyFullBackupV2(value: unknown): value is LegacyFullBackup {
 	if (typeof value !== 'object' || value === null) return false;
 	const obj = value as Record<string, unknown>;
 	return obj.format === 'full-backup-v2' && Array.isArray(obj.wheels);
@@ -210,54 +282,37 @@ export async function copyWheel(
 	resetWeights: boolean,
 ): Promise<Wheel> {
 	const newWheel = await createWheel(name);
+	const tagIdMap = await copyTagMetadata(fromWheelId, newWheel.id);
 
 	const sourceActivities = await listActivities(fromWheelId);
 	const now = Date.now();
 	for (const activity of sourceActivities) {
 		await addActivity(activity.name, newWheel.id, now);
-		// addActivity always creates at WEIGHT_DEFAULT, so resetWeights=false needs
-		// us to also copy the weight. We can't use addActivity for that path.
 	}
 
-	if (!resetWeights && sourceActivities.length > 0) {
-		// Overwrite the just-created activities with the source weights/feedback.
-		// Re-read what was just created (they were created with default weights).
+	if (sourceActivities.length > 0) {
 		const created = await listActivities(newWheel.id);
-		// Match by name (names are unique within a wheel by convention).
 		const nameToSource = new Map(sourceActivities.map((activity) => [activity.name, activity]));
 		await bulkPut(
 			created.map((activity) => {
 				const source = nameToSource.get(activity.name);
 				if (!source) return activity;
-				return {
-					...activity,
-					weight: source.weight,
-					acceptCount: source.acceptCount,
-					rejectCount: source.rejectCount,
-					streak: source.streak,
-					tags: source.tags,
-					// Do NOT copy lastAcceptDelta. Nothing to undo in the copy.
-				};
+				const tagIds = source.tagIds
+					.map((tagId) => tagIdMap.get(tagId))
+					.filter((tagId): tagId is string => !!tagId);
+				return resetWeights
+					? { ...activity, weight: DEFAULT_WEIGHT, tagIds }
+					: {
+						...activity,
+						weight: source.weight,
+						acceptCount: source.acceptCount,
+						rejectCount: source.rejectCount,
+						streak: source.streak,
+						tagIds,
+					};
 			}),
 		);
 	}
-	else if (sourceActivities.length > 0) {
-		// resetWeights=true: copy tags but keep weights at default.
-		const created = await listActivities(newWheel.id);
-		const nameToSource = new Map(sourceActivities.map((activity) => [activity.name, activity]));
-		await bulkPut(
-			created.map((activity) => {
-				const source = nameToSource.get(activity.name);
-				return source ? { ...activity, weight: DEFAULT_WEIGHT, tags: source.tags } : activity;
-			}),
-		);
-	}
-
-	await copyTagMetadata(fromWheelId, newWheel.id);
-
-	// Ensure tag names are registered for the activities we just copied.
-	const allTags = [...new Set(sourceActivities.flatMap((activity) => activity.tags ?? []))];
-	if (allTags.length > 0) await ensureTagsExist(newWheel.id, allTags);
 
 	return newWheel;
 }

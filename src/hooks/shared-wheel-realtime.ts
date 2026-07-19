@@ -19,7 +19,7 @@ interface SharedActivityRealtimeRow {
 	reject_count: number;
 	streak: number;
 	last_accept_delta: number | null;
-	tags: string[];
+	tag_ids: string[];
 }
 
 export function useSharedWheelRealtimeSync(

@@ -25,8 +25,12 @@ interface ActivityListProps {
 	onRename(id: string, name: string): Promise<void>;
 	onFeedback(id: string, action: FeedbackAction): Promise<void>;
 	onDelete(id: string): Promise<void>;
-	onUpdateTags(id: string, tags: string[]): Promise<void>;
-	onSetTagColor(tagName: string, color: string | null): Promise<void>;
+	onUpdateTags(id: string, tagIds: string[]): Promise<void>;
+	onAddTag(id: string, tagName: string): Promise<void>;
+	onSetTagColor(tagId: string, color: string | null): Promise<void>;
+	onRenameTag(tagId: string, newName: string): Promise<void>;
+	onDeleteTag(tagId: string): Promise<void>;
+	onAddTagByName(tagName: string, activityIds: readonly string[]): Promise<void>;
 	/** Forwarded to every row; see ActivityRow's onEditingChange doc comment. */
 	onEditingChange?(activityId: string, isEditing: boolean): void;
 }
@@ -52,7 +56,11 @@ export function ActivityList(props: ActivityListProps) {
 		onFeedback,
 		onDelete,
 		onUpdateTags,
+		onAddTag,
 		onSetTagColor,
+		onRenameTag,
+		onDeleteTag,
+		onAddTagByName,
 		onEditingChange,
 	} = props;
 	const globalWeightContext = useWeightContext();
@@ -136,8 +144,8 @@ export function ActivityList(props: ActivityListProps) {
 	const tagCounts = useMemo<Map<string, number>>(() => {
 		const map = new Map<string, number>();
 		for (const activity of activities) {
-			for (const tag of activity.tags ?? []) {
-				map.set(tag, (map.get(tag) ?? 0) + 1);
+			for (const tagId of activity.tagIds ?? []) {
+				map.set(tagId, (map.get(tagId) ?? 0) + 1);
 			}
 		}
 		return map;
@@ -186,27 +194,24 @@ export function ActivityList(props: ActivityListProps) {
 		});
 	}, [sorted]);
 
-	/** Tags shared by all currently selected activities */
-	const commonTagsOfSelected = useMemo<string[]>(() => {
+	/** Tag ids shared by all currently selected activities */
+	const commonTagIdsOfSelected = useMemo<string[]>(() => {
 		if (selectedIds.size === 0) return [];
 		const selected = activities.filter((activity) => selectedIds.has(activity.id));
 		if (selected.length === 0) return [];
-		let common = new Set(selected[0].tags ?? []);
+		let common = new Set(selected[0].tagIds ?? []);
 		for (const activity of selected.slice(1)) {
-			const tags = new Set(activity.tags ?? []);
-			common = new Set([...common].filter((tag) => tags.has(tag)));
+			const tagIds = new Set(activity.tagIds ?? []);
+			common = new Set([...common].filter((tagId) => tagIds.has(tagId)));
 		}
 		return [...common];
 	}, [activities, selectedIds]);
 
 	const handleBatchAddTag = useCallback(
 		async (tagName: string) => {
-			const updates = activities
-				.filter((activity) => selectedIds.has(activity.id) && !(activity.tags ?? []).includes(tagName))
-				.map((activity) => onUpdateTags(activity.id, [...(activity.tags ?? []), tagName]));
-			await Promise.all(updates);
+			await onAddTagByName(tagName, [...selectedIds]);
 		},
-		[activities, selectedIds, onUpdateTags],
+		[selectedIds, onAddTagByName],
 	);
 
 	const toggleSortDirection = (): void => setSortDirection((currentDirection) => (currentDirection === 'asc' ? 'desc' : 'asc'));
@@ -343,7 +348,7 @@ export function ActivityList(props: ActivityListProps) {
 							{allSortedSelected ? 'Deselect all' : 'Select all'}
 						</button>
 						<AddTagCombobox
-							activityTags={commonTagsOfSelected}
+							activityTagIds={commonTagIdsOfSelected}
 							allTagMetadata={allTagMetadata}
 							onAdd={(name) => void handleBatchAddTag(name)}
 							triggerLabel={`＋ Add tag${selectedIds.size > 1 ? ` to ${selectedIds.size}` : ''}`}
@@ -388,7 +393,10 @@ export function ActivityList(props: ActivityListProps) {
 							onFeedback={onFeedback}
 							onDelete={onDelete}
 							onUpdateTags={onUpdateTags}
+							onAddTag={onAddTag}
 							onSetTagColor={onSetTagColor}
+							onRenameTag={onRenameTag}
+							onDeleteTag={onDeleteTag}
 							onSelectionMouseDown={handleSelectionMouseDown}
 							onRowMouseEnter={handleRowMouseEnter}
 							onEditingChange={onEditingChange}

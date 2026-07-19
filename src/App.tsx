@@ -145,48 +145,75 @@ function App() {
 		() =>
 			filterActivitiesByTags(
 				activityState.activities,
-				tagFilter.activeTags,
+				tagFilter.activeTagIds,
 				tagFilter.filterMode,
 				tagFilter.untaggedOnly,
 			),
-		[activityState.activities, tagFilter.activeTags, tagFilter.filterMode, tagFilter.untaggedOnly],
+		[activityState.activities, tagFilter.activeTagIds, tagFilter.filterMode, tagFilter.untaggedOnly],
 	);
 
 	// Session pool is always the intersection of "passes tag filter" × "not yet spun".
 	// useSession is re-initialised when filteredActivities reference changes (on wheel switch).
 	const session = useSession(filteredActivities);
 
-	const filterOn = isFilterActive(tagFilter.activeTags, tagFilter.untaggedOnly);
+	const filterOn = isFilterActive(tagFilter.activeTagIds, tagFilter.untaggedOnly);
 
 	const handleAddTagToActivity = async (activityId: string, tagName: string): Promise<void> => {
 		const activity = activityState.activities.find((candidate) => candidate.id === activityId);
 		if (!activity) return;
-		const newTags = [...new Set([...(activity.tags ?? []), tagName])];
-		await activityState.updateTags(activityId, newTags);
-		await tagFilter.registerTags([tagName]);
+		const [meta] = await tagFilter.registerTags([tagName]);
+		const newTagIds = [...new Set([...(activity.tagIds ?? []), meta.id])];
+		await activityState.updateTags(activityId, newTagIds);
 	};
 
-	const handleUpdateTags = async (id: string, tags: string[]): Promise<void> => {
+	const handleUpdateTags = async (id: string, tagIds: string[]): Promise<void> => {
 		const activity = activityState.activities.find((candidate) => candidate.id === id);
-		const removedTags = (activity?.tags ?? []).filter((tag) => !tags.includes(tag));
-		await activityState.updateTags(id, tags);
-		await tagFilter.registerTags(tags);
-		if (removedTags.length > 0) {
+		const removedTagIds = (activity?.tagIds ?? []).filter((tagId) => !tagIds.includes(tagId));
+		await activityState.updateTags(id, tagIds);
+		if (removedTagIds.length > 0) {
 			const afterUpdate = activityState.activities.map((candidate) =>
-				candidate.id === id ? { ...candidate, tags } : candidate,
+				candidate.id === id ? { ...candidate, tagIds } : candidate,
 			);
-			const pruned = await activeTagService.pruneOrphanTags(activeWheelIdForTagOps, afterUpdate, removedTags);
+			const pruned = await activeTagService.pruneOrphanTags(activeWheelIdForTagOps, afterUpdate, removedTagIds);
 			if (pruned.length > 0) tagFilter.pruneTags(pruned);
 		}
 	};
 
+	const handleRenameTag = async (id: string, newName: string): Promise<void> => {
+		await tagFilter.renameTag(id, newName);
+	};
+
+	const handleDeleteTag = async (id: string): Promise<void> => {
+		const affectedActivities = activityState.activities.filter((activity) =>
+			(activity.tagIds ?? []).includes(id),
+		);
+		await Promise.all(
+			affectedActivities.map((activity) =>
+				activityState.updateTags(
+					activity.id,
+					activity.tagIds.filter((tagId) => tagId !== id),
+				),
+			),
+		);
+		await activeTagService.deleteTagMetadata(activeWheelIdForTagOps, id);
+		tagFilter.pruneTags([id]);
+	};
+
+	const handleBatchAddTagByName = async (name: string, activityIds: readonly string[]): Promise<void> => {
+		const [meta] = await tagFilter.registerTags([name]);
+		const updates = activityState.activities
+			.filter((activity) => activityIds.includes(activity.id) && !(activity.tagIds ?? []).includes(meta.id))
+			.map((activity) => activityState.updateTags(activity.id, [...(activity.tagIds ?? []), meta.id]));
+		await Promise.all(updates);
+	};
+
 	const handleDelete = async (id: string): Promise<void> => {
 		const activity = activityState.activities.find((candidate) => candidate.id === id);
-		const tagsToPrune = activity?.tags ?? [];
+		const tagIdsToPrune = activity?.tagIds ?? [];
 		await activityState.remove(id);
-		if (tagsToPrune.length > 0) {
+		if (tagIdsToPrune.length > 0) {
 			const afterDelete = activityState.activities.filter((candidate) => candidate.id !== id);
-			const pruned = await activeTagService.pruneOrphanTags(activeWheelIdForTagOps, afterDelete, tagsToPrune);
+			const pruned = await activeTagService.pruneOrphanTags(activeWheelIdForTagOps, afterDelete, tagIdsToPrune);
 			if (pruned.length > 0) tagFilter.pruneTags(pruned);
 		}
 	};
@@ -293,7 +320,7 @@ function App() {
 							<TagFilterBar
 								allActivities={activityState.activities}
 								tagMetadata={tagFilter.tagMetadata}
-								activeTags={tagFilter.activeTags}
+								activeTagIds={tagFilter.activeTagIds}
 								untaggedOnly={tagFilter.untaggedOnly}
 								filterMode={tagFilter.filterMode}
 								onToggleTag={tagFilter.toggleTag}
@@ -301,6 +328,8 @@ function App() {
 								onClearFilter={tagFilter.clearFilter}
 								onToggleMode={tagFilter.toggleMode}
 								onSetTagColor={tagFilter.setTagColor}
+								onRenameTag={handleRenameTag}
+								onDeleteTag={handleDeleteTag}
 							/>
 
 							<section className="app-panel">
@@ -327,7 +356,11 @@ function App() {
 									onFeedback={activityState.applyFeedback}
 									onDelete={handleDelete}
 									onUpdateTags={handleUpdateTags}
+									onAddTag={handleAddTagToActivity}
 									onSetTagColor={tagFilter.setTagColor}
+									onRenameTag={handleRenameTag}
+									onDeleteTag={handleDeleteTag}
+									onAddTagByName={handleBatchAddTagByName}
 									onEditingChange={handleEditingChange}
 								/>
 							</section>

@@ -21,7 +21,7 @@ export function newActivity(id: string, name: string, now: number, wheelId: stri
 		acceptCount: 0,
 		rejectCount: 0,
 		streak: 0,
-		tags: [],
+		tagIds: [],
 		lastAcceptDelta: undefined,
 	};
 }

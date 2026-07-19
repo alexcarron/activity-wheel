@@ -21,7 +21,7 @@ interface ActivityRow {
 	reject_count: number;
 	streak: number;
 	last_accept_delta: number | null;
-	tags: string[];
+	tag_ids: string[];
 }
 
 function rowToActivity(row: ActivityRow): Activity {
@@ -34,7 +34,7 @@ function rowToActivity(row: ActivityRow): Activity {
 		acceptCount: row.accept_count,
 		rejectCount: row.reject_count,
 		streak: row.streak,
-		tags: row.tags ?? [],
+		tagIds: row.tag_ids ?? [],
 	};
 	if (row.last_accept_delta !== null) activity.lastAcceptDelta = row.last_accept_delta;
 	return activity;
@@ -52,7 +52,7 @@ function activityToRow(userId: string, activity: Activity): Omit<ActivityRow, 'c
 		reject_count: activity.rejectCount,
 		streak: activity.streak,
 		last_accept_delta: activity.lastAcceptDelta ?? null,
-		tags: activity.tags,
+		tag_ids: activity.tagIds,
 	};
 }
 
@@ -61,7 +61,7 @@ export interface CloudActivityService {
 	addActivity(name: string, wheelId: string, now?: number): Promise<Activity>;
 	renameActivity(id: string, name: string): Promise<Activity>;
 	deleteActivity(id: string): Promise<void>;
-	updateActivityTags(id: string, tags: string[]): Promise<Activity>;
+	updateActivityTagIds(id: string, tagIds: string[]): Promise<Activity>;
 	recordFeedback(
 		id: string,
 		action: FeedbackAction,
@@ -115,10 +115,10 @@ export function createCloudActivityService(userId: string): CloudActivityService
 			if (error) throw error;
 		},
 
-		async updateActivityTags(id, tags) {
+		async updateActivityTagIds(id, tagIds) {
 			const { data, error } = await supabase
 				.from('activities')
-				.update({ tags })
+				.update({ tag_ids: tagIds })
 				.eq('id', id)
 				.select('*')
 				.single();

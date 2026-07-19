@@ -6,11 +6,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as localActivityService from '../services/activity-service';
 import { totalEffective } from '../services/activity-service';
-import * as localTagService from '../services/tag-service';
 import { createCloudActivityService, type CloudActivityService } from '../services/cloud/activity-service';
-import { createCloudTagService } from '../services/cloud/tag-service';
 import { createSharedActivityService } from '../services/cloud/shared-activity-service';
-import { createSharedTagService } from '../services/cloud/shared-tag-service';
 import { useSharedWheelRealtimeSync, type SharedActivityChange } from './shared-wheel-realtime';
 import type { Activity, FeedbackAction } from '../domain-logic/types';
 import { toErrorMessage } from '../utils/error-message';
@@ -23,7 +20,7 @@ interface UseActivitiesApi {
 	rename(id: string, name: string): Promise<void>;
 	remove(id: string): Promise<void>;
 	applyFeedback(id: string, action: FeedbackAction): Promise<void>;
-	updateTags(id: string, tags: string[]): Promise<void>;
+	updateTags(id: string, tagIds: string[]): Promise<void>;
 	reload(): Promise<void>;
 	clearEverything(): Promise<void>;
 }
@@ -42,13 +39,6 @@ export function useActivities(
 		[userId],
 	);
 	const activityService: CloudActivityService = sharedWheelId ? sharedActivityService : ownedActivityService;
-
-	const sharedEnsureTagsExist = useMemo(() => createSharedTagService().ensureTagsExist, []);
-	const ownedEnsureTagsExist = useMemo(
-		() => (userId ? createCloudTagService(userId).ensureTagsExist : localTagService.ensureTagsExist),
-		[userId],
-	);
-	const ensureTagsExist = sharedWheelId ? sharedEnsureTagsExist : ownedEnsureTagsExist;
 
 	const [activities, setActivities] = useState<readonly Activity[]>([]);
 	const [isLoading, setLoading] = useState(true);
@@ -163,18 +153,17 @@ export function useActivities(
 	);
 
 	const updateTags = useCallback(
-		async (id: string, tags: string[]): Promise<void> => {
+		async (id: string, tagIds: string[]): Promise<void> => {
 			try {
-				const updated = await activityService.updateActivityTags(id, tags);
+				const updated = await activityService.updateActivityTagIds(id, tagIds);
 				setActivities((prev) => prev.map((activity) => (activity.id === id ? updated : activity)));
-				await ensureTagsExist(wheelRef.current, tags);
 			}
 			catch (error) {
 				setError(toErrorMessage(error));
 				throw error;
 			}
 		},
-		[activityService, ensureTagsExist],
+		[activityService],
 	);
 
 	const applyFeedback = useCallback(

@@ -1,4 +1,6 @@
 .tag-color-picker {
+	display: flex;
+	flex-direction: column;
 	background: var(--bg-elev);
 	border: 1px solid var(--border);
 	border-radius: var(--radius-sm);
@@ -7,17 +9,72 @@
 	z-index: 9001;
 	min-width: 200px;
 	max-width: calc(100vw - 16px);
+	gap: 5px;
 }
 
-.tag-color-picker-label {
-	font-size: 0.75rem;
+.tag-color-picker-header {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	margin-bottom: 4px;
+}
+
+.tag-color-picker-name-input {
+	display: block;
+	flex: 1;
+	min-width: 0;
+	font-size: 0.85rem;
 	font-weight: 600;
-	color: var(--text-soft);
-	margin-bottom: 8px;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	max-width: 200px;
+	color: var(--text);
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 4px;
+	padding: 2px 4px;
+	box-sizing: border-box;
+}
+
+.tag-color-picker-delete {
+	width: 24px;
+	height: 24px;
+	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: var(--radius-sm);
+	border: none;
+	background: var(--bg-elev);
+	color: var(--hate);
+	border: 1px solid rgba(var(--hate-rgb), 0.4);
+	cursor: pointer;
+	transition:
+		background 120ms ease,
+		color 120ms ease,
+		border-color 120ms ease;
+}
+
+.tag-color-picker-delete:hover {
+	background: var(--hate);
+	border-color: var(--hate);
+	color: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+	.tag-color-picker-delete {
+		color: #ff8787;
+		border-color: rgba(255, 135, 135, 0.3);
+	}
+}
+
+.tag-color-picker-name-input:focus {
+	border-color: var(--border);
+	background: var(--bg-soft);
+	outline: none;
+}
+
+.tag-color-picker-name-error {
+	font-size: 0.7rem;
+	color: var(--hate);
+	margin-bottom: 6px;
 }
 
 .tag-color-presets {

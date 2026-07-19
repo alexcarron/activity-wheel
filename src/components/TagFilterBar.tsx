@@ -7,7 +7,7 @@
  * - Scrollable row of tag pills with count badges
  * - AND/OR toggle (only visible when 2+ tags are active)
  * - Digit hotkeys (1–9) on the first 9 pills sorted by popularity
- * The filter state lives in the parent (App) via useTagFilter. This is purely presentational plus hotkey wiring. 
+ * The filter state lives in the parent (App) via useTagFilter. This is purely presentational plus hotkey wiring.
  */
 
 import { useMemo, useRef, useState } from 'react';
@@ -24,20 +24,22 @@ interface Props {
 	/** Full (unfiltered) activity list. Needed for accurate counts. */
 	readonly allActivities: readonly Activity[];
 	readonly tagMetadata: readonly TagMetadata[];
-	readonly activeTags: readonly string[];
+	readonly activeTagIds: readonly string[];
 	readonly untaggedOnly: boolean;
 	readonly filterMode: FilterMode;
-	onToggleTag(name: string): void;
+	onToggleTag(id: string): void;
 	onToggleUntagged(): void;
 	onClearFilter(): void;
 	onToggleMode(): void;
-	onSetTagColor(name: string, color: string | null): Promise<void>;
+	onSetTagColor(id: string, color: string | null): Promise<void>;
+	onRenameTag(id: string, newName: string): Promise<void>;
+	onDeleteTag(id: string): Promise<void>;
 }
 
 export function TagFilterBar({
 	allActivities,
 	tagMetadata,
-	activeTags,
+	activeTagIds,
 	untaggedOnly,
 	filterMode,
 	onToggleTag,
@@ -45,6 +47,8 @@ export function TagFilterBar({
 	onClearFilter,
 	onToggleMode,
 	onSetTagColor,
+	onRenameTag,
+	onDeleteTag,
 }: Props) {
 	const [searchQuery, setSearchQuery] = useState('');
 	const searchRef = useRef<HTMLInputElement>(null);
@@ -56,7 +60,7 @@ export function TagFilterBar({
 	/* Tags sorted by activity count (most popular first). Used for both display ordering and assigning digit hotkeys */
 	const sortedTags = useMemo<(TagMetadata & { count: number })[]>(() => {
 		return [...tagMetadata]
-			.map((tag) => ({ ...tag, count: tagCounts.get(tag.name) ?? 0 }))
+			.map((tag) => ({ ...tag, count: tagCounts.get(tag.id) ?? 0 }))
 			.sort((tag1, tag2) => tag2.count - tag1.count || tag1.name.localeCompare(tag2.name))
 			.sort((tag1, tag2) => (tag2.color ? 1 : 0) - (tag1.color ? 1 : 0)); // tags with colors first
 	}, [tagMetadata, tagCounts]);
@@ -68,53 +72,53 @@ export function TagFilterBar({
 		return sortedTags.filter((tag) => tag.name.toLowerCase().includes(queryText));
 	}, [sortedTags, searchQuery]);
 
-	const filterOn = isFilterActive(activeTags, untaggedOnly);
-	const multiTagActive = activeTags.length >= 2;
+	const filterOn = isFilterActive(activeTagIds, untaggedOnly);
+	const multiTagActive = activeTagIds.length >= 2;
 
 	/* Digit hotkeys for top-9 tags. React rules forbid hooks in loops, so we inline 9 calls. Each one is enabled only when the corresponding tag exists and we're not in a text input (useHotkey handles that internally). */
 	useHotkey(
 		TAG_HOTKEYS[0].code,
-		() => sortedTags[0] && onToggleTag(sortedTags[0].name),
+		() => sortedTags[0] && onToggleTag(sortedTags[0].id),
 		sortedTags.length >= 1,
 	);
 	useHotkey(
 		TAG_HOTKEYS[1].code,
-		() => sortedTags[1] && onToggleTag(sortedTags[1].name),
+		() => sortedTags[1] && onToggleTag(sortedTags[1].id),
 		sortedTags.length >= 2,
 	);
 	useHotkey(
 		TAG_HOTKEYS[2].code,
-		() => sortedTags[2] && onToggleTag(sortedTags[2].name),
+		() => sortedTags[2] && onToggleTag(sortedTags[2].id),
 		sortedTags.length >= 3,
 	);
 	useHotkey(
 		TAG_HOTKEYS[3].code,
-		() => sortedTags[3] && onToggleTag(sortedTags[3].name),
+		() => sortedTags[3] && onToggleTag(sortedTags[3].id),
 		sortedTags.length >= 4,
 	);
 	useHotkey(
 		TAG_HOTKEYS[4].code,
-		() => sortedTags[4] && onToggleTag(sortedTags[4].name),
+		() => sortedTags[4] && onToggleTag(sortedTags[4].id),
 		sortedTags.length >= 5,
 	);
 	useHotkey(
 		TAG_HOTKEYS[5].code,
-		() => sortedTags[5] && onToggleTag(sortedTags[5].name),
+		() => sortedTags[5] && onToggleTag(sortedTags[5].id),
 		sortedTags.length >= 6,
 	);
 	useHotkey(
 		TAG_HOTKEYS[6].code,
-		() => sortedTags[6] && onToggleTag(sortedTags[6].name),
+		() => sortedTags[6] && onToggleTag(sortedTags[6].id),
 		sortedTags.length >= 7,
 	);
 	useHotkey(
 		TAG_HOTKEYS[7].code,
-		() => sortedTags[7] && onToggleTag(sortedTags[7].name),
+		() => sortedTags[7] && onToggleTag(sortedTags[7].id),
 		sortedTags.length >= 8,
 	);
 	useHotkey(
 		TAG_HOTKEYS[8].code,
-		() => sortedTags[8] && onToggleTag(sortedTags[8].name),
+		() => sortedTags[8] && onToggleTag(sortedTags[8].id),
 		sortedTags.length >= 9,
 	);
 
@@ -179,18 +183,21 @@ export function TagFilterBar({
 					/* Find this tag's position in the full sorted list to assign hotkey */
 					const globalIndex = sortedTags.indexOf(tag);
 					const hotkey = globalIndex >= 0 && globalIndex < 9 ? TAG_HOTKEYS[globalIndex].label : null;
-					const isActive = activeTags.includes(tag.name);
+					const isActive = activeTagIds.includes(tag.id);
 
 					return (
 						<TagFilterPill
-							key={tag.name}
+							key={tag.id}
+							id={tag.id}
 							name={tag.name}
 							count={tag.count}
 							color={tag.color}
 							isActive={isActive}
 							hotkeyLabel={hotkey}
-							onToggle={() => onToggleTag(tag.name)}
-							onSetColor={(color) => onSetTagColor(tag.name, color)}
+							onToggle={() => onToggleTag(tag.id)}
+							onSetColor={(color) => onSetTagColor(tag.id, color)}
+							onRename={(newName) => onRenameTag(tag.id, newName)}
+							onDelete={() => onDeleteTag(tag.id)}
 						/>
 					);
 				})}
@@ -200,6 +207,7 @@ export function TagFilterBar({
 }
 
 interface TagFilterPillProps {
+	id: string;
 	name: string;
 	count: number;
 	color?: string;
@@ -207,9 +215,11 @@ interface TagFilterPillProps {
 	hotkeyLabel: string | null;
 	onToggle(): void;
 	onSetColor(color: string | null): Promise<void>;
+	onRename(newName: string): Promise<void>;
+	onDelete(): Promise<void>;
 }
 
-function TagFilterPill({ name, count, color, isActive, hotkeyLabel, onToggle, onSetColor }: TagFilterPillProps) {
+function TagFilterPill({ name, count, color, isActive, hotkeyLabel, onToggle, onSetColor, onRename, onDelete }: TagFilterPillProps) {
 	const pillRef = useRef<HTMLButtonElement>(null);
 	const { isOpen, position, popoverRef, open, close } = useTagColorPickerPopover(pillRef);
 
@@ -232,8 +242,8 @@ function TagFilterPill({ name, count, color, isActive, hotkeyLabel, onToggle, on
 				aria-pressed={isActive}
 				title={
 					hotkeyLabel
-						? `Toggle "${name}" filter (${hotkeyLabel}). Right-click to change color`
-						: `Toggle "${name}" filter. Right-click to change color`
+						? `Toggle "${name}" filter (${hotkeyLabel}). Right-click to edit`
+						: `Toggle "${name}" filter. Right-click to edit`
 				}
 			>
 				{name}
@@ -248,6 +258,8 @@ function TagFilterPill({ name, count, color, isActive, hotkeyLabel, onToggle, on
 					position={position}
 					popoverRef={popoverRef}
 					onSetColor={(newColor) => void onSetColor(newColor)}
+					onRename={onRename}
+					onDelete={onDelete}
 					onClose={close}
 				/>
 			)}

@@ -20,20 +20,20 @@ export interface Activity {
 	streak: number;
 	/** The exact weight delta applied by the most recent accept or boost. Stored so UNDO can reverse it */
 	lastAcceptDelta?: number;
-	/** The names of the tags for this activity */
-	tags: string[];
+	/** The ids of the tags for this activity */
+	tagIds: string[];
 }
 
 /**
- * Persisted metadata for a tag name. 
- * Every tag name ever typed within a wheel is registered here. Color is optional and wheel-scoped per name. 
+ * Persisted metadata for a tag.
+ * Every tag ever created within a wheel is registered here, identified by a stable id. Color is optional and wheel-scoped.
  */
 export interface TagMetadata {
-	/** Composite key: "${wheelId}:${name}" */
-	key: string;
+	/** Stable identity. Never changes, even when the tag is renamed */
+	id: string;
 	/** Which wheel this tag belongs to */
 	wheelId: string;
-	/** The tag display name. Used everywhere in the UI */
+	/** The tag display name */
 	name: string;
 	/** Optional CSS color string (e.g. "#3b82f6") */
 	color?: string;

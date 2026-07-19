@@ -50,7 +50,7 @@ export async function exportSharedWheelBackup(sharedWheelId: string): Promise<st
 	const activities = await createSharedActivityService().listActivities(sharedWheelId);
 	const tags = await createSharedTagService().listTagMetadata(sharedWheelId);
 	const backup: FullBackup = {
-		format: 'full-backup-v2',
+		format: 'full-backup-v3',
 		exportedAt: Date.now(),
 		wheels: [{ wheel, activities, tags }],
 	};

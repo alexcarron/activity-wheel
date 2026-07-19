@@ -33,8 +33,8 @@ export async function listActivities(wheelId: string): Promise<Activity[]> {
  */
 function normalizeActivity(activity: Activity): Activity {
 	let out = activity;
-	if (!Array.isArray((activity as { tags?: unknown }).tags)) {
-		out = { ...out, tags: [] };
+	if (!Array.isArray((activity as { tagIds?: unknown }).tagIds)) {
+		out = { ...out, tagIds: [] };
 	}
 	if (!(activity as { wheelId?: unknown }).wheelId) {
 		out = { ...out, wheelId: 'default' };
@@ -70,10 +70,10 @@ export async function deleteActivity(id: string): Promise<void> {
 	await store().delete(id);
 }
 
-export async function updateActivityTags(id: string, tags: string[]): Promise<Activity> {
+export async function updateActivityTagIds(id: string, tagIds: string[]): Promise<Activity> {
 	const existing = await store().get(id);
 	if (!existing) throw new Error(`Activity ${id} not found`);
-	const next: Activity = { ...normalizeActivity(existing), tags };
+	const next: Activity = { ...normalizeActivity(existing), tagIds };
 	await store().put(next);
 	return next;
 }

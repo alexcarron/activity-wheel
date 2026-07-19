@@ -1,10 +1,10 @@
 /**
  * App-specific IndexedDB schema and migrations.
  * This is the only place the activity wheel app talks to the generic IDB library about schema. New schema versions get added here as additive migrations. Never modify a previous one in place.
- * Version history: v1 - initial: activities store v2 - tagging: tag-metadata store (tag name → optional color) v3 - multi-wheel: wheels store; wheelId on activities; tag-metadata re-keyed to "${wheelId}:${tagName}" with keyPath changed to 'key'. Existing activities → wheelId='default'; existing tag colors preserved. 
  */
 
 import type { DBConfig, Migration, StoreSchema } from '../libraries/indexeddb/types';
+import { newId } from '../utils/id';
 
 export const ACTIVITIES_STORE: StoreSchema = {
 	name: 'activities',
@@ -18,7 +18,7 @@ export const ACTIVITIES_STORE: StoreSchema = {
 
 export const TAG_METADATA_STORE: StoreSchema = {
 	name: 'tag-metadata',
-	keyPath: 'key',
+	keyPath: 'id',
 	indexes: [{ name: 'wheelId', keyPath: 'wheelId' }],
 };
 
@@ -27,8 +27,6 @@ export const WHEELS_STORE: StoreSchema = {
 	keyPath: 'id',
 	indexes: [{ name: 'lastUsedAt', keyPath: 'lastUsedAt' }],
 };
-
-// Migrations
 
 const v1Initial: Migration = {
 	toVersion: 1,
@@ -119,9 +117,54 @@ const v3MultiWheel: Migration = {
 	},
 };
 
+const v4TagIds: Migration = {
+	toVersion: 4,
+	apply: ({ db, transaction }) => {
+		const tagStore = transaction.objectStore('tag-metadata');
+		const oldRecords: Array<{ key: string; wheelId: string; name: string; color?: string }> = [];
+		const tagCursor = tagStore.openCursor();
+		tagCursor.onsuccess = (event) => {
+			const cursor = (event.target as IDBRequest<IDBCursorWithValue | null>).result;
+			if (cursor) {
+				oldRecords.push(cursor.value as { key: string; wheelId: string; name: string; color?: string });
+				cursor.continue();
+				return;
+			}
+
+			const idByWheelAndName = new Map<string, string>();
+			db.deleteObjectStore('tag-metadata');
+			const newTagStore = db.createObjectStore('tag-metadata', { keyPath: 'id' });
+			newTagStore.createIndex('wheelId', 'wheelId');
+			for (const record of oldRecords) {
+				const id = newId();
+				idByWheelAndName.set(`${record.wheelId}:${record.name}`, id);
+				const entry: Record<string, unknown> = { id, wheelId: record.wheelId, name: record.name };
+				if (record.color) entry.color = record.color;
+				newTagStore.put(entry);
+			}
+
+			const activitiesStore = transaction.objectStore(ACTIVITIES_STORE.name);
+			const activitiesCursor = activitiesStore.openCursor();
+			activitiesCursor.onsuccess = (activityEvent) => {
+				const activityCursorResult = (activityEvent.target as IDBRequest<IDBCursorWithValue | null>).result;
+				if (!activityCursorResult) return;
+				const row = activityCursorResult.value as Record<string, unknown>;
+				const names = Array.isArray(row.tags) ? (row.tags as string[]) : [];
+				const tagIds = names
+					.map((name) => idByWheelAndName.get(`${row.wheelId}:${name}`))
+					.filter((id): id is string => !!id);
+				const { tags, ...withoutTags } = row as Record<string, unknown> & { tags?: unknown };
+				void tags;
+				activityCursorResult.update({ ...withoutTags, tagIds });
+				activityCursorResult.continue();
+			};
+		};
+	},
+};
+
 export const dbConfig: DBConfig = {
 	name: 'activity-wheel',
-	version: 3,
-	migrations: [v1Initial, v2AddTagMetadata, v3MultiWheel],
+	version: 4,
+	migrations: [v1Initial, v2AddTagMetadata, v3MultiWheel, v4TagIds],
 	expectedStores: [ACTIVITIES_STORE, TAG_METADATA_STORE, WHEELS_STORE],
 };

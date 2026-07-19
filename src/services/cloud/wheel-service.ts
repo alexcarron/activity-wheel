@@ -11,7 +11,14 @@ import { isValidUuid } from '../../utils/uuid';
 import { DEFAULT_WEIGHT } from '../../domain-logic/weight-logic/weight-constants';
 import { createCloudActivityService } from './activity-service';
 import { createCloudTagService } from './tag-service';
+import { convertLegacyBackupEntry, isLegacyFullBackupV2 } from '../wheel-service';
 import type { FullBackup, FullBackupEntry } from '../wheel-service';
+
+function isFullBackup(value: unknown): value is FullBackup {
+	if (typeof value !== 'object' || value === null) return false;
+	const obj = value as Record<string, unknown>;
+	return obj.format === 'full-backup-v3' && Array.isArray(obj.wheels);
+}
 
 interface WheelRow {
 	id: string;
@@ -117,6 +124,7 @@ export function createCloudWheelService(userId: string): CloudWheelService {
 			const newWheel = await createWheel(name);
 			const sourceActivities = await activityService.listActivities(fromWheelId);
 			const now = Date.now();
+			const tagIdMap = await tagService.copyTagMetadata(fromWheelId, newWheel.id);
 
 			const copiedActivities: Activity[] = sourceActivities.map((activity) => ({
 				...activity,
@@ -125,10 +133,11 @@ export function createCloudWheelService(userId: string): CloudWheelService {
 				createdAt: now,
 				weight: resetWeights ? DEFAULT_WEIGHT : activity.weight,
 				lastAcceptDelta: undefined,
+				tagIds: activity.tagIds
+					.map((tagId) => tagIdMap.get(tagId))
+					.filter((tagId): tagId is string => !!tagId),
 			}));
 			if (copiedActivities.length > 0) await activityService.bulkPut(copiedActivities);
-
-			await tagService.copyTagMetadata(fromWheelId, newWheel.id);
 
 			return newWheel;
 		},
@@ -143,23 +152,34 @@ export function createCloudWheelService(userId: string): CloudWheelService {
 				})),
 			);
 			return JSON.stringify(
-				{ format: 'full-backup-v2', exportedAt: Date.now(), wheels: data },
+				{ format: 'full-backup-v3', exportedAt: Date.now(), wheels: data },
 				null,
 				2,
 			);
 		},
 
 		async importFullBackup(json) {
-			const parsed = JSON.parse(json) as FullBackup;
-			if (parsed.format !== 'full-backup-v2' || !Array.isArray(parsed.wheels)) {
+			const parsed: unknown = JSON.parse(json);
+			let backup: FullBackup;
+			if (isFullBackup(parsed)) {
+				backup = parsed;
+			}
+			else if (isLegacyFullBackupV2(parsed)) {
+				backup = {
+					format: 'full-backup-v3',
+					exportedAt: parsed.exportedAt,
+					wheels: parsed.wheels.map(convertLegacyBackupEntry),
+				};
+			}
+			else {
 				throw new Error('Not a valid activity-wheel backup file.');
 			}
 
 			const existing = await listWheels();
 			for (const wheel of existing) await deleteWheel(wheel.id);
 
-			for (const { wheel, activities, tags } of parsed.wheels) {
-				// Local wheel/activity ids are sometimes not valid UUIDs (e.g. the
+			for (const { wheel, activities, tags } of backup.wheels) {
+				// Local wheel/activity/tag ids are sometimes not valid UUIDs (e.g. the
 				// legacy 'default' wheel id from before multi-wheel support), but
 				// Supabase's id columns are typed uuid, so remap any that don't fit.
 				const wheelId = isValidUuid(wheel.id) ? wheel.id : newId();
@@ -172,20 +192,36 @@ export function createCloudWheelService(userId: string): CloudWheelService {
 				});
 				if (error) throw error;
 
+				const tagIdMap = new Map<string, string>();
+				for (const tag of tags) {
+					const tagId = isValidUuid(tag.id) ? tag.id : newId();
+					tagIdMap.set(tag.id, tagId);
+					const { error: tagError } = await supabase.from('tag_metadata').insert({
+						id: tagId,
+						wheel_id: wheelId,
+						user_id: userId,
+						name: tag.name,
+						color: tag.color ?? null,
+					});
+					if (tagError) throw tagError;
+				}
+
 				const remappedActivities = activities.map((activity) => ({
 					...activity,
 					id: isValidUuid(activity.id) ? activity.id : newId(),
 					wheelId,
+					tagIds: activity.tagIds
+						.map((tagId) => tagIdMap.get(tagId))
+						.filter((tagId): tagId is string => !!tagId),
 				}));
 				if (remappedActivities.length > 0) await activityService.bulkPut(remappedActivities);
-				for (const tag of tags) await tagService.setTagColor(wheelId, tag.name, tag.color ?? null);
 			}
 
-			if (parsed.wheels.length === 0) {
+			if (backup.wheels.length === 0) {
 				const fallback = await createWheel('My Wheel');
 				return fallback.id;
 			}
-			return parsed.wheels[0].wheel.id;
+			return backup.wheels[0].wheel.id;
 		},
 
 		resetToBlankWheel,

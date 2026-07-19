@@ -17,7 +17,7 @@ interface SharedActivityRow {
 	reject_count: number;
 	streak: number;
 	last_accept_delta: number | null;
-	tags: string[];
+	tag_ids: string[];
 }
 
 export function rowToSharedActivity(row: SharedActivityRow): Activity {
@@ -30,7 +30,7 @@ export function rowToSharedActivity(row: SharedActivityRow): Activity {
 		acceptCount: row.accept_count,
 		rejectCount: row.reject_count,
 		streak: row.streak,
-		tags: row.tags ?? [],
+		tagIds: row.tag_ids ?? [],
 	};
 	if (row.last_accept_delta !== null) activity.lastAcceptDelta = row.last_accept_delta;
 	return activity;
@@ -75,7 +75,7 @@ export function createSharedActivityService(): CloudActivityService {
 				reject_count: activity.rejectCount,
 				streak: activity.streak,
 				last_accept_delta: activity.lastAcceptDelta ?? null,
-				tags: activity.tags,
+				tag_ids: activity.tagIds,
 				updated_by_user_id: updatedByUserId,
 				updated_at: new Date().toISOString(),
 			});
@@ -102,11 +102,11 @@ export function createSharedActivityService(): CloudActivityService {
 			if (error) throw error;
 		},
 
-		async updateActivityTags(id, tags) {
+		async updateActivityTagIds(id, tagIds) {
 			const updatedByUserId = await currentUserId();
 			const { data, error } = await supabase
 				.from('shared_activities')
-				.update({ tags, updated_by_user_id: updatedByUserId, updated_at: new Date().toISOString() })
+				.update({ tag_ids: tagIds, updated_by_user_id: updatedByUserId, updated_at: new Date().toISOString() })
 				.eq('id', id)
 				.select('*')
 				.single();
@@ -153,7 +153,7 @@ export function createSharedActivityService(): CloudActivityService {
 					reject_count: activity.rejectCount,
 					streak: activity.streak,
 					last_accept_delta: activity.lastAcceptDelta ?? null,
-					tags: activity.tags,
+					tag_ids: activity.tagIds,
 					updated_by_user_id: updatedByUserId,
 					updated_at: now,
 				})),
