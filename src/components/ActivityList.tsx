@@ -45,6 +45,7 @@ const SORTS: { key: SortKey; label: string }[] = [
 	{ key: 'createdAt', label: 'Date added' },
 	{ key: 'name', label: 'Name' },
 	{ key: 'preferenceScore', label: 'Most enjoyed' },
+	{ key: 'decayedPreferenceScoreConfidence', label: 'Most feedback given' },
 ];
 
 /**
@@ -188,10 +189,23 @@ export function ActivityList(props: ActivityListProps) {
 					return (activity1.createdAt - activity2.createdAt) * direction;
 				case 'preferenceScore':
 					return (activity1.preferenceScore - activity2.preferenceScore) * direction;
+				case 'decayedPreferenceScoreConfidence':
+					return (
+						(getDecayedPreferenceScoreConfidence({
+							preferenceScoreConfidence: activity1.preferenceScoreConfidence,
+							lastFeedbackAt: activity1.lastFeedbackAt,
+							now,
+						}) -
+							getDecayedPreferenceScoreConfidence({
+								preferenceScoreConfidence: activity2.preferenceScoreConfidence,
+								lastFeedbackAt: activity2.lastFeedbackAt,
+								now,
+							})) * direction
+					);
 			}
 		});
 		return filteredActivitiesCopy;
-	}, [filteredActivities, sortDirection, sortKey]);
+	}, [filteredActivities, sortDirection, sortKey, now]);
 
 	const isSelectMode = selectedIDs.size > 0;
 	const allSortedSelected = sortedActivities.length > 0 && sortedActivities.every((activity) => selectedIDs.has(activity.id));

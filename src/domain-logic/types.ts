@@ -69,5 +69,5 @@ export interface Wheel {
 export type FeedbackAction = 'accept' | 'reject' | 'skip' | 'boost' | 'hate' | 'undo';
 
 /** Sort orders available in the activity list view. */
-export type SortKey = 'name' | 'createdAt' | 'preferenceScore';
+export type SortKey = 'name' | 'createdAt' | 'preferenceScore' | 'decayedPreferenceScoreConfidence';
 export type SortDirection = 'asc' | 'desc';
