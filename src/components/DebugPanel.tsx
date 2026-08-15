@@ -1,12 +1,10 @@
 /**
- * Toggleable debug panel. Exposes:
- * - Show weights
- * - Show probabilities
- * - Optional RNG seed (for reproducible spins)
- * Persisted to localStorage so it survives page reloads. 
+ * Toggleable debug panel. Exposes a show/hide checkbox for each debug value pill, an optional RNG seed for reproducible spins, and the weight spread controls.
+ * Persisted to localStorage so it survives page reloads.
  */
 
 import type { UseDebugApi } from '../hooks/useDebug';
+import { DEBUG_VALUE_PILLS } from './debug-value-pills';
 import {
 	MAXIMUM_SPREAD_FACTOR,
 	MAXIMUM_SPREAD_FACTOR_WHEN_EXTREME_ENABLED,
@@ -27,22 +25,16 @@ export function DebugPanel({ debug }: Props) {
 		<details className="debug-panel">
 			<summary className="debug-panel-summary">Debug</summary>
 			<div className="debug-panel-body">
-				<label className="debug-row">
-					<input
-						type="checkbox"
-						checked={debug.showWeights}
-						onChange={(event) => debug.setShowWeights(event.target.checked)}
-					/>
-					Show weights
-				</label>
-				<label className="debug-row">
-					<input
-						type="checkbox"
-						checked={debug.showProbabilities}
-						onChange={(event) => debug.setShowProbabilities(event.target.checked)}
-					/>
-					Show probabilities
-				</label>
+				{DEBUG_VALUE_PILLS.map((pill) => (
+					<label className="debug-row" key={pill.key} title={pill.pillTooltip}>
+						<input
+							type="checkbox"
+							checked={debug.debugValuePillKeyToIsVisible[pill.key]}
+							onChange={(event) => debug.setValuePillVisible(pill.key, event.target.checked)}
+						/>
+						{pill.checkboxLabel}
+					</label>
+				))}
 				<label className="debug-row debug-row-stack">
 					<span>RNG seed (blank for random)</span>
 					<input
@@ -74,6 +66,14 @@ export function DebugPanel({ debug }: Props) {
 						onChange={(event) => debug.setAllowExtremeSpread(event.target.checked)}
 					/>
 					Allow extreme weight spread (up to {MAXIMUM_SPREAD_FACTOR_WHEN_EXTREME_ENABLED}×)
+				</label>
+				<label className="debug-row" title="Size the wheel's slices by each activity's actual current weight (the locked per-spin value) instead of its estimated stable weight">
+					<input
+						type="checkbox"
+						checked={debug.sizeWheelByActualCurrentWeights}
+						onChange={(event) => debug.setSizeWheelByActualCurrentWeights(event.target.checked)}
+					/>
+					Size wheel slices by actual current weights
 				</label>
 			</div>
 		</details>

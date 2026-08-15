@@ -20,7 +20,7 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
 
 /**
  * Callers reach this only through paths gated on `isSupabaseConfigured`
- * (sign-in is refused when unconfigured, so no signed-in userId can exist to
+ * (sign-in is refused when unconfigured, so no signed-in userID can exist to
  * reach a cloud service otherwise). The throw here is a defensive backstop.
  */
 export function requireSupabase(): SupabaseClient {

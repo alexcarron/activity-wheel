@@ -9,7 +9,10 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "typecheck": "tsc -b --noEmit"
+    "typecheck": "tsc -b --noEmit",
+    "simulate:inspect": "node scripts/weight-simulation/cli.ts inspect",
+    "simulate:sweep": "node scripts/weight-simulation/cli.ts sweep",
+    "simulate:grid": "node scripts/weight-simulation/cli.ts grid"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.2",

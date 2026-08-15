@@ -7,7 +7,7 @@ import type { TypedStore } from '../libraries/indexeddb/store';
 import type { Activity, TagMetadata } from '../domain-logic/types';
 import { db } from './activity-service';
 import { TAG_METADATA_STORE } from './schema';
-import { newId } from '../utils/id';
+import { newID } from '../utils/id';
 
 const tagStore = (): TypedStore<TagMetadata> => db.store<TagMetadata>(TAG_METADATA_STORE.name);
 
@@ -71,14 +71,14 @@ export async function ensureTagsExist(wheelId: string, names: string[]): Promise
 			resolved.push(existing);
 			continue;
 		}
-		const entry: TagMetadata = { id: newId(), wheelId, name };
+		const entry: TagMetadata = { id: newID(), wheelId, name };
 		await tagStore().put(entry);
 		resolved.push(entry);
 	}
 	return resolved;
 }
 
-export async function deleteTagMetadata(_wheelId: string, id: string): Promise<void> {
+export async function deleteTagMetadata(_wheelID: string, id: string): Promise<void> {
 	await tagStore().delete(id);
 }
 
@@ -99,7 +99,7 @@ export async function clearAllTagMetadata(): Promise<void> {
  * Delete any tags from the registry that are no longer used by any activity in this wheel. Returns the ids of the tags that were actually deleted.
  */
 export async function pruneOrphanTags(
-	_wheelId: string,
+	_wheelID: string,
 	activities: readonly Activity[],
 	tagIds: string[],
 ): Promise<string[]> {
@@ -112,13 +112,13 @@ export async function pruneOrphanTags(
 /**
  * Copy all tag metadata from one wheel to another, generating a new id per copied tag (ids are not shared across wheels). Returns a map of the source tag id to its new copied id, so callers can remap activities' tagIds.
  */
-export async function copyTagMetadata(fromWheelId: string, toWheelId: string): Promise<Map<string, string>> {
-	const all = await tagStore().getAllByIndex('wheelId', fromWheelId);
+export async function copyTagMetadata(fromWheelID: string, toWheelID: string): Promise<Map<string, string>> {
+	const all = await tagStore().getAllByIndex('wheelId', fromWheelID);
 	const idMap = new Map<string, string>();
 	for (const tag of all) {
-		const newTagId = newId();
-		idMap.set(tag.id, newTagId);
-		const entry: TagMetadata = { id: newTagId, wheelId: toWheelId, name: tag.name };
+		const newTagID = newID();
+		idMap.set(tag.id, newTagID);
+		const entry: TagMetadata = { id: newTagID, wheelId: toWheelID, name: tag.name };
 		if (tag.color) entry.color = tag.color;
 		await tagStore().put(entry);
 	}

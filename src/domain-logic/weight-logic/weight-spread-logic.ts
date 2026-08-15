@@ -1,8 +1,9 @@
 /**
- * Logic for the debug weight spread transform that exaggerates or compresses the differences between a pool's weights, without touching the stored weights
+ * Logic for the debug weight spread transform that exaggerates or compresses the differences between the activities' weights, without touching the stored weights
  */
 
-import { WEIGHT_HARD_MINIMUM } from './weight-minimum-logic';
+/** Mnimum weight applied after spreading so an exaggerated spread can never push a weight to zero or negative. */
+const MINIMUM_WEIGHT_AFTER_SPREAD = 0.0001;
 
 export const DEFAULT_SPREAD_FACTOR = 1;
 export const MINIMUM_SPREAD_FACTOR = 0;
@@ -13,7 +14,7 @@ export function applySpreadToWeights(weights: readonly number[], spreadFactor: n
 	if (weights.length === 0) return [];
 	const mean = weights.reduce((sum, weight) => sum + weight, 0) / weights.length;
 	return weights.map((weight) =>
-		Math.max(WEIGHT_HARD_MINIMUM, mean + (weight - mean) * spreadFactor),
+		Math.max(MINIMUM_WEIGHT_AFTER_SPREAD, mean + (weight - mean) * spreadFactor),
 	);
 }
 

@@ -1,15 +1,11 @@
-/**
- * One row in the activity list.
- */
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties, KeyboardEvent } from 'react';
 import type { Activity, FeedbackAction, TagMetadata } from '../domain-logic/types';
-import { getEffectiveWeight } from '../domain-logic/weight-logic/effective-weight-logic';
-import { formatDate, formatPercent, formatWeight } from '../utils/format';
+import { formatDate } from '../utils/format';
+import { DEBUG_VALUE_PILL_KEYS, type DebugValuePillKey } from './debug-value-pills';
+import { DebugValuePills } from './DebugValuePills';
 import { clampToViewport } from '../utils/clamp-to-viewport';
-import { useWeightContext } from '../context/WeightContext';
-import { useNow } from '../hooks/useNow';
 import { useTagColorPickerPopover } from '../hooks/useTagColorPickerPopover';
 import { TagColorPickerPopover } from './TagColorPicker';
 import './ActivityRow.css';
@@ -136,7 +132,7 @@ function TagPill({ name, color, count, onRemove, onSetColor, onRename, onDelete 
 }
 
 interface AddTagComboboxProps {
-	activityTagIds: string[];
+	activityTagIDs: string[];
 	allTagMetadata: readonly TagMetadata[];
 	onAdd(name: string): void;
 	/** When provided, renders a full button instead of the ＋ pill. */
@@ -144,7 +140,7 @@ interface AddTagComboboxProps {
 }
 
 export function AddTagCombobox({
-	activityTagIds,
+	activityTagIDs,
 	allTagMetadata,
 	onAdd,
 	triggerLabel,
@@ -203,7 +199,7 @@ export function AddTagCombobox({
 	const suggestions = (() => {
 		const queryText = query.trim().toLowerCase();
 		return allTagMetadata
-			.filter((tag) => !activityTagIds.includes(tag.id)) // exclude already-added
+			.filter((tag) => !activityTagIDs.includes(tag.id)) // exclude already-added
 			.map((tag) => tag.name)
 			.filter((name) => !queryText || name.toLowerCase().includes(queryText))
 			.slice(0, 12);
@@ -338,13 +334,12 @@ export function AddTagCombobox({
 
 interface Props {
 	readonly activity: Activity;
-	readonly probability: number | null;
-	readonly showWeights: boolean;
-	readonly showProbabilities: boolean;
-	readonly weightMinimum: number;
-	readonly weightMaximum: number;
-	readonly probabilityMinimum: number;
-	readonly probabilityMaximum: number;
+	/** Values for every debug pill for this activity, or null when no pill is shown. */
+	readonly debugValues: Record<DebugValuePillKey, number> | null;
+	/** Min/max of each debug value across the shown activities, for the pill bar coloring. */
+	readonly debugRanges: Record<DebugValuePillKey, { min: number; max: number }>;
+	/** Which debug value pills are currently shown. */
+	readonly debugValuePillKeyToIsVisible: Record<DebugValuePillKey, boolean>;
 	readonly allTagMetadata: readonly TagMetadata[];
 	readonly tagCounts: ReadonlyMap<string, number>;
 	readonly isCompact?: boolean;
@@ -355,53 +350,20 @@ interface Props {
 	onDelete(id: string): Promise<void>;
 	onUpdateTags(id: string, tagIds: string[]): Promise<void>;
 	onAddTag(id: string, tagName: string): Promise<void>;
-	onSetTagColor(tagId: string, color: string | null): Promise<void>;
-	onRenameTag(tagId: string, newName: string): Promise<void>;
-	onDeleteTag(tagId: string): Promise<void>;
+	onSetTagColor(tagID: string, color: string | null): Promise<void>;
+	onRenameTag(tagID: string, newName: string): Promise<void>;
+	onDeleteTag(tagID: string): Promise<void>;
 	onSelectionMouseDown(id: string): void;
 	onRowMouseEnter(id: string): void;
 	/** Called whenever this row's inline rename editor opens/closes. Used to detect confusing remote changes to a shared wheel while a name edit is in progress. */
-	onEditingChange?(activityId: string, isEditing: boolean): void;
-}
-
-/** Returns a linear-gradient pill style that shows a bar-chart fill colored red (lowest) → amber (middle) → green (highest), matching --hate / --warn / --good, based on the value's position within the provided min/max range. */
-function getBarPillStyle(value: number, min: number, max: number): CSSProperties {
-	const range = max - min;
-	const normalizedPosition = range === 0 ? 1 : Math.max(0, Math.min(1, (value - min) / range));
-
-	let red: number, green: number, blue: number;
-	if (normalizedPosition <= 0.5) {
-		const blendRatio = normalizedPosition * 2;
-		red = Math.round(201 + (240 - 201) * blendRatio);
-		green = Math.round(42 + (140 - 42) * blendRatio);
-		blue = Math.round(42 + (0 - 42) * blendRatio);
-	}
-	else {
-		const blendRatio = (normalizedPosition - 0.5) * 2;
-		red = Math.round(240 + (55 - 240) * blendRatio);
-		green = Math.round(140 + (178 - 140) * blendRatio);
-		blue = Math.round(0 + (77 - 0) * blendRatio);
-	}
-
-	const fillPercent = 5 + normalizedPosition * 95;
-	const fillColor = `rgba(${red}, ${green}, ${blue}, 0.55)`;
-	const borderColor = `rgb(${red}, ${green}, ${blue})`;
-
-	return {
-		background: `linear-gradient(to right, ${fillColor} ${fillPercent}%, var(--bg-soft) ${fillPercent}%)`,
-		borderColor,
-	};
+	onEditingChange?(activityID: string, isEditing: boolean): void;
 }
 
 function ActivityRowComponent({
 	activity,
-	probability,
-	showWeights,
-	showProbabilities,
-	weightMinimum,
-	weightMaximum,
-	probabilityMinimum,
-	probabilityMaximum,
+	debugValues,
+	debugRanges,
+	debugValuePillKeyToIsVisible,
 	allTagMetadata,
 	tagCounts,
 	isCompact = false,
@@ -419,14 +381,12 @@ function ActivityRowComponent({
 	onRowMouseEnter,
 	onEditingChange,
 }: Props) {
-	const globalWeightContext = useWeightContext();
-	const now = useNow();
 	const [isEditingName, setIsEditingName] = useState(false);
 	const [draft, setDraft] = useState('');
 	const [busy, setBusy] = useState(false);
 	const inputRef = useRef<HTMLInputElement>(null);
-	const effectiveWeight = getEffectiveWeight(activity, now, globalWeightContext);
 	const hasTags = (activity.tagIds ?? []).length > 0;
+	const hasVisibleDebugPills = debugValues !== null && DEBUG_VALUE_PILL_KEYS.some((key) => debugValuePillKeyToIsVisible[key]);
 
 	useEffect(() => {
 		if (isEditingName && inputRef.current) {
@@ -517,33 +477,33 @@ function ActivityRowComponent({
 	);
 
 	const handleRemoveTag = useCallback(
-		async (tagId: string) => {
+		async (tagID: string) => {
 			const current = activity.tagIds ?? [];
 			await onUpdateTags(
 				activity.id,
-				current.filter((id) => id !== tagId),
+				current.filter((id) => id !== tagID),
 			);
 		},
 		[activity.id, activity.tagIds, onUpdateTags],
 	);
 
 	const handleSetTagColor = useCallback(
-		async (tagId: string, color: string | null) => {
-			await onSetTagColor(tagId, color);
+		async (tagID: string, color: string | null) => {
+			await onSetTagColor(tagID, color);
 		},
 		[onSetTagColor],
 	);
 
 	const handleRenameTag = useCallback(
-		async (tagId: string, newName: string) => {
-			await onRenameTag(tagId, newName);
+		async (tagID: string, newName: string) => {
+			await onRenameTag(tagID, newName);
 		},
 		[onRenameTag],
 	);
 
 	const handleDeleteTag = useCallback(
-		async (tagId: string) => {
-			await onDeleteTag(tagId);
+		async (tagID: string) => {
+			await onDeleteTag(tagID);
 		},
 		[onDeleteTag],
 	);
@@ -607,22 +567,9 @@ function ActivityRowComponent({
 							{activity.name}
 						</button>
 					)}
-					{showWeights && (
-						<span
-							className="meta-pill"
-							style={getBarPillStyle(effectiveWeight, weightMinimum, weightMaximum)}
-							title="Effective weight = stored weight + recency boost"
-						>
-							w {formatWeight(effectiveWeight)}
-						</span>
-					)}
-					{showProbabilities && probability !== null && (
-						<span
-							className="meta-pill"
-							style={getBarPillStyle(probability, probabilityMinimum, probabilityMaximum)}
-							title="Selection probability if you spin right now"
-						>
-							p {formatPercent(probability)}
+					{hasVisibleDebugPills && (
+						<span className="activity-row-pills">
+							<DebugValuePills values={debugValues} ranges={debugRanges} visibility={debugValuePillKeyToIsVisible} />
 						</span>
 					)}
 					<div className="activity-row-feedback">
@@ -739,33 +686,16 @@ function ActivityRowComponent({
 								<span title={`Added ${formatDate(activity.createdAt)}`}>
 									{formatDate(activity.createdAt)}
 								</span>
-								{(showWeights || (showProbabilities && probability !== null)) && (
+								{hasVisibleDebugPills && (
 									<span className="activity-row-pills">
-										{showWeights && (
-											<span
-												className="meta-pill"
-												style={getBarPillStyle(effectiveWeight, weightMinimum, weightMaximum)}
-												title="Effective weight = stored weight + recency boost"
-											>
-												w {formatWeight(effectiveWeight)}
-											</span>
-										)}
-										{showProbabilities && probability !== null && (
-											<span
-												className="meta-pill"
-												style={getBarPillStyle(probability, probabilityMinimum, probabilityMaximum)}
-												title="Selection probability if you spin right now"
-											>
-												p {formatPercent(probability)}
-											</span>
-										)}
+										<DebugValuePills values={debugValues} ranges={debugRanges} visibility={debugValuePillKeyToIsVisible} />
 									</span>
 								)}
 							</div>
 						)}
 						{!hasTags && !isEditingName && (
 							<AddTagCombobox
-								activityTagIds={tagIds}
+								activityTagIDs={tagIds}
 								allTagMetadata={allTagMetadata}
 								onAdd={(name) => void handleAddTag(name)}
 							/>
@@ -820,24 +750,24 @@ function ActivityRowComponent({
 				{/* Tags row. Only rendered when the activity has tags */}
 				{hasTags && (
 					<div className="activity-row-tags">
-						{tagIds.map((tagId) => {
-							const metadata = allTagMetadata.find((tag) => tag.id === tagId);
+						{tagIds.map((tagID) => {
+							const metadata = allTagMetadata.find((tag) => tag.id === tagID);
 							if (!metadata) return null;
 							return (
 								<TagPill
-									key={tagId}
+									key={tagID}
 									name={metadata.name}
 									color={metadata.color}
-									count={tagCounts.get(tagId) ?? 1}
-									onRemove={() => void handleRemoveTag(tagId)}
-									onSetColor={(color) => void handleSetTagColor(tagId, color)}
-									onRename={(newName) => handleRenameTag(tagId, newName)}
-									onDelete={() => handleDeleteTag(tagId)}
+									count={tagCounts.get(tagID) ?? 1}
+									onRemove={() => void handleRemoveTag(tagID)}
+									onSetColor={(color) => void handleSetTagColor(tagID, color)}
+									onRename={(newName) => handleRenameTag(tagID, newName)}
+									onDelete={() => handleDeleteTag(tagID)}
 								/>
 							);
 						})}
 						<AddTagCombobox
-							activityTagIds={tagIds}
+							activityTagIDs={tagIds}
 							allTagMetadata={allTagMetadata}
 							onAdd={(name) => void handleAddTag(name)}
 						/>

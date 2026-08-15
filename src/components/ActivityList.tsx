@@ -6,39 +6,45 @@ import type {
 	SortKey,
 	TagMetadata,
 } from '../domain-logic/types';
-import { applySpreadToWeights } from '../domain-logic/weight-logic/weight-spread-logic';
-import { getEffectiveWeight } from '../domain-logic/weight-logic/effective-weight-logic';
-import { useWeightContext } from '../context/WeightContext';
+import { getPreferenceScoreStandardDeviation } from '../domain-logic/weight-logic/preference-to-weight-logic';
+import {
+	estimateStableProbabilities,
+	estimateStableWeights,
+} from '../domain-logic/weight-logic/stable-probability-estimate-logic';
+import { getDecayedPreferenceScoreConfidence } from '../domain-logic/weight-logic/confidence-decay-logic';
+import { defaultRng } from '../utils/random-utils';
 import { useNow } from '../hooks/useNow';
 import { ActivityRow, AddTagCombobox } from './ActivityRow';
+import { DEBUG_VALUE_PILL_KEYS, type DebugValuePillKey } from './debug-value-pills';
 import './ActivityList.css';
 
 interface ActivityListProps {
 	/** The possibly tag-filtered activities to display. */
 	readonly activities: readonly Activity[];
-	/** Every activity in the wheel, regardless of tag filtering. */
-	readonly allActivities: readonly Activity[];
-	readonly showWeights: boolean;
-	readonly showProbabilities: boolean;
+	readonly debugValuePillKeyToIsVisible: Record<DebugValuePillKey, boolean>;
 	readonly spreadFactor: number;
 	readonly allTagMetadata: readonly TagMetadata[];
+	/** The locked-in actual current weight for each activity, held steady until the wheel is spun, feedback is given, or an activity is added/removed. */
+	readonly lockedActualWeightByActivityID: Map<string, number>;
+	/** The locked-in actual current probability for each activity, derived from the same weight above. */
+	readonly lockedActualProbabilityByActivityID: Map<string, number>;
 	onRename(id: string, name: string): Promise<void>;
 	onFeedback(id: string, action: FeedbackAction): Promise<void>;
 	onDelete(id: string): Promise<void>;
 	onUpdateTags(id: string, tagIds: string[]): Promise<void>;
 	onAddTag(id: string, tagName: string): Promise<void>;
-	onSetTagColor(tagId: string, color: string | null): Promise<void>;
-	onRenameTag(tagId: string, newName: string): Promise<void>;
-	onDeleteTag(tagId: string): Promise<void>;
-	onAddTagByName(tagName: string, activityIds: readonly string[]): Promise<void>;
+	onSetTagColor(tagID: string, color: string | null): Promise<void>;
+	onRenameTag(tagID: string, newName: string): Promise<void>;
+	onDeleteTag(tagID: string): Promise<void>;
+	onAddTagByName(tagName: string, activityIDs: readonly string[]): Promise<void>;
 	/** Forwarded to every row; see ActivityRow's onEditingChange doc comment. */
-	onEditingChange?(activityId: string, isEditing: boolean): void;
+	onEditingChange?(activityID: string, isEditing: boolean): void;
 }
 
 const SORTS: { key: SortKey; label: string }[] = [
 	{ key: 'createdAt', label: 'Date added' },
 	{ key: 'name', label: 'Name' },
-	{ key: 'weight', label: 'Most enjoyed' },
+	{ key: 'preferenceScore', label: 'Most enjoyed' },
 ];
 
 /**
@@ -47,11 +53,11 @@ const SORTS: { key: SortKey; label: string }[] = [
 export function ActivityList(props: ActivityListProps) {
 	const {
 		activities,
-		allActivities,
-		showWeights,
-		showProbabilities,
+		debugValuePillKeyToIsVisible,
 		spreadFactor,
 		allTagMetadata,
+		lockedActualWeightByActivityID,
+		lockedActualProbabilityByActivityID,
 		onRename,
 		onFeedback,
 		onDelete,
@@ -63,14 +69,13 @@ export function ActivityList(props: ActivityListProps) {
 		onAddTagByName,
 		onEditingChange,
 	} = props;
-	const globalWeightContext = useWeightContext();
 	const now = useNow();
 	const [query, setQuery] = useState('');
 	const [sortKey, setSortKey] = useState<SortKey>('createdAt');
 	const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 	const [compactMode, setCompactMode] = useState(false);
 
-	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+	const [selectedIDs, setSelectedIDs] = useState<Set<string>>(new Set());
 	const isDragging = useRef(false);
 	const dragMode = useRef<'select' | 'deselect'>('select');
 
@@ -84,7 +89,7 @@ export function ActivityList(props: ActivityListProps) {
 
 	const handleSelectionMouseDown = useCallback((id: string) => {
 		isDragging.current = true;
-		setSelectedIds((prev) => {
+		setSelectedIDs((prev) => {
 			const alreadySelected = prev.has(id);
 			dragMode.current = alreadySelected ? 'deselect' : 'select';
 			const next = new Set(prev);
@@ -96,7 +101,7 @@ export function ActivityList(props: ActivityListProps) {
 
 	const handleRowMouseEnter = useCallback((id: string) => {
 		if (!isDragging.current) return;
-		setSelectedIds((prev) => {
+		setSelectedIDs((prev) => {
 			const next = new Set(prev);
 			if (dragMode.current === 'select') next.add(id);
 			else next.delete(id);
@@ -104,51 +109,66 @@ export function ActivityList(props: ActivityListProps) {
 		});
 	}, []);
 
-	const weightRange = useMemo<{ min: number; max: number }>(() => {
-		if (allActivities.length === 0) return { min: 0, max: 1 };
-		let minWeight = Infinity;
-		let maxWeight = -Infinity;
-		for (const activity of allActivities) {
-			const effectiveWeight = getEffectiveWeight(activity, now, globalWeightContext);
-			if (effectiveWeight < minWeight) minWeight = effectiveWeight;
-			if (effectiveWeight > maxWeight) maxWeight = effectiveWeight;
-		}
-		return { min: minWeight, max: maxWeight };
-	}, [allActivities, globalWeightContext, now]);
+	const isAnyDebugPillVisible = useMemo(
+		() => DEBUG_VALUE_PILL_KEYS.some((key) => debugValuePillKeyToIsVisible[key]),
+		[debugValuePillKeyToIsVisible],
+	);
 
-	/**
-	 * Probabilities computed over the filtered activities only so they match what the wheel shows when a tag filter is active. Spread is applied here too so the debug pill matches the wheel's actual odds. 
-	 */
-	const probabilities = useMemo<Map<string, number>>(() => {
-		const map = new Map<string, number>();
-		const effectiveWeights = activities.map((activity) => getEffectiveWeight(activity, now, globalWeightContext));
-		const spreadWeights = applySpreadToWeights(effectiveWeights, spreadFactor);
-		const total = spreadWeights.reduce((sum, weight) => sum + weight, 0);
+	const { debugValuesByActivityID, debugRangesByKey } = useMemo(() => {
+		const valuesByActivityID = new Map<string, Record<DebugValuePillKey, number>>();
+		const emptyRanges = {} as Record<DebugValuePillKey, { min: number; max: number }>;
+		for (const key of DEBUG_VALUE_PILL_KEYS) emptyRanges[key] = { min: 0, max: 1 };
+		if (!isAnyDebugPillVisible || activities.length === 0) {
+			return { debugValuesByActivityID: valuesByActivityID, debugRangesByKey: emptyRanges };
+		}
+
+		const estimatedStableWeights = estimateStableWeights({ activities, now, rng: defaultRng });
+		const estimatedStableProbabilities = estimateStableProbabilities({ activities, now, rng: defaultRng, spreadFactor });
+
 		activities.forEach((activity, index) => {
-			map.set(activity.id, total > 0 ? spreadWeights[index] / total : 0);
+			const decayedPreferenceScoreConfidence = getDecayedPreferenceScoreConfidence({
+				preferenceScoreConfidence: activity.preferenceScoreConfidence,
+				lastFeedbackAt: activity.lastFeedbackAt,
+				now,
+			});
+			valuesByActivityID.set(activity.id, {
+				actualCurrentWeight: lockedActualWeightByActivityID.get(activity.id) ?? 0,
+				estimatedStableWeight: estimatedStableWeights[index],
+				actualCurrentProbability: lockedActualProbabilityByActivityID.get(activity.id) ?? 0,
+				estimatedStableProbability: estimatedStableProbabilities[index],
+				preferenceScore: activity.preferenceScore,
+				preferenceScoreConfidence: activity.preferenceScoreConfidence,
+				decayedPreferenceScoreConfidence,
+				preferenceScoreStandardDeviation: getPreferenceScoreStandardDeviation(decayedPreferenceScoreConfidence),
+			});
 		});
-		return map;
-	}, [activities, globalWeightContext, now, spreadFactor]);
 
-	const probabilityRange = useMemo<{ min: number; max: number }>(() => {
-		if (probabilities.size === 0) return { min: 0, max: 1 };
-		let min = Infinity;
-		let max = -Infinity;
-		for (const probability of probabilities.values()) {
-			if (probability < min) min = probability;
-			if (probability > max) max = probability;
+		const rangesByKey = {} as Record<DebugValuePillKey, { min: number; max: number }>;
+		for (const key of DEBUG_VALUE_PILL_KEYS) {
+			let min = Infinity;
+			let max = -Infinity;
+			for (const values of valuesByActivityID.values()) {
+				const value = values[key];
+				if (value < min) min = value;
+				if (value > max) max = value;
+			}
+			if (!isFinite(min) || !isFinite(max)) {
+				min = 0;
+				max = 1;
+			}
+			rangesByKey[key] = { min, max };
 		}
-		return { min, max };
-	}, [probabilities]);
+		return { debugValuesByActivityID: valuesByActivityID, debugRangesByKey: rangesByKey };
+	}, [isAnyDebugPillVisible, activities, now, spreadFactor, lockedActualWeightByActivityID, lockedActualProbabilityByActivityID]);
 
-	const tagCounts = useMemo<Map<string, number>>(() => {
-		const map = new Map<string, number>();
+	const tagIDToCount = useMemo<Map<string, number>>(() => {
+		const tagIDToCount = new Map<string, number>();
 		for (const activity of activities) {
-			for (const tagId of activity.tagIds ?? []) {
-				map.set(tagId, (map.get(tagId) ?? 0) + 1);
+			for (const tagID of activity.tagIds ?? []) {
+				tagIDToCount.set(tagID, (tagIDToCount.get(tagID) ?? 0) + 1);
 			}
 		}
-		return map;
+		return tagIDToCount;
 	}, [activities]);
 
 	const filteredActivities = useMemo(() => {
@@ -157,7 +177,7 @@ export function ActivityList(props: ActivityListProps) {
 		return activities.filter((activity) => activity.name.toLowerCase().includes(queryText));
 	}, [activities, query]);
 
-	const sorted = useMemo(() => {
+	const sortedActivities = useMemo(() => {
 		const filteredActivitiesCopy = [...filteredActivities];
 		const direction = sortDirection === 'asc' ? 1 : -1;
 		filteredActivitiesCopy.sort((activity1, activity2) => {
@@ -166,52 +186,46 @@ export function ActivityList(props: ActivityListProps) {
 					return activity1.name.localeCompare(activity2.name) * direction;
 				case 'createdAt':
 					return (activity1.createdAt - activity2.createdAt) * direction;
-				case 'weight': {
-					return (
-						(getEffectiveWeight(activity1, now, globalWeightContext) -
-							getEffectiveWeight(activity2, now, globalWeightContext)) *
-						direction
-					);
-				}
+				case 'preferenceScore':
+					return (activity1.preferenceScore - activity2.preferenceScore) * direction;
 			}
 		});
 		return filteredActivitiesCopy;
-	}, [filteredActivities, sortDirection, sortKey, globalWeightContext, now]);
+	}, [filteredActivities, sortDirection, sortKey]);
 
-	const isSelectMode = selectedIds.size > 0;
-	const allSortedSelected = sorted.length > 0 && sorted.every((activity) => selectedIds.has(activity.id));
+	const isSelectMode = selectedIDs.size > 0;
+	const allSortedSelected = sortedActivities.length > 0 && sortedActivities.every((activity) => selectedIDs.has(activity.id));
 
 	const handleSelectAll = useCallback(() => {
-		setSelectedIds((prev) => {
+		setSelectedIDs((prev) => {
 			const next = new Set(prev);
-			if (sorted.every((activity) => next.has(activity.id))) {
-				sorted.forEach((activity) => next.delete(activity.id));
+			if (sortedActivities.every((activity) => next.has(activity.id))) {
+				sortedActivities.forEach((activity) => next.delete(activity.id));
 			}
 			else {
-				sorted.forEach((activity) => next.add(activity.id));
+				sortedActivities.forEach((activity) => next.add(activity.id));
 			}
 			return next;
 		});
-	}, [sorted]);
+	}, [sortedActivities]);
 
-	/** Tag ids shared by all currently selected activities */
-	const commonTagIdsOfSelected = useMemo<string[]>(() => {
-		if (selectedIds.size === 0) return [];
-		const selected = activities.filter((activity) => selectedIds.has(activity.id));
-		if (selected.length === 0) return [];
-		let common = new Set(selected[0].tagIds ?? []);
-		for (const activity of selected.slice(1)) {
-			const tagIds = new Set(activity.tagIds ?? []);
-			common = new Set([...common].filter((tagId) => tagIds.has(tagId)));
+	const commonTagIDsOfSelected = useMemo<string[]>(() => {
+		if (selectedIDs.size === 0) return [];
+		const selectedActivities = activities.filter((activity) => selectedIDs.has(activity.id));
+		if (selectedActivities.length === 0) return [];
+		let commonTagIDs = new Set(selectedActivities[0].tagIds ?? []);
+		for (const activity of selectedActivities.slice(1)) {
+			const tagIDs = new Set(activity.tagIds ?? []);
+			commonTagIDs = new Set([...commonTagIDs].filter((tagID) => tagIDs.has(tagID)));
 		}
-		return [...common];
-	}, [activities, selectedIds]);
+		return [...commonTagIDs];
+	}, [activities, selectedIDs]);
 
 	const handleBatchAddTag = useCallback(
 		async (tagName: string) => {
-			await onAddTagByName(tagName, [...selectedIds]);
+			await onAddTagByName(tagName, [...selectedIDs]);
 		},
-		[selectedIds, onAddTagByName],
+		[selectedIDs, onAddTagByName],
 	);
 
 	const toggleSortDirection = (): void => setSortDirection((currentDirection) => (currentDirection === 'asc' ? 'desc' : 'asc'));
@@ -342,21 +356,21 @@ export function ActivityList(props: ActivityListProps) {
 				{isSelectMode && (
 					<div className="activity-list-batch-bar">
 						<span className="batch-count">
-							{selectedIds.size} {selectedIds.size === 1 ? 'activity' : 'activities'} selected
+							{selectedIDs.size} {selectedIDs.size === 1 ? 'activity' : 'activities'} selected
 						</span>
 						<button type="button" className="btn btn-ghost btn-small" onClick={handleSelectAll}>
 							{allSortedSelected ? 'Deselect all' : 'Select all'}
 						</button>
 						<AddTagCombobox
-							activityTagIds={commonTagIdsOfSelected}
+							activityTagIDs={commonTagIDsOfSelected}
 							allTagMetadata={allTagMetadata}
 							onAdd={(name) => void handleBatchAddTag(name)}
-							triggerLabel={`＋ Add tag${selectedIds.size > 1 ? ` to ${selectedIds.size}` : ''}`}
+							triggerLabel={`＋ Add tag${selectedIDs.size > 1 ? ` to ${selectedIDs.size}` : ''}`}
 						/>
 						<button
 							type="button"
 							className="btn btn-ghost btn-small batch-clear-btn"
-							onClick={() => setSelectedIds(new Set())}
+							onClick={() => setSelectedIDs(new Set())}
 							title="Clear selection"
 						>
 							✕ Clear
@@ -367,27 +381,23 @@ export function ActivityList(props: ActivityListProps) {
 
 			{activities.length === 0 ? (
 				<p className="activity-list-empty">No activities yet. Add one above.</p>
-			) : sorted.length === 0 ? (
+			) : sortedActivities.length === 0 ? (
 				<p className="activity-list-empty">No matches for "{query}".</p>
 			) : (
 				<ul
 					className={`activity-list-items${compactMode ? ' is-compact' : ''}${isSelectMode ? ' is-select-mode' : ''}`}
 				>
-					{sorted.map((activity) => (
+					{sortedActivities.map((activity) => (
 						<ActivityRow
 							key={activity.id}
 							activity={activity}
-							probability={probabilities.get(activity.id) ?? null}
-							showWeights={showWeights}
-							showProbabilities={showProbabilities}
-							weightMinimum={weightRange.min}
-							weightMaximum={weightRange.max}
-							probabilityMinimum={probabilityRange.min}
-							probabilityMaximum={probabilityRange.max}
+							debugValues={debugValuesByActivityID.get(activity.id) ?? null}
+							debugRanges={debugRangesByKey}
+							debugValuePillKeyToIsVisible={debugValuePillKeyToIsVisible}
 							allTagMetadata={allTagMetadata}
-							tagCounts={tagCounts}
+							tagCounts={tagIDToCount}
 							isCompact={compactMode}
-							isSelected={selectedIds.has(activity.id)}
+							isSelected={selectedIDs.has(activity.id)}
 							isSelectMode={isSelectMode}
 							onRename={onRename}
 							onFeedback={onFeedback}

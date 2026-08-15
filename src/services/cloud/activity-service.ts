@@ -1,78 +1,77 @@
 /**
- * Cloud (Supabase) counterpart to activity-service.ts, used for signed-in users.
- * Same function names/signatures as the local IndexedDB service so hooks can swap
- * between the two without branching on every call site. userId is bound once via
- * the factory rather than threaded through every call.
+ * Supabase veresion of the activity service for signed-in users.
  */
 
 import { requireSupabase } from '../supabase-client';
-import { applyFeedback } from '../../domain-logic/weight-logic/weight-feedback-response-logic';
+import { applyFeedbackToActivity } from '../../domain-logic/weight-logic/weight-feedback-response-logic';
 import { newActivity } from '../../domain-logic/activity-logic/activity-factory';
-import type { Activity, FeedbackAction } from '../../domain-logic/types';
-import { newId } from '../../utils/id';
+import type { Activity, FeedbackAction, PreferenceEstimateSnapshot } from '../../domain-logic/types';
+import { newID } from '../../utils/id';
 
 interface ActivityRow {
 	id: string;
 	wheel_id: string;
 	name: string;
-	weight: number;
+	preference_score: number;
+	preference_score_confidence: number;
+	last_feedback_at: string;
 	created_at: string;
 	accept_count: number;
 	reject_count: number;
-	streak: number;
-	last_accept_delta: number | null;
+	preference_estimate_history: PreferenceEstimateSnapshot | null;
 	tag_ids: string[];
 }
 
-function rowToActivity(row: ActivityRow): Activity {
+function rowToActivity(activityRow: ActivityRow): Activity {
 	const activity: Activity = {
-		id: row.id,
-		wheelId: row.wheel_id,
-		name: row.name,
-		weight: row.weight,
-		createdAt: new Date(row.created_at).getTime(),
-		acceptCount: row.accept_count,
-		rejectCount: row.reject_count,
-		streak: row.streak,
-		tagIds: row.tag_ids ?? [],
+		id: activityRow.id,
+		wheelId: activityRow.wheel_id,
+		name: activityRow.name,
+		preferenceScore: activityRow.preference_score,
+		preferenceScoreConfidence: activityRow.preference_score_confidence,
+		lastFeedbackAt: new Date(activityRow.last_feedback_at).getTime(),
+		createdAt: new Date(activityRow.created_at).getTime(),
+		acceptCount: activityRow.accept_count,
+		rejectCount: activityRow.reject_count,
+		tagIds: activityRow.tag_ids ?? [],
 	};
-	if (row.last_accept_delta !== null) activity.lastAcceptDelta = row.last_accept_delta;
+	if (activityRow.preference_estimate_history !== null) activity.preferenceEstimateHistory = activityRow.preference_estimate_history;
 	return activity;
 }
 
-function activityToRow(userId: string, activity: Activity): Omit<ActivityRow, 'created_at'> & { user_id: string; created_at: string } {
+function activityToRow(userID: string, activity: Activity): Omit<ActivityRow, 'created_at' | 'last_feedback_at'> & {
+	user_id: string;
+	created_at: string;
+	last_feedback_at: string;
+} {
 	return {
 		id: activity.id,
 		wheel_id: activity.wheelId,
-		user_id: userId,
+		user_id: userID,
 		name: activity.name,
-		weight: activity.weight,
+		preference_score: activity.preferenceScore,
+		preference_score_confidence: activity.preferenceScoreConfidence,
+		last_feedback_at: new Date(activity.lastFeedbackAt).toISOString(),
 		created_at: new Date(activity.createdAt).toISOString(),
 		accept_count: activity.acceptCount,
 		reject_count: activity.rejectCount,
-		streak: activity.streak,
-		last_accept_delta: activity.lastAcceptDelta ?? null,
+		preference_estimate_history: activity.preferenceEstimateHistory ?? null,
 		tag_ids: activity.tagIds,
 	};
 }
 
 export interface CloudActivityService {
-	listActivities(wheelId: string): Promise<Activity[]>;
+	loadActivitiesOfWheel(wheelId: string): Promise<Activity[]>;
 	addActivity(name: string, wheelId: string, now?: number): Promise<Activity>;
 	renameActivity(id: string, name: string): Promise<Activity>;
 	deleteActivity(id: string): Promise<void>;
-	updateActivityTagIds(id: string, tagIds: string[]): Promise<Activity>;
-	recordFeedback(
-		id: string,
-		action: FeedbackAction,
-		poolTotalEffective: number,
-		now?: number,
-	): Promise<Activity>;
+	updateActivityTagIDs(id: string, tagIds: string[]): Promise<Activity>;
+	recordFeedback(id: string, action: FeedbackAction, now?: number): Promise<Activity>;
 	bulkPut(activities: readonly Activity[]): Promise<void>;
 	clearWheelActivities(wheelId: string): Promise<void>;
 }
 
-export function createCloudActivityService(userId: string): CloudActivityService {
+export function createCloudActivityService(userID: string): CloudActivityService {
 	const supabase = requireSupabase();
 
 	async function getRow(id: string): Promise<ActivityRow> {
@@ -82,7 +81,7 @@ export function createCloudActivityService(userId: string): CloudActivityService
 	}
 
 	return {
-		async listActivities(wheelId) {
+		async loadActivitiesOfWheel(wheelId) {
 			const { data, error } = await supabase.from('activities').select('*').eq('wheel_id', wheelId);
 			if (error) throw error;
 			return (data as ActivityRow[]).map(rowToActivity);
@@ -91,8 +90,8 @@ export function createCloudActivityService(userId: string): CloudActivityService
 		async addActivity(name, wheelId, now = Date.now()) {
 			const trimmed = name.trim();
 			if (trimmed.length === 0) throw new Error('Activity name cannot be empty');
-			const activity = newActivity(newId(), trimmed, now, wheelId);
-			const { error } = await supabase.from('activities').insert(activityToRow(userId, activity));
+			const activity = newActivity(newID(), trimmed, now, wheelId);
+			const { error } = await supabase.from('activities').insert(activityToRow(userID, activity));
 			if (error) throw error;
 			return activity;
 		},
@@ -115,7 +114,7 @@ export function createCloudActivityService(userId: string): CloudActivityService
 			if (error) throw error;
 		},
 
-		async updateActivityTagIds(id, tagIds) {
+		async updateActivityTagIDs(id, tagIds) {
 			const { data, error } = await supabase
 				.from('activities')
 				.update({ tag_ids: tagIds })
@@ -126,21 +125,20 @@ export function createCloudActivityService(userId: string): CloudActivityService
 			return rowToActivity(data as ActivityRow);
 		},
 
-		async recordFeedback(id, action, poolTotalEffective, now = Date.now()) {
-			const existing = rowToActivity(await getRow(id));
-			const next = applyFeedback(existing, action, now, {
-				totalEffectiveWeight: poolTotalEffective,
-			});
+		async recordFeedback(activityID, feedbackAction, now = Date.now()) {
+			const existingActivity = rowToActivity(await getRow(activityID));
+			const nextActivity = applyFeedbackToActivity(existingActivity, feedbackAction, now);
 			const { data, error } = await supabase
 				.from('activities')
 				.update({
-					weight: next.weight,
-					accept_count: next.acceptCount,
-					reject_count: next.rejectCount,
-					streak: next.streak,
-					last_accept_delta: next.lastAcceptDelta ?? null,
+					preference_score: nextActivity.preferenceScore,
+					preference_score_confidence: nextActivity.preferenceScoreConfidence,
+					last_feedback_at: new Date(nextActivity.lastFeedbackAt).toISOString(),
+					accept_count: nextActivity.acceptCount,
+					reject_count: nextActivity.rejectCount,
+					preference_estimate_history: nextActivity.preferenceEstimateHistory ?? null,
 				})
-				.eq('id', id)
+				.eq('id', activityID)
 				.select('*')
 				.single();
 			if (error) throw error;
@@ -151,7 +149,7 @@ export function createCloudActivityService(userId: string): CloudActivityService
 			if (activities.length === 0) return;
 			const { error } = await supabase
 				.from('activities')
-				.upsert(activities.map((activity) => activityToRow(userId, activity)));
+				.upsert(activities.map((activity) => activityToRow(userID, activity)));
 			if (error) throw error;
 		},
 

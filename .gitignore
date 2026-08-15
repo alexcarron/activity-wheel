@@ -37,3 +37,6 @@ docs/*-plan.md
 
 # Migration Files
 supabase/migrations/*.sql
+
+# Simulations
+/scripts/weight-simulation/

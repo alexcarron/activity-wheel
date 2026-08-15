@@ -1,23 +1,27 @@
 /**
- * Cloud (Supabase) counterpart to wheel-service.ts, used for signed-in users.
- * Same shape as the local IndexedDB service; RLS on the `wheels`/`activities`/
- * `tag_metadata` tables is the actual privacy boundary, not anything here.
+ * Supabase version of the wheel service for signed-in users.
  */
 
 import { requireSupabase } from '../supabase-client';
 import type { Activity, Wheel } from '../../domain-logic/types';
-import { newId } from '../../utils/id';
+import { newID } from '../../utils/id';
 import { isValidUuid } from '../../utils/uuid';
-import { DEFAULT_WEIGHT } from '../../domain-logic/weight-logic/weight-constants';
+import { INITIAL_PREFERENCE_SCORE_CONFIDENCE } from '../../domain-logic/weight-logic/weight-constants';
 import { createCloudActivityService } from './activity-service';
 import { createCloudTagService } from './tag-service';
-import { convertLegacyBackupEntry, isLegacyFullBackupV2 } from '../wheel-service';
+import {
+	convertLegacyBackupEntry,
+	convertLegacyBackupEntryV3,
+	CURRENT_FULL_BACKUP_FORMAT,
+	isLegacyFullBackupV2,
+	isLegacyFullBackupV3,
+} from '../wheel-service';
 import type { FullBackup, FullBackupEntry } from '../wheel-service';
 
 function isFullBackup(value: unknown): value is FullBackup {
 	if (typeof value !== 'object' || value === null) return false;
 	const obj = value as Record<string, unknown>;
-	return obj.format === 'full-backup-v3' && Array.isArray(obj.wheels);
+	return obj.format === CURRENT_FULL_BACKUP_FORMAT && Array.isArray(obj.wheels);
 }
 
 interface WheelRow {
@@ -37,24 +41,24 @@ function rowToWheel(row: WheelRow): Wheel {
 }
 
 export interface CloudWheelService {
-	listWheels(): Promise<Wheel[]>;
+	getWheelsInOrder(): Promise<Wheel[]>;
 	getWheel(id: string): Promise<Wheel | undefined>;
 	createWheel(name: string): Promise<Wheel>;
 	renameWheel(id: string, name: string): Promise<Wheel>;
-	touchWheel(id: string): Promise<void>;
+	recordWheelBeingUsed(id: string): Promise<void>;
 	deleteWheel(id: string): Promise<void>;
-	copyWheel(fromWheelId: string, name: string, resetWeights: boolean): Promise<Wheel>;
+	copyWheel(fromWheelID: string, name: string, resetWeights: boolean): Promise<Wheel>;
 	exportFullBackup(): Promise<string>;
 	importFullBackup(json: string): Promise<string>;
 	resetToBlankWheel(): Promise<Wheel>;
 }
 
-export function createCloudWheelService(userId: string): CloudWheelService {
+export function createCloudWheelService(userID: string): CloudWheelService {
 	const supabase = requireSupabase();
-	const activityService = createCloudActivityService(userId);
-	const tagService = createCloudTagService(userId);
+	const activityService = createCloudActivityService(userID);
+	const tagService = createCloudTagService(userID);
 
-	async function listWheels(): Promise<Wheel[]> {
+	async function getWheelsInOrder(): Promise<Wheel[]> {
 		const { data, error } = await supabase
 			.from('wheels')
 			.select('*')
@@ -67,27 +71,25 @@ export function createCloudWheelService(userId: string): CloudWheelService {
 		const trimmed = name.trim();
 		if (!trimmed) throw new Error('Wheel name cannot be empty');
 		const now = new Date().toISOString();
-		const row = { id: newId(), user_id: userId, name: trimmed, created_at: now, last_used_at: now };
+		const row = { id: newID(), user_id: userID, name: trimmed, created_at: now, last_used_at: now };
 		const { error } = await supabase.from('wheels').insert(row);
 		if (error) throw error;
 		return rowToWheel(row);
 	}
 
 	async function deleteWheel(id: string): Promise<void> {
-		// activities/tag_metadata cascade via `on delete cascade` in the schema,
-		// so deleting the wheel row alone is enough.
 		const { error } = await supabase.from('wheels').delete().eq('id', id);
 		if (error) throw error;
 	}
 
 	async function resetToBlankWheel(): Promise<Wheel> {
-		const all = await listWheels();
+		const all = await getWheelsInOrder();
 		for (const wheel of all) await deleteWheel(wheel.id);
 		return createWheel('My Wheel');
 	}
 
 	return {
-		listWheels,
+		getWheelsInOrder,
 
 		async getWheel(id) {
 			const { data, error } = await supabase.from('wheels').select('*').eq('id', id).maybeSingle();
@@ -110,7 +112,7 @@ export function createCloudWheelService(userId: string): CloudWheelService {
 			return rowToWheel(data as WheelRow);
 		},
 
-		async touchWheel(id) {
+		async recordWheelBeingUsed(id) {
 			const { error } = await supabase
 				.from('wheels')
 				.update({ last_used_at: new Date().toISOString() })
@@ -120,22 +122,26 @@ export function createCloudWheelService(userId: string): CloudWheelService {
 
 		deleteWheel,
 
-		async copyWheel(fromWheelId, name, resetWeights) {
+		async copyWheel(fromWheelID, name, shouldResetWeights) {
 			const newWheel = await createWheel(name);
-			const sourceActivities = await activityService.listActivities(fromWheelId);
+			const sourceActivities = await activityService.loadActivitiesOfWheel(fromWheelID);
 			const now = Date.now();
-			const tagIdMap = await tagService.copyTagMetadata(fromWheelId, newWheel.id);
+			const tagIDMap = await tagService.copyTagMetadata(fromWheelID, newWheel.id);
 
 			const copiedActivities: Activity[] = sourceActivities.map((activity) => ({
 				...activity,
-				id: newId(),
+				id: newID(),
 				wheelId: newWheel.id,
 				createdAt: now,
-				weight: resetWeights ? DEFAULT_WEIGHT : activity.weight,
-				lastAcceptDelta: undefined,
+				preferenceScore: shouldResetWeights ? 0 : activity.preferenceScore,
+				preferenceScoreConfidence: shouldResetWeights
+					? INITIAL_PREFERENCE_SCORE_CONFIDENCE
+					: activity.preferenceScoreConfidence,
+				lastFeedbackAt: shouldResetWeights ? now : activity.lastFeedbackAt,
+				preferenceEstimateHistory: undefined,
 				tagIds: activity.tagIds
-					.map((tagId) => tagIdMap.get(tagId))
-					.filter((tagId): tagId is string => !!tagId),
+					.map((tagID) => tagIDMap.get(tagID))
+					.filter((tagID): tagID is string => !!tagID),
 			}));
 			if (copiedActivities.length > 0) await activityService.bulkPut(copiedActivities);
 
@@ -143,16 +149,16 @@ export function createCloudWheelService(userId: string): CloudWheelService {
 		},
 
 		async exportFullBackup() {
-			const wheels = await listWheels();
+			const wheels = await getWheelsInOrder();
 			const data: FullBackupEntry[] = await Promise.all(
 				wheels.map(async (wheel) => ({
 					wheel,
-					activities: await activityService.listActivities(wheel.id),
+					activities: await activityService.loadActivitiesOfWheel(wheel.id),
 					tags: await tagService.listTagMetadata(wheel.id),
 				})),
 			);
 			return JSON.stringify(
-				{ format: 'full-backup-v3', exportedAt: Date.now(), wheels: data },
+				{ format: CURRENT_FULL_BACKUP_FORMAT, exportedAt: Date.now(), wheels: data },
 				null,
 				2,
 			);
@@ -164,9 +170,16 @@ export function createCloudWheelService(userId: string): CloudWheelService {
 			if (isFullBackup(parsed)) {
 				backup = parsed;
 			}
+			else if (isLegacyFullBackupV3(parsed)) {
+				backup = {
+					format: CURRENT_FULL_BACKUP_FORMAT,
+					exportedAt: parsed.exportedAt,
+					wheels: parsed.wheels.map(convertLegacyBackupEntryV3),
+				};
+			}
 			else if (isLegacyFullBackupV2(parsed)) {
 				backup = {
-					format: 'full-backup-v3',
+					format: CURRENT_FULL_BACKUP_FORMAT,
 					exportedAt: parsed.exportedAt,
 					wheels: parsed.wheels.map(convertLegacyBackupEntry),
 				};
@@ -175,31 +188,28 @@ export function createCloudWheelService(userId: string): CloudWheelService {
 				throw new Error('Not a valid activity-wheel backup file.');
 			}
 
-			const existing = await listWheels();
+			const existing = await getWheelsInOrder();
 			for (const wheel of existing) await deleteWheel(wheel.id);
 
 			for (const { wheel, activities, tags } of backup.wheels) {
-				// Local wheel/activity/tag ids are sometimes not valid UUIDs (e.g. the
-				// legacy 'default' wheel id from before multi-wheel support), but
-				// Supabase's id columns are typed uuid, so remap any that don't fit.
-				const wheelId = isValidUuid(wheel.id) ? wheel.id : newId();
+				const wheelId = isValidUuid(wheel.id) ? wheel.id : newID();
 				const { error } = await supabase.from('wheels').insert({
 					id: wheelId,
-					user_id: userId,
+					user_id: userID,
 					name: wheel.name,
 					created_at: new Date(wheel.createdAt).toISOString(),
 					last_used_at: new Date(wheel.lastUsedAt).toISOString(),
 				});
 				if (error) throw error;
 
-				const tagIdMap = new Map<string, string>();
+				const tagIDMap = new Map<string, string>();
 				for (const tag of tags) {
-					const tagId = isValidUuid(tag.id) ? tag.id : newId();
-					tagIdMap.set(tag.id, tagId);
+					const tagID = isValidUuid(tag.id) ? tag.id : newID();
+					tagIDMap.set(tag.id, tagID);
 					const { error: tagError } = await supabase.from('tag_metadata').insert({
-						id: tagId,
+						id: tagID,
 						wheel_id: wheelId,
-						user_id: userId,
+						user_id: userID,
 						name: tag.name,
 						color: tag.color ?? null,
 					});
@@ -208,11 +218,11 @@ export function createCloudWheelService(userId: string): CloudWheelService {
 
 				const remappedActivities = activities.map((activity) => ({
 					...activity,
-					id: isValidUuid(activity.id) ? activity.id : newId(),
+					id: isValidUuid(activity.id) ? activity.id : newID(),
 					wheelId,
 					tagIds: activity.tagIds
-						.map((tagId) => tagIdMap.get(tagId))
-						.filter((tagId): tagId is string => !!tagId),
+						.map((tagID) => tagIDMap.get(tagID))
+						.filter((tagID): tagID is string => !!tagID),
 				}));
 				if (remappedActivities.length > 0) await activityService.bulkPut(remappedActivities);
 			}

@@ -5,7 +5,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as localActivityService from '../services/activity-service';
-import { totalEffective } from '../services/activity-service';
 import { createCloudActivityService, type CloudActivityService } from '../services/cloud/activity-service';
 import { createSharedActivityService } from '../services/cloud/shared-activity-service';
 import { useSharedWheelRealtimeSync, type SharedActivityChange } from './shared-wheel-realtime';
@@ -27,18 +26,18 @@ interface UseActivitiesApi {
 
 export function useActivities(
 	wheelId: string,
-	userId: string | null,
-	sharedWheelId: string | null,
+	userID: string | null,
+	sharedWheelID: string | null,
 	/** Fires for every realtime change (shared wheels only), before it's merged into state. */
 	onRemoteActivityChange?: (change: SharedActivityChange) => void,
 ): UseActivitiesApi {
-	// Memoized separately from the owned-wheel backend so that userId changing (e.g. sign-out) while a shared wheel is active can't produce a new activityService/ensureTagsExist reference and retrigger the fetch effect below under a session that no longer has access.
+	// Memoized separately from the owned-wheel backend so that userID changing (e.g. sign-out) while a shared wheel is active can't produce a new activityService/ensureTagsExist reference and retrigger the fetch effect below under a session that no longer has access.
 	const sharedActivityService = useMemo(() => createSharedActivityService(), []);
 	const ownedActivityService = useMemo(
-		() => (userId ? createCloudActivityService(userId) : localActivityService),
-		[userId],
+		() => (userID ? createCloudActivityService(userID) : localActivityService),
+		[userID],
 	);
-	const activityService: CloudActivityService = sharedWheelId ? sharedActivityService : ownedActivityService;
+	const activityService: CloudActivityService = sharedWheelID ? sharedActivityService : ownedActivityService;
 
 	const [activities, setActivities] = useState<readonly Activity[]>([]);
 	const [isLoading, setLoading] = useState(true);
@@ -52,7 +51,7 @@ export function useActivities(
 
 	const reload = useCallback(async (): Promise<void> => {
 		try {
-			const nextActivities = await activityService.listActivities(wheelRef.current);
+			const nextActivities = await activityService.loadActivitiesOfWheel(wheelRef.current);
 			if (isMounted.current) setActivities(nextActivities);
 		}
 		catch (error) {
@@ -60,15 +59,8 @@ export function useActivities(
 		}
 	}, [activityService]);
 
-	// Re-load whenever the wheelId or backend changes.
-	// An empty wheelId means useWheels hasn't resolved an active wheel yet
-	// (e.g. a freshly signed-in cloud account before its first wheel loads/is
-	// created). There's nothing valid to query yet, so wait rather than fetch.
 	useEffect(() => {
 		isMounted.current = true;
-		// Intentional: this effect's job is to reset loading state for the newly
-		// active wheel before fetching its activities.
-		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setLoading(true);
 		if (!wheelId) {
 			setActivities([]);
@@ -77,9 +69,9 @@ export function useActivities(
 		}
 		void (async () => {
 			try {
-				const next = await activityService.listActivities(wheelId);
+				const loadedActivities = await activityService.loadActivitiesOfWheel(wheelId);
 				if (isMounted.current) {
-					setActivities(next);
+					setActivities(loadedActivities);
 					setError(null);
 				}
 			}
@@ -98,7 +90,7 @@ export function useActivities(
 	const applyRealtimeChange = useCallback((change: SharedActivityChange): void => {
 		onRemoteActivityChange?.(change);
 		if (change.type === 'delete') {
-			setActivities((prev) => prev.filter((activity) => activity.id !== change.activityId));
+			setActivities((prev) => prev.filter((activity) => activity.id !== change.activityID));
 			return;
 		}
 		setActivities((prev) => {
@@ -108,7 +100,7 @@ export function useActivities(
 				: [...prev, change.activity];
 		});
 	}, [onRemoteActivityChange]);
-	useSharedWheelRealtimeSync(sharedWheelId, applyRealtimeChange);
+	useSharedWheelRealtimeSync(sharedWheelID, applyRealtimeChange);
 
 	const add = useCallback(
 		async (name: string): Promise<void> => {
@@ -155,7 +147,7 @@ export function useActivities(
 	const updateTags = useCallback(
 		async (id: string, tagIds: string[]): Promise<void> => {
 			try {
-				const updated = await activityService.updateActivityTagIds(id, tagIds);
+				const updated = await activityService.updateActivityTagIDs(id, tagIds);
 				setActivities((prev) => prev.map((activity) => (activity.id === id ? updated : activity)));
 			}
 			catch (error) {
@@ -169,16 +161,15 @@ export function useActivities(
 	const applyFeedback = useCallback(
 		async (id: string, action: FeedbackAction): Promise<void> => {
 			try {
-				const poolTotal = totalEffective(activities, Date.now());
-				const updated = await activityService.recordFeedback(id, action, poolTotal);
-				setActivities((prev) => prev.map((activity) => (activity.id === id ? updated : activity)));
+				const updatedActivities = await activityService.recordFeedback(id, action);
+				setActivities((prev) => prev.map((activity) => (activity.id === id ? updatedActivities : activity)));
 			}
 			catch (error) {
 				setError(toErrorMessage(error));
 				throw error;
 			}
 		},
-		[activities, activityService],
+		[activityService],
 	);
 
 	const clearEverything = useCallback(async (): Promise<void> => {

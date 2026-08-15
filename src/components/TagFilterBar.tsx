@@ -24,7 +24,7 @@ interface Props {
 	/** Full (unfiltered) activity list. Needed for accurate counts. */
 	readonly allActivities: readonly Activity[];
 	readonly tagMetadata: readonly TagMetadata[];
-	readonly activeTagIds: readonly string[];
+	readonly activeTagIDs: readonly string[];
 	readonly untaggedOnly: boolean;
 	readonly filterMode: FilterMode;
 	onToggleTag(id: string): void;
@@ -39,7 +39,7 @@ interface Props {
 export function TagFilterBar({
 	allActivities,
 	tagMetadata,
-	activeTagIds,
+	activeTagIDs,
 	untaggedOnly,
 	filterMode,
 	onToggleTag,
@@ -72,8 +72,8 @@ export function TagFilterBar({
 		return sortedTags.filter((tag) => tag.name.toLowerCase().includes(queryText));
 	}, [sortedTags, searchQuery]);
 
-	const filterOn = isFilterActive(activeTagIds, untaggedOnly);
-	const multiTagActive = activeTagIds.length >= 2;
+	const filterOn = isFilterActive(activeTagIDs, untaggedOnly);
+	const multiTagActive = activeTagIDs.length >= 2;
 
 	/* Digit hotkeys for top-9 tags. React rules forbid hooks in loops, so we inline 9 calls. Each one is enabled only when the corresponding tag exists and we're not in a text input (useHotkey handles that internally). */
 	useHotkey(
@@ -183,7 +183,7 @@ export function TagFilterBar({
 					/* Find this tag's position in the full sorted list to assign hotkey */
 					const globalIndex = sortedTags.indexOf(tag);
 					const hotkey = globalIndex >= 0 && globalIndex < 9 ? TAG_HOTKEYS[globalIndex].label : null;
-					const isActive = activeTagIds.includes(tag.id);
+					const isActive = activeTagIDs.includes(tag.id);
 
 					return (
 						<TagFilterPill

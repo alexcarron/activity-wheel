@@ -14,9 +14,9 @@ import './WheelTabs.css';
 
 interface Props {
 	wheels: readonly Wheel[];
-	activeWheelId: string;
+	activeWheelID: string;
 	onSwitch(id: string): void;
-	onCreate(name: string, fromWheelId: string | null, resetWeights: boolean): Promise<void>;
+	onCreate(name: string, fromWheelID: string | null, resetWeights: boolean): Promise<void>;
 	onRename(id: string, name: string): Promise<void>;
 	onDelete(id: string): Promise<void>;
 }
@@ -35,7 +35,7 @@ function SharedWheelIcon() {
 
 export function WheelTabs({
 	wheels,
-	activeWheelId,
+	activeWheelID,
 	onSwitch,
 	onCreate,
 	onRename,
@@ -43,11 +43,11 @@ export function WheelTabs({
 }: Props) {
 	const [creating, setCreating] = useState(false);
 	const [newName, setNewName] = useState('');
-	const [copyFromId, setCopyFromId] = useState<string>('none');
+	const [copyFromID, setCopyFromID] = useState<string>('none');
 	const [resetWeights, setResetWeights] = useState(false);
 	const [creatingBusy, setCreatingBusy] = useState(false);
 
-	const [renamingId, setRenamingId] = useState<string | null>(null);
+	const [renamingID, setRenamingID] = useState<string | null>(null);
 	const [renameValue, setRenameValue] = useState('');
 
 	const newNameInputRef = useRef<HTMLInputElement>(null);
@@ -62,14 +62,14 @@ export function WheelTabs({
 
 	// Focus rename input when rename starts.
 	useEffect(() => {
-		if (renamingId) {
+		if (renamingID) {
 			setTimeout(() => renameInputRef.current?.select(), 0);
 		}
-	}, [renamingId]);
+	}, [renamingID]);
 
 	const openCreate = useCallback(() => {
 		setNewName('');
-		setCopyFromId('none');
+		setCopyFromID('none');
 		setResetWeights(false);
 		setCreating(true);
 	}, []);
@@ -83,26 +83,26 @@ export function WheelTabs({
 		if (!name) return;
 		setCreatingBusy(true);
 		try {
-			await onCreate(name, copyFromId === 'none' ? null : copyFromId, resetWeights);
+			await onCreate(name, copyFromID === 'none' ? null : copyFromID, resetWeights);
 			setCreating(false);
 			setNewName('');
 		}
 		finally {
 			setCreatingBusy(false);
 		}
-	}, [newName, copyFromId, resetWeights, onCreate]);
+	}, [newName, copyFromID, resetWeights, onCreate]);
 
 	const startRename = useCallback((wheel: Wheel) => {
-		setRenamingId(wheel.id);
+		setRenamingID(wheel.id);
 		setRenameValue(wheel.name);
 	}, []);
 
 	const submitRename = useCallback(async () => {
-		if (!renamingId) return;
+		if (!renamingID) return;
 		const name = renameValue.trim();
-		if (name) await onRename(renamingId, name);
-		setRenamingId(null);
-	}, [renamingId, renameValue, onRename]);
+		if (name) await onRename(renamingID, name);
+		setRenamingID(null);
+	}, [renamingID, renameValue, onRename]);
 
 	const handleDelete = useCallback(
 		async (event: React.MouseEvent, id: string) => {
@@ -125,8 +125,8 @@ export function WheelTabs({
 		<div className="wheel-tabs-wrap">
 			<div className="wheel-tabs" role="tablist" aria-label="Wheels">
 				{sortedWheels.map((wheel) => {
-					const isActive = wheel.id === activeWheelId;
-					const isRenaming = renamingId === wheel.id;
+					const isActive = wheel.id === activeWheelID;
+					const isRenaming = renamingID === wheel.id;
 					const isShared = wheel.kind === 'shared';
 					const canDelete = !isShared && wheels.filter((candidate) => candidate.kind !== 'shared').length > 1;
 					return (
@@ -145,7 +145,7 @@ export function WheelTabs({
 									onBlur={() => void submitRename()}
 									onKeyDown={(event) => {
 										if (event.key === 'Enter') void submitRename();
-										if (event.key === 'Escape') setRenamingId(null);
+										if (event.key === 'Escape') setRenamingID(null);
 									}}
 									aria-label="Rename wheel"
 								/>
@@ -218,8 +218,8 @@ export function WheelTabs({
 							Copy from
 							<select
 								className="wheel-create-select"
-								value={copyFromId}
-								onChange={(event) => setCopyFromId(event.target.value)}
+								value={copyFromID}
+								onChange={(event) => setCopyFromID(event.target.value)}
 							>
 								<option value="none">Blank wheel</option>
 								{sortedWheels.map((wheel) => (
@@ -231,7 +231,7 @@ export function WheelTabs({
 						</label>
 					)}
 
-					{copyFromId !== 'none' && (
+					{copyFromID !== 'none' && (
 						<label className="wheel-create-reset">
 							<input
 								type="checkbox"

@@ -46,11 +46,11 @@ export function AuthButton({ onLocalDataImported }: AuthButtonProps) {
 	const [importStatus, setImportStatus] = useState<string | null>(null);
 	const [canImportLocalWheels, setCanImportLocalWheels] = useState(false);
 
-	const userId = auth.user?.id;
+	const userID = auth.user?.id;
 	useEffect(() => {
-		if (!userId) return;
-		hasSavedCloudWheels(userId).then((hasSavedWheels) => setCanImportLocalWheels(!hasSavedWheels));
-	}, [userId]);
+		if (!userID) return;
+		hasSavedCloudWheels(userID).then((hasSavedWheels) => setCanImportLocalWheels(!hasSavedWheels));
+	}, [userID]);
 
 	if (auth.loading) {
 		return (

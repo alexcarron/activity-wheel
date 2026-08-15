@@ -118,11 +118,11 @@ export function createSharedTagService(): CloudTagService {
 			return orphans;
 		},
 
-		async copyTagMetadata(fromWheelId, toWheelId) {
+		async copyTagMetadata(fromWheelID, toWheelID) {
 			const { data, error } = await supabase
 				.from('shared_wheel_tag_metadata')
 				.select('*')
-				.eq('wheel_id', fromWheelId);
+				.eq('wheel_id', fromWheelID);
 			if (error) throw error;
 			const rows = data as SharedTagMetadataRow[];
 			if (rows.length === 0) return new Map();
@@ -130,7 +130,7 @@ export function createSharedTagService(): CloudTagService {
 				.from('shared_wheel_tag_metadata')
 				.insert(
 					rows.map((row) => ({
-						wheel_id: toWheelId,
+						wheel_id: toWheelID,
 						name: row.name,
 						color: row.color,
 					})),

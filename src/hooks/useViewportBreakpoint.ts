@@ -40,16 +40,16 @@ export function useViewportBreakpoint(): ViewportBreakpointInfo {
 	);
 
 	useEffect(() => {
-		let debounceTimeoutId = 0;
+		let debounceTimeoutID = 0;
 		const handleResize = (): void => {
-			window.clearTimeout(debounceTimeoutId);
-			debounceTimeoutId = window.setTimeout(() => {
+			window.clearTimeout(debounceTimeoutID);
+			debounceTimeoutID = window.setTimeout(() => {
 				setBreakpoint(getBreakpointForWidth(window.innerWidth));
 			}, RESIZE_DEBOUNCE_MS);
 		};
 		window.addEventListener('resize', handleResize);
 		return () => {
-			window.clearTimeout(debounceTimeoutId);
+			window.clearTimeout(debounceTimeoutID);
 			window.removeEventListener('resize', handleResize);
 		};
 	}, []);

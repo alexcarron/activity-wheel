@@ -1,7 +1,7 @@
 /**
  * Generate a stable unique id. Uses `crypto.randomUUID` when available (everywhere in 2026 browsers), falls back to a Math.random-based id otherwise. 
  */
-export function newId(): string {
+export function newID(): string {
 	if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
 		return crypto.randomUUID();
 	}

@@ -8,42 +8,41 @@ You've got a list of things you could do and no idea which one you're in the moo
 
 ## Spinning and selection
 
-Pressing **Spin the wheel** (or `Space`) picks the winner immediately using a cumulative weighted random draw over the current session pool, then plays a deceleration animation that lands the canvas on that precomputed slice. The animation is purely visual: nothing about the outcome depends on how the wheel looks while it spins.
+Pressing **Spin the wheel** (or `Space`) picks the activity immediately using a cumulative weighted random selection over this session's remaining activities, then plays a deceleration animation that lands the canvas on that precomputed slice. The animation is purely visual: nothing about the outcome depends on how the wheel looks while it spins.
 
-Slices are drawn heaviest-first starting at 12 o'clock, sized by each activity's *effective weight* (its stored weight plus any active recency boost, further exaggerated or compressed by the debug weight-spread slider if you've touched it).
+Slices are rendered with the highest probability first starting at the top, sized by the estimated weight each activity has.
 
 Once it lands, you get four feedback buttons and two navigation buttons:
 
-- **★ Love It!** (`L`): a large weight boost, roughly 3.5x an accept, because it's a deliberate strong reaction.
-- **Accept** (`Y`): a moderate weight increase.
-- **Skip** (`S`): no weight change at all, but the activity still leaves the session pool since you've seen it.
-- **✕ Hate It!** (`H`): a large weight penalty, mirroring Love It in the other direction.
-- **Reject** (`N`): a moderate weight decrease.
-- **Spin again** (`Space`): spins from whatever's left in the session pool.
-- **Reset session**: puts every excluded activity back into the pool.
+- **★ Love It!** (`L`): awards +2 preference points.
+- **Accept** (`Y`): awards +1 preference point.
+- **Skip** (`S`): awards no points at all, but the activity is still removed from this session since you've seen it.
+- **✕ Hate It!** (`H`): takes 2 preference points away, mirroring Love It in the other direction.
+- **Reject** (`N`): takes 1 preference point away.
+- **Spin again** (`Space`): spins from whatever activities are left this session.
+- **Reset session**: makes every excluded activity available again.
 
 Whatever you spin is excluded from the rest of the session no matter which button you press, including Skip, so the next spin always shows you something new. Accepting doesn't auto-reset the session, so you're free to keep spinning or stop whenever you want.
 
 If the activity you land on has no tags yet, a small "No tags yet. Add a tag?" prompt appears so you can tag it on the spot instead of hunting for it in the list later. You can also rename the winning activity directly from this panel by clicking its name.
 
-## The weight system
+## The preference system
 
-Every activity carries a numeric weight that only moves in response to your feedback.
+Every activity has a **preference score**, the app's guess at how much you like it, and a **confidence in preference score**, how sure it is about that guess. A new activity starts at a neutral preference score that the app is barely confident in.
 
-A few things shape how much a single piece of feedback actually moves the needle:
+Your feedback awards **preference points**. Every reaction moves the preference score toward your feedback response and increases the confidence.
 
-- **Recency boost.** A newly added activity gets a temporary head start scaled to the pool's average weight, so it's competitive against activities that already have a history. It steps down once per full day it's existed, reaching zero after 7 days, rather than shrinking continuously, so activities created around the same time show the same boost.
-- **Diminishing returns.** As a weight gets close to its floor or ceiling, further nudges in that direction matter less, so the system doesn't swing to an extreme from a single burst of clicks.
+How much a single reaction changes the preference score depends on how confident the app is in it. While it it is very unconfident, your first few reactions change the preference score a lot. Once you have given feedback on the same activity again and again, more feedback in the same direction barely changes it.
 
-Nothing can be silenced completely and nothing can be guaranteed forever. There's always a floor beneath which a weight can't fall and a ceiling it can't cross, and both move automatically as your pool grows or shrinks: a floor that guarantees every activity has a realistic chance of showing up at least once over a typical month of spins (falling back to a fairness-based floor once the pool is too large for that to be mathematically possible), and a ceiling that keeps any single activity below roughly 50% selection probability.
+Picking an activity is not based on just the preference score. For each spin, every activity comes up with a **possible preference score**, its preference score plus an uncertainty of its score. An activity with high preference score confidence comes up with a possible score close to its real preference score. An activity with low preference score confidence comes up with possible scores all over the place, so ocassionally it's score is high giving it a higher opportunity to be picked. Those possible preference scores are what determine the real activity weights/probabilities. How much a higher preference score leads to a higher weight on the actual wheel is the **preference weight strength**.
 
-None of this changes what the weight numbers mean, only how much influence a single click carries at that moment.
+If you had activities from before this system existed, their old accept/reject history was replayed into a starting preference score and confidence, weighted less. This automatically ran once the first time you opened the app after the update.
 
 ## Wheels
 
 You're not limited to one list of activities. The tab bar above the wheel lets you keep separate wheels for separate contexts, like a "Games" wheel and a "Weekend" wheel, each with its own activities, tags, and weights.
 
-- Click `+` to create a new wheel, either blank or copied from an existing one. Copying gives you the option to carry over the source wheel's weights or reset everything to the default.
+- Click `+` to create a new wheel, either blank or copied from an existing one. Copying gives you the option to carry over the source wheel's preferences or reset everything back to neutral.
 - Double-click a tab to rename it.
 - Hover a tab to reveal its `×` delete button. You can't delete your last wheel: there always has to be at least one.
 - `[` and `]` cycle between wheels without touching the mouse.
@@ -51,7 +50,7 @@ You're not limited to one list of activities. The tab bar above the wheel lets y
 
 ## Tag filtering
 
-The pill bar between the wheel and the activity list lets you narrow the spin pool down to a subset of activities.
+The pill bar between the wheel and the activity list lets you narrow the spinnable activities down to a filtered set of activities.
 
 - Click a tag pill to filter to it. Click a second tag and, by default, activities matching *either* tag qualify (OR). An AND/OR toggle appears once you've got two or more tags active, letting you require all of them instead.
 - Click **Untagged** to see only activities with no tags at all, useful for finding things you haven't gotten around to organizing.
@@ -63,12 +62,12 @@ The filter is intentionally session-only. It resets on page load and whenever yo
 
 ## Managing activities
 
-The activity list below the wheel shows every activity (or the tag-filtered subset, if a filter's active), with search and three sort options: date added, name, and most enjoyed (by weight).
+The activity list below the wheel shows every activity (or the tag-filtered subset, if a filter's active), with search and three sort options: date added, name, and most enjoyed (by preference score).
 
 Each row supports:
 
 - Click the name to rename it inline.
-- The same four feedback buttons as the post-spin panel (★ / + / − / ✕), so you can nudge a weight without spinning for it.
+- The same four feedback buttons as the post-spin panel (★ / + / − / ✕), so you can nudge a preference without spinning for it.
 - Tags: add via the `+` combobox (autocompletes from every tag you've ever used, or lets you create a new one), remove with the `×` on hover, right-click a tag to open a small popover where you can rename it (rejecting a name that collides with another tag), change its color from a preset palette or a custom picker, or delete it entirely (with a confirmation prompt, since it strips the tag from every activity that has it).
 - Delete, with a confirmation prompt.
 
@@ -113,21 +112,23 @@ This is the same escape hatch whether you're signed in or not: it always operate
 
 ## Debug mode
 
-Open the **Debug** disclosure to toggle:
+Open the **Debug** disclosure to control what is shown and how spins run.
 
-- **Show weights**: adds an effective-weight pill to each activity row.
-- **Show probabilities**: adds a pill showing that activity's odds on the next spin, computed over whatever pool (filtered or not) is currently in play.
-- **RNG seed**: when set, every spin is driven by a Mulberry32 generator seeded from your string plus the current pool size and a tick counter, so the same starting state and seed reproduces the same sequence of spins.
-- **Weight spread**: a slider that exaggerates or compresses the *displayed* differences between activities' weights, for previewing how a lopsided pool would feel, without touching anything actually stored.
-- **Allow extreme weight spread**: unlocks a much wider range on that slider for stress-testing very unbalanced pools.
+There is a separate show/hide checkbox for each internal value, and ticking one adds that value as a pill on every activity row. The available value pills are actual current weight, estimated stable weight, actual current probability, estimated stable probability, preference score, preference score confidence, decayed preference score confidence, and preference score standard deviation. The actual current values are the random ones an activity gets for one exact spin, so their pills change every spin, while the estimated stable values are steady averages across many spins. Everything the user normally sees, including the wheel slice sizes, uses the stable values so nothing shifts under them from spin to spin.
+
+The rest of the panel:
+
+- **RNG seed**: when set, every spin is driven by a Mulberry32 generator seeded from your string plus the current number of activities and a tick counter, so the same starting state and seed reproduces the same sequence of spins.
+- **Weight spread**: a slider that exaggerates or compresses the *displayed* differences between activities' weights, for previewing how a lopsided set of activities would feel, without touching anything actually stored.
+- **Allow extreme weight spread**: unlocks a much wider range on that slider for stress-testing very unbalanced sets of activities.
 
 All of these persist to `localStorage`, so they survive a page reload.
 
 ## Edge cases worth knowing about
 
 - **No activities at all** shows a prompt to add your first one instead of an empty wheel.
-- **One activity** always wins, deterministically.
-- **Session pool exhausted** (everything's been spun) offers a Reset session button instead of a spin button.
+- **One activity** is always picked, deterministically.
+- **No activities left this session** (everything's been spun) offers a Reset session button instead of a spin button.
 - **Tag filter matches nothing** offers a Clear filter button.
 - **Tag filter matches something, but you've spun through all of it this session** offers both Reset session and Clear filter.
 - **Deleting an activity mid-animation** is handled gracefully: the wheel resets rather than trying to land on something that no longer exists.

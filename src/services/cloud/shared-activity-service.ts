@@ -1,45 +1,48 @@
-/** Shared-wheel counterpart to cloud/activity-service.ts, backed by `shared_activities`. */
+/** The shared wheel version of the cloud activity service */
 
 import { requireSupabase } from '../supabase-client';
-import { applyFeedback } from '../../domain-logic/weight-logic/weight-feedback-response-logic';
+import { applyFeedbackToActivity } from '../../domain-logic/weight-logic/weight-feedback-response-logic';
 import { newActivity } from '../../domain-logic/activity-logic/activity-factory';
-import type { Activity, FeedbackAction } from '../../domain-logic/types';
-import { newId } from '../../utils/id';
+import type { Activity, FeedbackAction, PreferenceEstimateSnapshot } from '../../domain-logic/types';
+import { newID } from '../../utils/id';
 import type { CloudActivityService } from './activity-service';
 
-interface SharedActivityRow {
+export interface SharedActivityRow {
 	id: string;
 	wheel_id: string;
 	name: string;
-	weight: number;
+	preference_score: number;
+	preference_score_confidence: number;
+	last_feedback_at: string;
 	created_at: string;
 	accept_count: number;
 	reject_count: number;
-	streak: number;
-	last_accept_delta: number | null;
+	preference_estimate_history: PreferenceEstimateSnapshot | null;
 	tag_ids: string[];
 }
 
-export function rowToSharedActivity(row: SharedActivityRow): Activity {
+export function rowToSharedActivity(sharedActivityRow: SharedActivityRow): Activity {
 	const activity: Activity = {
-		id: row.id,
-		wheelId: row.wheel_id,
-		name: row.name,
-		weight: row.weight,
-		createdAt: new Date(row.created_at).getTime(),
-		acceptCount: row.accept_count,
-		rejectCount: row.reject_count,
-		streak: row.streak,
-		tagIds: row.tag_ids ?? [],
+		id: sharedActivityRow.id,
+		wheelId: sharedActivityRow.wheel_id,
+		name: sharedActivityRow.name,
+		preferenceScore: sharedActivityRow.preference_score,
+		preferenceScoreConfidence: sharedActivityRow.preference_score_confidence,
+		lastFeedbackAt: new Date(sharedActivityRow.last_feedback_at).getTime(),
+		createdAt: new Date(sharedActivityRow.created_at).getTime(),
+		acceptCount: sharedActivityRow.accept_count,
+		rejectCount: sharedActivityRow.reject_count,
+		tagIds: sharedActivityRow.tag_ids ?? [],
 	};
-	if (row.last_accept_delta !== null) activity.lastAcceptDelta = row.last_accept_delta;
+	if (sharedActivityRow.preference_estimate_history !== null) 
+		activity.preferenceEstimateHistory = sharedActivityRow.preference_estimate_history;
 	return activity;
 }
 
 export function createSharedActivityService(): CloudActivityService {
 	const supabase = requireSupabase();
 
-	async function currentUserId(): Promise<string | null> {
+	async function currentUserID(): Promise<string | null> {
 		const { data } = await supabase.auth.getUser();
 		return data.user?.id ?? null;
 	}
@@ -51,7 +54,7 @@ export function createSharedActivityService(): CloudActivityService {
 	}
 
 	return {
-		async listActivities(wheelId) {
+		async loadActivitiesOfWheel(wheelId) {
 			const { data, error } = await supabase
 				.from('shared_activities')
 				.select('*')
@@ -60,37 +63,38 @@ export function createSharedActivityService(): CloudActivityService {
 			return (data as SharedActivityRow[]).map(rowToSharedActivity);
 		},
 
-		async addActivity(name, wheelId, now = Date.now()) {
-			const trimmed = name.trim();
-			if (trimmed.length === 0) throw new Error('Activity name cannot be empty');
-			const activity = newActivity(newId(), trimmed, now, wheelId);
-			const updatedByUserId = await currentUserId();
+		async addActivity(activityName, wheelId, now = Date.now()) {
+			const trimmedName = activityName.trim();
+			if (trimmedName.length === 0) throw new Error('Activity name cannot be empty');
+			const activity = newActivity(newID(), trimmedName, now, wheelId);
+			const updatedByUserID = await currentUserID();
 			const { error } = await supabase.from('shared_activities').insert({
 				id: activity.id,
 				wheel_id: wheelId,
 				name: activity.name,
-				weight: activity.weight,
+				preference_score: activity.preferenceScore,
+				preference_score_confidence: activity.preferenceScoreConfidence,
+				last_feedback_at: new Date(activity.lastFeedbackAt).toISOString(),
 				created_at: new Date(activity.createdAt).toISOString(),
 				accept_count: activity.acceptCount,
 				reject_count: activity.rejectCount,
-				streak: activity.streak,
-				last_accept_delta: activity.lastAcceptDelta ?? null,
+				preference_estimate_history: activity.preferenceEstimateHistory ?? null,
 				tag_ids: activity.tagIds,
-				updated_by_user_id: updatedByUserId,
+				updated_by_user_id: updatedByUserID,
 				updated_at: new Date().toISOString(),
 			});
 			if (error) throw error;
 			return activity;
 		},
 
-		async renameActivity(id, name) {
-			const trimmed = name.trim();
-			if (trimmed.length === 0) throw new Error('Activity name cannot be empty');
-			const updatedByUserId = await currentUserId();
+		async renameActivity(activityID, activityName) {
+			const trimmedName = activityName.trim();
+			if (trimmedName.length === 0) throw new Error('Activity name cannot be empty');
+			const updatedByUserID = await currentUserID();
 			const { data, error } = await supabase
 				.from('shared_activities')
-				.update({ name: trimmed, updated_by_user_id: updatedByUserId, updated_at: new Date().toISOString() })
-				.eq('id', id)
+				.update({ name: trimmedName, updated_by_user_id: updatedByUserID, updated_at: new Date().toISOString() })
+				.eq('id', activityID)
 				.select('*')
 				.single();
 			if (error) throw error;
@@ -102,11 +106,11 @@ export function createSharedActivityService(): CloudActivityService {
 			if (error) throw error;
 		},
 
-		async updateActivityTagIds(id, tagIds) {
-			const updatedByUserId = await currentUserId();
+		async updateActivityTagIDs(id, tagIds) {
+			const updatedByUserID = await currentUserID();
 			const { data, error } = await supabase
 				.from('shared_activities')
-				.update({ tag_ids: tagIds, updated_by_user_id: updatedByUserId, updated_at: new Date().toISOString() })
+				.update({ tag_ids: tagIds, updated_by_user_id: updatedByUserID, updated_at: new Date().toISOString() })
 				.eq('id', id)
 				.select('*')
 				.single();
@@ -114,24 +118,23 @@ export function createSharedActivityService(): CloudActivityService {
 			return rowToSharedActivity(data as SharedActivityRow);
 		},
 
-		async recordFeedback(id, action: FeedbackAction, poolTotalEffective, now = Date.now()) {
-			const existing = rowToSharedActivity(await getRow(id));
-			const next = applyFeedback(existing, action, now, {
-				totalEffectiveWeight: poolTotalEffective,
-			});
-			const updatedByUserId = await currentUserId();
+		async recordFeedback(activityID, feedbackAction: FeedbackAction, now = Date.now()) {
+			const existingActivity = rowToSharedActivity(await getRow(activityID));
+			const nextActivity = applyFeedbackToActivity(existingActivity, feedbackAction, now);
+			const updatedByUserID = await currentUserID();
 			const { data, error } = await supabase
 				.from('shared_activities')
 				.update({
-					weight: next.weight,
-					accept_count: next.acceptCount,
-					reject_count: next.rejectCount,
-					streak: next.streak,
-					last_accept_delta: next.lastAcceptDelta ?? null,
-					updated_by_user_id: updatedByUserId,
+					preference_score: nextActivity.preferenceScore,
+					preference_score_confidence: nextActivity.preferenceScoreConfidence,
+					last_feedback_at: new Date(nextActivity.lastFeedbackAt).toISOString(),
+					accept_count: nextActivity.acceptCount,
+					reject_count: nextActivity.rejectCount,
+					preference_estimate_history: nextActivity.preferenceEstimateHistory ?? null,
+					updated_by_user_id: updatedByUserID,
 					updated_at: new Date().toISOString(),
 				})
-				.eq('id', id)
+				.eq('id', activityID)
 				.select('*')
 				.single();
 			if (error) throw error;
@@ -140,21 +143,22 @@ export function createSharedActivityService(): CloudActivityService {
 
 		async bulkPut(activities) {
 			if (activities.length === 0) return;
-			const updatedByUserId = await currentUserId();
+			const updatedByUserID = await currentUserID();
 			const now = new Date().toISOString();
 			const { error } = await supabase.from('shared_activities').upsert(
 				activities.map((activity) => ({
 					id: activity.id,
 					wheel_id: activity.wheelId,
 					name: activity.name,
-					weight: activity.weight,
+					preference_score: activity.preferenceScore,
+					preference_score_confidence: activity.preferenceScoreConfidence,
+					last_feedback_at: new Date(activity.lastFeedbackAt).toISOString(),
 					created_at: new Date(activity.createdAt).toISOString(),
 					accept_count: activity.acceptCount,
 					reject_count: activity.rejectCount,
-					streak: activity.streak,
-					last_accept_delta: activity.lastAcceptDelta ?? null,
+					preference_estimate_history: activity.preferenceEstimateHistory ?? null,
 					tag_ids: activity.tagIds,
-					updated_by_user_id: updatedByUserId,
+					updated_by_user_id: updatedByUserID,
 					updated_at: now,
 				})),
 			);

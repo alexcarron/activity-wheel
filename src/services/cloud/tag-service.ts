@@ -34,10 +34,10 @@ export interface CloudTagService {
 		activities: readonly Activity[],
 		tagIds: string[],
 	): Promise<string[]>;
-	copyTagMetadata(fromWheelId: string, toWheelId: string): Promise<Map<string, string>>;
+	copyTagMetadata(fromWheelID: string, toWheelID: string): Promise<Map<string, string>>;
 }
 
-export function createCloudTagService(userId: string): CloudTagService {
+export function createCloudTagService(userID: string): CloudTagService {
 	const supabase = requireSupabase();
 
 	return {
@@ -93,7 +93,7 @@ export function createCloudTagService(userId: string): CloudTagService {
 			const { error } = await supabase
 				.from('tag_metadata')
 				.upsert(
-					trimmedNames.map((name) => ({ wheel_id: wheelId, user_id: userId, name })),
+					trimmedNames.map((name) => ({ wheel_id: wheelId, user_id: userID, name })),
 					{ onConflict: 'wheel_id,name', ignoreDuplicates: true },
 				);
 			if (error) throw error;
@@ -133,11 +133,11 @@ export function createCloudTagService(userId: string): CloudTagService {
 			return orphans;
 		},
 
-		async copyTagMetadata(fromWheelId, toWheelId) {
+		async copyTagMetadata(fromWheelID, toWheelID) {
 			const { data, error } = await supabase
 				.from('tag_metadata')
 				.select('*')
-				.eq('wheel_id', fromWheelId);
+				.eq('wheel_id', fromWheelID);
 			if (error) throw error;
 			const rows = data as TagMetadataRow[];
 			if (rows.length === 0) return new Map();
@@ -145,8 +145,8 @@ export function createCloudTagService(userId: string): CloudTagService {
 				.from('tag_metadata')
 				.insert(
 					rows.map((row) => ({
-						wheel_id: toWheelId,
-						user_id: userId,
+						wheel_id: toWheelID,
+						user_id: userID,
 						name: row.name,
 						color: row.color,
 					})),

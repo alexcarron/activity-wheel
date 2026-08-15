@@ -1,11 +1,11 @@
 interface Props {
-	formId: string;
+	formID: string;
 	disabled: boolean;
 }
 
-export function AddActivityButton({ formId, disabled }: Props) {
+export function AddActivityButton({ formID, disabled }: Props) {
 	return (
-		<button type="submit" form={formId} className="btn btn-primary" disabled={disabled}>
+		<button type="submit" form={formID} className="btn btn-primary" disabled={disabled}>
 			Add
 		</button>
 	);

@@ -13,13 +13,13 @@ import { toErrorMessage } from '../utils/error-message';
 
 export interface UseSharedWheelAccessApi {
 	readonly loading: boolean;
-	/** Whether sharedWheelIdFromUrl (if any) is currently accessible. Always false when sharedWheelIdFromUrl is null. */
+	/** Whether sharedWheelIDFromUrl (if any) is currently accessible. Always false when sharedWheelIDFromUrl is null. */
 	readonly hasAccess: boolean;
 	/** Display name for the password gate, falling back to a title-cased slug before membership is confirmed. */
 	readonly wheelName: string;
 	/** Every shared wheel this browser/account currently has access to, for rendering as extra tabs. */
 	readonly unlockedWheels: readonly Wheel[];
-	/** True when sharedWheelIdFromUrl doesn't match any shared wheel at all, as opposed to one that just isn't unlocked yet. */
+	/** True when sharedWheelIDFromUrl doesn't match any shared wheel at all, as opposed to one that just isn't unlocked yet. */
 	readonly wasSharedWheelNotFound: boolean;
 	readonly errorMessage: string | null;
 	readonly unlocking: boolean;
@@ -34,14 +34,14 @@ function titleCaseFromSlug(slug: string): string {
 		.join(' ');
 }
 
-export function useSharedWheelAccess(sharedWheelIdFromUrl: string | null): UseSharedWheelAccessApi {
+export function useSharedWheelAccess(sharedWheelIDFromUrl: string | null): UseSharedWheelAccessApi {
 	const [loading, setLoading] = useState(true);
 	const [unlockedWheels, setUnlockedWheels] = useState<readonly Wheel[]>([]);
 	const [wasSharedWheelNotFound, setWasSharedWheelNotFound] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [unlocking, setUnlocking] = useState(false);
 	// Membership is scoped to whichever Supabase auth session (Google or anonymous) is active, so a sign-in/sign-out must re-verify access rather than trust what was resolved under the previous session.
-	const [sessionUserId, setSessionUserId] = useState<string | null>(null);
+	const [sessionUserID, setSessionUserID] = useState<string | null>(null);
 	// Distinguishes "haven't checked yet" from "checked and there's no session", so the resolution effect below never runs its no-session branch before getSession() has actually reported one way or the other.
 	const [hasResolvedInitialSession, setHasResolvedInitialSession] = useState(false);
 
@@ -49,12 +49,12 @@ export function useSharedWheelAccess(sharedWheelIdFromUrl: string | null): UseSh
 		let cancelled = false;
 		void getSession().then((session) => {
 			if (cancelled) return;
-			setSessionUserId(session?.user?.id ?? null);
+			setSessionUserID(session?.user?.id ?? null);
 			persistAnonymousSessionIfPresent(session);
 			setHasResolvedInitialSession(true);
 		});
 		const subscription = onAuthStateChange((session) => {
-			setSessionUserId(session?.user?.id ?? null);
+			setSessionUserID(session?.user?.id ?? null);
 			persistAnonymousSessionIfPresent(session);
 			setHasResolvedInitialSession(true);
 		});
@@ -72,7 +72,7 @@ export function useSharedWheelAccess(sharedWheelIdFromUrl: string | null): UseSh
 		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setWasSharedWheelNotFound(false);
 
-		if (!sessionUserId && !sharedWheelIdFromUrl) {
+		if (!sessionUserID && !sharedWheelIDFromUrl) {
 			setUnlockedWheels([]);
 			setLoading(false);
 			return;
@@ -80,13 +80,13 @@ export function useSharedWheelAccess(sharedWheelIdFromUrl: string | null): UseSh
 
 		setLoading(true);
 		void (async () => {
-			const resolvedWheels = sessionUserId ? await listAccessibleSharedWheels().catch(() => []) : [];
+			const resolvedWheels = sessionUserID ? await listAccessibleSharedWheels().catch(() => []) : [];
 			if (cancelled) return;
 			setUnlockedWheels(resolvedWheels);
 
-			const wasUrlWheelResolved = resolvedWheels.some((wheel) => wheel.id === sharedWheelIdFromUrl);
-			if (sharedWheelIdFromUrl && !wasUrlWheelResolved) {
-				const exists = await doesSharedWheelExist(sharedWheelIdFromUrl).catch(() => true);
+			const wasUrlWheelResolved = resolvedWheels.some((wheel) => wheel.id === sharedWheelIDFromUrl);
+			if (sharedWheelIDFromUrl && !wasUrlWheelResolved) {
+				const exists = await doesSharedWheelExist(sharedWheelIDFromUrl).catch(() => true);
 				if (cancelled) return;
 				setWasSharedWheelNotFound(!exists);
 			}
@@ -97,20 +97,20 @@ export function useSharedWheelAccess(sharedWheelIdFromUrl: string | null): UseSh
 		return () => {
 			cancelled = true;
 		};
-	}, [sharedWheelIdFromUrl, sessionUserId, hasResolvedInitialSession]);
+	}, [sharedWheelIDFromUrl, sessionUserID, hasResolvedInitialSession]);
 
 	const unlock = useCallback(
 		async (password: string): Promise<boolean> => {
-			if (!sharedWheelIdFromUrl) return false;
+			if (!sharedWheelIDFromUrl) return false;
 			setUnlocking(true);
 			setErrorMessage(null);
 			try {
-				const success = await unlockSharedWheel(sharedWheelIdFromUrl, password);
+				const success = await unlockSharedWheel(sharedWheelIDFromUrl, password);
 				if (!success) {
 					setErrorMessage('Incorrect password.');
 					return false;
 				}
-				const metadata = await getSharedWheelMetadata(sharedWheelIdFromUrl);
+				const metadata = await getSharedWheelMetadata(sharedWheelIDFromUrl);
 				if (metadata) {
 					setUnlockedWheels((prev) => [...prev.filter((wheel) => wheel.id !== metadata.id), metadata]);
 				}
@@ -124,18 +124,18 @@ export function useSharedWheelAccess(sharedWheelIdFromUrl: string | null): UseSh
 				setUnlocking(false);
 			}
 		},
-		[sharedWheelIdFromUrl],
+		[sharedWheelIDFromUrl],
 	);
 
-	const hasAccess = sharedWheelIdFromUrl
-		? unlockedWheels.some((wheel) => wheel.id === sharedWheelIdFromUrl)
+	const hasAccess = sharedWheelIDFromUrl
+		? unlockedWheels.some((wheel) => wheel.id === sharedWheelIDFromUrl)
 		: false;
 
-	const wheelNameFromMetadata = sharedWheelIdFromUrl
-		? unlockedWheels.find((wheel) => wheel.id === sharedWheelIdFromUrl)?.name
+	const wheelNameFromMetadata = sharedWheelIDFromUrl
+		? unlockedWheels.find((wheel) => wheel.id === sharedWheelIDFromUrl)?.name
 		: undefined;
 		
-	const wheelName = wheelNameFromMetadata ?? (sharedWheelIdFromUrl ? titleCaseFromSlug(sharedWheelIdFromUrl) : '');
+	const wheelName = wheelNameFromMetadata ?? (sharedWheelIDFromUrl ? titleCaseFromSlug(sharedWheelIDFromUrl) : '');
 
 	return { loading, hasAccess, wheelName, unlockedWheels, wasSharedWheelNotFound, errorMessage, unlocking, unlock };
 }

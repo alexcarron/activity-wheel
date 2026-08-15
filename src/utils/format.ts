@@ -16,3 +16,18 @@ export function formatPercent(probability: number): string {
 export function formatWeight(weight: number): string {
 	return weight.toFixed(1);
 }
+
+export function formatPreferenceScore(preferenceScore: number): string {
+	if (!isFinite(preferenceScore)) return '-';
+	return preferenceScore.toFixed(2);
+}
+
+export function formatConfidence(confidence: number): string {
+	if (!isFinite(confidence)) return '-';
+	return confidence.toFixed(2);
+}
+
+export function formatStandardDeviation(standardDeviation: number): string {
+	if (!isFinite(standardDeviation)) return '-';
+	return standardDeviation.toFixed(3);
+}

@@ -55,20 +55,20 @@ export async function ensureAnonymousOrExistingSession(): Promise<void> {
 	persistAnonymousSessionIfPresent(signInData.session);
 }
 
-export async function doesSharedWheelExist(sharedWheelId: string): Promise<boolean> {
+export async function doesSharedWheelExist(sharedWheelID: string): Promise<boolean> {
 	const supabase = requireSupabase();
 	const { data, error } = await supabase.rpc('does_shared_wheel_exist', {
-		wheel_id_param: sharedWheelId,
+		wheel_id_param: sharedWheelID,
 	});
 	if (error) throw error;
 	return data === true;
 }
 
-export async function unlockSharedWheel(sharedWheelId: string, password: string): Promise<boolean> {
+export async function unlockSharedWheel(sharedWheelID: string, password: string): Promise<boolean> {
 	await ensureAnonymousOrExistingSession();
 	const supabase = requireSupabase();
 	const { data, error } = await supabase.rpc('unlock_shared_wheel', {
-		wheel_id_param: sharedWheelId,
+		wheel_id_param: sharedWheelID,
 		password_param: password,
 	});
 	if (error) throw error;

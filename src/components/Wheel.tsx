@@ -1,6 +1,6 @@
 /**
  * Canvas-based wheel. Why canvas, not SVG: drawing 200 SVG `<path>` slices + labels chews through layout per frame and forces React/the DOM to do work that's irrelevant to a simple rotation, and with a single canvas we draw once and just CSS-transform the element.
- * What this component does NOT do: pick a winner. It is *given* the target rotation (via `targetRotationDeg` when `animating` flips on) and animates to it.
+ * What this component does NOT do: pick the activity. It is given the target rotation (via `targetRotationDeg` when `animating` flips on) and animates to it.
  * Animation runs in requestAnimationFrame and writes `transform` directly to the DOM so React doesn't re-render every frame. 
  */
 
@@ -10,9 +10,9 @@ import { SPIN_TIMING } from '../hooks/wheel/useWheel';
 import './Wheel.css';
 
 interface WheelProps {
-	readonly pool: readonly Activity[];
-	/** Effective weights in the same order as pool. Used to size slices proportionally. */
-	readonly weights: readonly number[];
+	readonly activities: readonly Activity[];
+	/** Estimated stable selection probabilities in the same order as activities. Used to size slices proportionally. */
+	readonly sliceProbabilities: readonly number[];
 	/** Where the wheel currently sits (resting rotation, in degrees). */
 	readonly currentRotationDeg: number;
 	/** Where it should end up. Only used while `animating` is true. */
@@ -24,17 +24,15 @@ interface WheelProps {
 	readonly size?: number;
 }
 
-// Interpolates from red (low weight) to green (high weight) in HSL space.
+// Interpolates from red (low value) to green (high value) in HSL space.
 // Matches the warn/good semantic colors used elsewhere in the UI:
 //   low  → hsl(0,  68%, 42%)  ≈ --warn   (#C83A3A)
 //   high → hsl(145, 87%, 36%) ≈ --boost  (#06b354)
-// When all weights are equal, falls back to a neutral teal.
-function sliceColor(weight: number, minWeight: number, maxWeight: number): string {
-	if (maxWeight <= minWeight) return '#0AA6B5';
-	const linear = (weight - minWeight) / (maxWeight - minWeight);
-	// Power curve < 1 expands the low end so small weight differences among
-	// low-weight activities produce visually distinct hues, while high-weight
-	// activities compress toward green.
+// When all values are equal, falls back to a neutral teal.
+function sliceColor(value: number, minValue: number, maxValue: number): string {
+	if (maxValue <= minValue) return '#0AA6B5';
+	const linear = (value - minValue) / (maxValue - minValue);
+	// Power curve < 1 expands the low end so small differences among low-value activities produce visually distinct hues, while high-value activities compress toward green.
 	const curved = Math.pow(linear, 0.55);
 	const hue = Math.round(curved * 145);
 	const saturation = Math.round(68 + curved * 19);
@@ -42,12 +40,17 @@ function sliceColor(weight: number, minWeight: number, maxWeight: number): strin
 	return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 }
 
-function drawWheel(
-	canvas: HTMLCanvasElement,
-	pool: readonly Activity[],
-	weights: readonly number[],
-	pixelSize: number,
-): void {
+function drawWheel({
+	canvas,
+	activities,
+	sliceProbabilities,
+	pixelSize,
+}: {
+	canvas: HTMLCanvasElement;
+	activities: readonly Activity[];
+	sliceProbabilities: readonly number[];
+	pixelSize: number;
+}): void {
 	const canvasContext = canvas.getContext('2d');
 	if (!canvasContext) return;
 	const devicePixelRatio = window.devicePixelRatio || 1;
@@ -63,7 +66,7 @@ function drawWheel(
 	const centerY = pixelSize / 2;
 	const radius = pixelSize / 2 - 6;
 
-	if (pool.length === 0) {
+	if (activities.length === 0) {
 		canvasContext.beginPath();
 		canvasContext.arc(centerX, centerY, radius, 0, Math.PI * 2);
 		canvasContext.fillStyle = '#2d3436';
@@ -76,7 +79,7 @@ function drawWheel(
 		return;
 	}
 
-	if (pool.length === 1) {
+	if (activities.length === 1) {
 		canvasContext.beginPath();
 		canvasContext.arc(centerX, centerY, radius, 0, Math.PI * 2);
 		canvasContext.fillStyle = '#0AA6B5';
@@ -85,37 +88,33 @@ function drawWheel(
 		canvasContext.font = '20px system-ui, -apple-system, sans-serif';
 		canvasContext.textAlign = 'center';
 		canvasContext.textBaseline = 'middle';
-		canvasContext.fillText(truncate(pool[0].name, 30), centerX, centerY);
+		canvasContext.fillText(truncate(activities[0].name, 30), centerX, centerY);
 		drawHub(canvasContext, centerX, centerY);
 		return;
 	}
 
-	// Compute arc for each slice. Fall back to equal slices if weights are
-	// missing, mismatched, or sum to zero.
-	const totalWeight =
-		weights.length === pool.length ? weights.reduce((sum, weight) => sum + weight, 0) : 0;
-	const arcs: number[] = pool.map((_, index) =>
-		totalWeight > 0 ? (weights[index] / totalWeight) * Math.PI * 2 : (Math.PI * 2) / pool.length,
+	// Compute arc for each slice. Fall back to equal slices if the probabilities are missing, mismatched, or sum to zero.
+	const totalProbability =
+		sliceProbabilities.length === activities.length ? sliceProbabilities.reduce((sum, probability) => sum + probability, 0) : 0;
+	const arcs: number[] = activities.map((_, index) =>
+		totalProbability > 0 ? (sliceProbabilities[index] / totalProbability) * Math.PI * 2 : (Math.PI * 2) / activities.length,
 	);
 
-	const minWeight = weights.length > 0 ? Math.min(...weights) : 0;
-	const maxWeight = weights.length > 0 ? Math.max(...weights) : 0;
+	const minProbability = sliceProbabilities.length > 0 ? Math.min(...sliceProbabilities) : 0;
+	const maxProbability = sliceProbabilities.length > 0 ? Math.max(...sliceProbabilities) : 0;
 
-	// Slice 0's LEFT EDGE starts at -π/2 (12 o'clock, top of wheel).
-	// This keeps the spin-formula's "sliceCenterFromTop" consistent:
-	//   sliceCenterFromTop[i] = (cumulative_weight_before_i + weight_i/2) / total * 360
-	// which reduces to (i+0.5)*(360/n) for equal weights. Matching useWheel.ts.
+	// Slice 0's LEFT EDGE starts at -π/2 (12 o'clock, top of wheel). This keeps the spin-formula's sliceCenterFromTop consistent, matching useWheel.ts.
 
 	// First pass. Fill slices.
 	let angle = -Math.PI / 2;
-	for (let i = 0; i < pool.length; i++) {
+	for (let i = 0; i < activities.length; i++) {
 		const start = angle;
 		const end = angle + arcs[i];
 		canvasContext.beginPath();
 		canvasContext.moveTo(centerX, centerY);
 		canvasContext.arc(centerX, centerY, radius, start, end);
 		canvasContext.closePath();
-		canvasContext.fillStyle = sliceColor(weights[i] ?? 1, minWeight, maxWeight);
+		canvasContext.fillStyle = sliceColor(sliceProbabilities[i] ?? 1, minProbability, maxProbability);
 		canvasContext.fill();
 		canvasContext.strokeStyle = 'rgba(45,52,54,0.15)';
 		canvasContext.lineWidth = 1;
@@ -124,20 +123,19 @@ function drawWheel(
 	}
 
 	// Second pass. Labels on top of fills.
-	const baseFontSize = Math.max(10, Math.min(15, Math.floor(280 / pool.length) + 6));
-	const baseMaxChars = Math.max(6, Math.floor(20 - pool.length / 12));
-	const equalArcDeg = 360 / pool.length;
+	const baseFontSize = Math.max(10, Math.min(15, Math.floor(280 / activities.length) + 6));
+	const baseMaxChars = Math.max(6, Math.floor(20 - activities.length / 12));
+	const equalArcDeg = 360 / activities.length;
 	canvasContext.textBaseline = 'middle';
 
 	angle = -Math.PI / 2;
-	for (let i = 0; i < pool.length; i++) {
+	for (let i = 0; i < activities.length; i++) {
 		const arcAngle = arcs[i];
 		const arcDeg = (arcAngle / (Math.PI * 2)) * 360;
 		const center = angle + arcAngle / 2;
 
 		if (arcDeg >= 5) {
-			// Scale chars and font proportionally to how large this slice is
-			// relative to an equal slice.
+			// Scale chars and font proportionally to how large this slice is relative to an equal slice.
 			const relativeSize = arcDeg / equalArcDeg;
 			const maxChars = Math.max(3, Math.round(baseMaxChars * Math.min(relativeSize, 2)));
 			const fontSize = Math.max(9, Math.min(baseFontSize, Math.round(arcDeg / 6)));
@@ -148,7 +146,7 @@ function drawWheel(
 			canvasContext.rotate(center);
 			canvasContext.textAlign = 'right';
 			canvasContext.fillStyle = '#ffffff';
-			canvasContext.fillText(truncate(pool[i].name, maxChars), radius - 12, 0);
+			canvasContext.fillText(truncate(activities[i].name, maxChars), radius - 12, 0);
 			canvasContext.restore();
 		}
 
@@ -176,7 +174,7 @@ function truncate(text: string, maxChars: number): string {
 const easeOutCubic = (progress: number): number => 1 - Math.pow(1 - progress, 3);
 
 function WheelComponent(props: WheelProps) {
-	const { pool, weights, currentRotationDeg, targetRotationDeg, animating, onComplete } = props;
+	const { activities, sliceProbabilities, currentRotationDeg, targetRotationDeg, animating, onComplete } = props;
 	const wheelSizeWrapRef = useRef<HTMLDivElement>(null);
 	const [measuredSize, setMeasuredSize] = useState(420);
 	const size = props.size ?? measuredSize;
@@ -194,22 +192,22 @@ function WheelComponent(props: WheelProps) {
 		};
 		measure();
 
-		let debounceTimeoutId = 0;
+		let debounceTimeoutID = 0;
 		const handleResize = (): void => {
-			window.clearTimeout(debounceTimeoutId);
-			debounceTimeoutId = window.setTimeout(measure, 150);
+			window.clearTimeout(debounceTimeoutID);
+			debounceTimeoutID = window.setTimeout(measure, 150);
 		};
 		window.addEventListener('resize', handleResize);
 		return () => {
-			window.clearTimeout(debounceTimeoutId);
+			window.clearTimeout(debounceTimeoutID);
 			window.removeEventListener('resize', handleResize);
 		};
 	}, []);
 
-	// Redraw whenever the pool or weights change.
+	// Redraw whenever the activities or their slice probabilities change.
 	useEffect(() => {
-		if (canvasRef.current) drawWheel(canvasRef.current, pool, weights, size);
-	}, [pool, weights, size]);
+		if (canvasRef.current) drawWheel({ canvas: canvasRef.current, activities, sliceProbabilities, pixelSize: size });
+	}, [activities, sliceProbabilities, size]);
 
 	// Animate when `animating` is true.
 	useEffect(() => {
@@ -221,7 +219,7 @@ function WheelComponent(props: WheelProps) {
 			return;
 		}
 
-		let animationFrameId = 0;
+		let animationFrameID = 0;
 		const start = performance.now();
 		const duration = SPIN_TIMING.durationMs;
 		const from = currentRotationDeg;
@@ -233,15 +231,15 @@ function WheelComponent(props: WheelProps) {
 			const rotationDeg = from + (to - from) * eased;
 			rotor.style.transform = `rotate(${rotationDeg}deg)`;
 			if (progress < 1) {
-				animationFrameId = requestAnimationFrame(frame);
+				animationFrameID = requestAnimationFrame(frame);
 			}
 			else {
 				rotor.style.transform = `rotate(${to}deg)`;
 				onComplete();
 			}
 		};
-		animationFrameId = requestAnimationFrame(frame);
-		return () => cancelAnimationFrame(animationFrameId);
+		animationFrameID = requestAnimationFrame(frame);
+		return () => cancelAnimationFrame(animationFrameID);
 		// We deliberately depend only on the `animating` flip. `currentRotation`
 		// and `targetRotation` are captured at the moment the spin begins.
 		// eslint-disable-next-line react-hooks/exhaustive-deps

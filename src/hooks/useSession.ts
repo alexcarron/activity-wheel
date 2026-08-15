@@ -1,6 +1,6 @@
 /**
  * `useSession`. Tracks which activities have already been spun this session.
- * State lives only in memory; reload = fresh session, by design. The session pool is computed on demand from the full activity list and the excluded id set. 
+ * State lives only in memory; reload = fresh session, by design. The remaining activities are computed on demand from the full activity list and the excluded id set.
  */
 
 import { useCallback, useMemo, useState } from 'react';
@@ -8,7 +8,7 @@ import type { Activity } from '../domain-logic/types';
 
 export interface SessionApi {
 	/** Activities still available to spin this session. */
-	readonly pool: readonly Activity[];
+	readonly remainingActivities: readonly Activity[];
 	/** Set of activity ids excluded from the rest of this session. */
 	readonly excluded: ReadonlySet<string>;
 	/** Mark an id as spun (call after every spin, regardless of feedback). */
@@ -20,7 +20,7 @@ export interface SessionApi {
 export function useSession(activities: readonly Activity[]): SessionApi {
 	const [excluded, setExcluded] = useState<ReadonlySet<string>>(() => new Set());
 
-	const pool = useMemo<readonly Activity[]>(
+	const remainingActivities = useMemo<readonly Activity[]>(
 		() => activities.filter((activity) => !excluded.has(activity.id)),
 		[activities, excluded],
 	);
@@ -39,7 +39,7 @@ export function useSession(activities: readonly Activity[]): SessionApi {
 	}, []);
 
 	return useMemo<SessionApi>(
-		() => ({ pool, excluded, exclude, reset }),
-		[pool, excluded, exclude, reset],
+		() => ({ remainingActivities, excluded, exclude, reset }),
+		[remainingActivities, excluded, exclude, reset],
 	);
 }

@@ -7,9 +7,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useWheels } from './hooks/useWheels';
 import { useActivities } from './hooks/useActivities';
 import { useAuth } from './hooks/useAuth';
-import { useNow } from './hooks/useNow';
 import { useSession } from './hooks/useSession';
 import { useDebug } from './hooks/useDebug';
+import { useLockedActualWeights } from './hooks/useLockedActualWeights';
 import { useTagFilter } from './hooks/useTagFilter';
 import { useSharedWheelAccess } from './hooks/useSharedWheelAccess';
 import type { SharedActivityChange } from './hooks/shared-wheel-realtime';
@@ -25,30 +25,28 @@ import { AddActivity } from './components/AddActivity';
 import { DebugPanel } from './components/DebugPanel';
 import { BackupControls } from './components/BackupControls';
 import { TagFilterBar } from './components/TagFilterBar';
-import { WeightProvider } from './context/WeightContext';
 import { SpinCountProvider } from './context/SpinCountContext';
-import { totalEffective } from './services/activity-service';
 import * as localTagService from './services/tag-service';
 import * as localWheelService from './services/wheel-service';
 import { createCloudTagService } from './services/cloud/tag-service';
 import { createCloudWheelService } from './services/cloud/wheel-service';
 import { createSharedTagService } from './services/cloud/shared-tag-service';
 import { exportSharedWheelBackup } from './services/cloud/shared-wheel-service';
-import { getSharedWheelIdFromUrl, removeSharedWheelIdFromUrl } from './utils/url-params';
+import { getSharedWheelIDFromUrl, removeSharedWheelIDFromUrl } from './utils/url-params';
 import { useViewportBreakpoint } from './hooks/useViewportBreakpoint';
 
 function App() {
 	const auth = useAuth();
-	const userId = auth.user?.id ?? null;
-	const wheels = useWheels(userId, auth.loading);
-	const resolvedWheelId = wheels.loading ? '' : wheels.activeWheelId;
+	const userID = auth.user?.id ?? null;
+	const wheels = useWheels(userID, auth.loading);
+	const resolvedWheelID = wheels.loading ? '' : wheels.activeWheelID;
 
-	const sharedWheelIdFromUrl = useMemo(() => getSharedWheelIdFromUrl(), []);
-	const sharedAccess = useSharedWheelAccess(sharedWheelIdFromUrl);
-	const [activeSharedWheelId, setActiveSharedWheelId] = useState<string | null>(null);
+	const sharedWheelIDFromUrl = useMemo(() => getSharedWheelIDFromUrl(), []);
+	const sharedAccess = useSharedWheelAccess(sharedWheelIDFromUrl);
+	const [activeSharedWheelID, setActiveSharedWheelID] = useState<string | null>(null);
 
-	const [landedActivityId, setLandedActivityId] = useState<string | null>(null);
-	const [activeEditActivityId, setActiveEditActivityId] = useState<string | null>(null);
+	const [landedActivityID, setLandedActivityID] = useState<string | null>(null);
+	const [activeEditActivityID, setActiveEditActivityID] = useState<string | null>(null);
 	const [toastMessage, setToastMessage] = useState<string | null>(null);
 	
 	const { isPhone } = useViewportBreakpoint();
@@ -56,125 +54,115 @@ function App() {
 
 	// Only fires on hasAccess's rising edge (initial load already-unlocked, or right after entering the password), not on every render, so switching to your own wheel afterward doesn't get immediately overridden back to the shared tab.
 	useEffect(() => {
-		if (sharedWheelIdFromUrl && sharedAccess.hasAccess) {
+		if (sharedWheelIDFromUrl && sharedAccess.hasAccess) {
 			// eslint-disable-next-line react-hooks/set-state-in-effect
-			setActiveSharedWheelId(sharedWheelIdFromUrl);
+			setActiveSharedWheelID(sharedWheelIDFromUrl);
 		}
-	}, [sharedWheelIdFromUrl, sharedAccess.hasAccess]);
+	}, [sharedWheelIDFromUrl, sharedAccess.hasAccess]);
 
 	// Access is re-verified against whichever auth session is active (see useSharedWheelAccess), so a sign-out, sign-in, or membership change can drop the active shared wheel from unlockedWheels. Fall back to the user's own wheel instead of being stuck on a tab that no longer resolves.
 	useEffect(() => {
 		if (
-			activeSharedWheelId &&
+			activeSharedWheelID &&
 			!sharedAccess.loading &&
-			!sharedAccess.unlockedWheels.some((wheel) => wheel.id === activeSharedWheelId)
+			!sharedAccess.unlockedWheels.some((wheel) => wheel.id === activeSharedWheelID)
 		) {
 			// eslint-disable-next-line react-hooks/set-state-in-effect
-			setActiveSharedWheelId(null);
+			setActiveSharedWheelID(null);
 		}
-	}, [activeSharedWheelId, sharedAccess.loading, sharedAccess.unlockedWheels]);
+	}, [activeSharedWheelID, sharedAccess.loading, sharedAccess.unlockedWheels]);
 
 	useEffect(() => {
 		if (sharedAccess.wasSharedWheelNotFound) {
-			removeSharedWheelIdFromUrl();
+			removeSharedWheelIDFromUrl();
 			// eslint-disable-next-line react-hooks/set-state-in-effect
 			setToastMessage('No shared wheel exists with that link.');
 		}
 	}, [sharedAccess.wasSharedWheelNotFound]);
 
-	const combinedWheelId = activeSharedWheelId ?? resolvedWheelId;
+	const combinedWheelID = activeSharedWheelID ?? resolvedWheelID;
 
-	const handleEditingChange = useCallback((activityId: string, isEditing: boolean): void => {
-		setActiveEditActivityId((current) => {
-			if (isEditing) return activityId;
-			return current === activityId ? null : current;
+	const handleEditingChange = useCallback((activityID: string, isEditing: boolean): void => {
+		setActiveEditActivityID((current) => {
+			if (isEditing) return activityID;
+			return current === activityID ? null : current;
 		});
 	}, []);
 
 	const handleRemoteActivityChange = useCallback(
 		(change: SharedActivityChange): void => {
-			const changedActivityId = change.type === 'delete' ? change.activityId : change.activity.id;
-			if (changedActivityId === landedActivityId || changedActivityId === activeEditActivityId) {
+			const changedActivityID = change.type === 'delete' ? change.activityID : change.activity.id;
+			if (changedActivityID === landedActivityID || changedActivityID === activeEditActivityID) {
 				setToastMessage('Wheel updated by another user.');
 			}
 		},
-		[landedActivityId, activeEditActivityId],
+		[landedActivityID, activeEditActivityID],
 	);
 
-	const activityState = useActivities(combinedWheelId, userId, activeSharedWheelId, handleRemoteActivityChange);
+	const activityState = useActivities(combinedWheelID, userID, activeSharedWheelID, handleRemoteActivityChange);
 	const debug = useDebug();
-	const now = useNow(activityState.activities);
-	const tagFilter = useTagFilter(combinedWheelId, userId, activeSharedWheelId);
+	const tagFilter = useTagFilter(combinedWheelID, userID, activeSharedWheelID);
+	const lockedActualWeights = useLockedActualWeights({ activities: activityState.activities, spreadFactor: debug.spreadFactor });
 	const [wheelPinned, setWheelPinned] = useState(false);
 
-	const tagService = userId ? createCloudTagService(userId) : localTagService;
-	const wheelService = userId ? createCloudWheelService(userId) : localWheelService;
+	const tagService = userID ? createCloudTagService(userID) : localTagService;
+	const wheelService = userID ? createCloudWheelService(userID) : localWheelService;
 	// Tag-pruning must target whichever wheel is actually active, unlike `tagService`/`wheelService` above.
-	const activeTagService = activeSharedWheelId ? createSharedTagService() : tagService;
-	const activeWheelIdForTagOps = activeSharedWheelId ?? wheels.activeWheelId;
+	const activeTagService = activeSharedWheelID ? createSharedTagService() : tagService;
+	const activeWheelIDForTagOps = activeSharedWheelID ?? wheels.activeWheelID;
 
 	const tabWheels = useMemo(
 		() => [...wheels.wheels, ...sharedAccess.unlockedWheels],
 		[wheels.wheels, sharedAccess.unlockedWheels],
 	);
-	const combinedActiveWheelId = activeSharedWheelId ?? wheels.activeWheelId;
+	const combinedActiveWheelID = activeSharedWheelID ?? wheels.activeWheelID;
 
 	const handleSwitchTab = useCallback(
 		(id: string): void => {
 			const isShared = sharedAccess.unlockedWheels.some((wheel) => wheel.id === id);
 			if (isShared) {
-				setActiveSharedWheelId(id);
+				setActiveSharedWheelID(id);
 			}
 			else {
-				setActiveSharedWheelId(null);
+				setActiveSharedWheelID(null);
 				wheels.switchWheel(id);
 			}
 		},
 		[sharedAccess.unlockedWheels, wheels],
 	);
 
-	const globalWeightContext = useMemo(
-		() => ({
-			numTotalActivities: activityState.activities.length,
-			totalEffectiveWeight: totalEffective(activityState.activities, now),
-		}),
-		[activityState.activities, now],
-	);
-
 	const filteredActivities = useMemo(
 		() =>
 			filterActivitiesByTags(
 				activityState.activities,
-				tagFilter.activeTagIds,
+				tagFilter.activeTagIDs,
 				tagFilter.filterMode,
 				tagFilter.untaggedOnly,
 			),
-		[activityState.activities, tagFilter.activeTagIds, tagFilter.filterMode, tagFilter.untaggedOnly],
+		[activityState.activities, tagFilter.activeTagIDs, tagFilter.filterMode, tagFilter.untaggedOnly],
 	);
 
-	// Session pool is always the intersection of "passes tag filter" × "not yet spun".
-	// useSession is re-initialised when filteredActivities reference changes (on wheel switch).
 	const session = useSession(filteredActivities);
 
-	const filterOn = isFilterActive(tagFilter.activeTagIds, tagFilter.untaggedOnly);
+	const filterOn = isFilterActive(tagFilter.activeTagIDs, tagFilter.untaggedOnly);
 
-	const handleAddTagToActivity = async (activityId: string, tagName: string): Promise<void> => {
-		const activity = activityState.activities.find((candidate) => candidate.id === activityId);
+	const handleAddTagToActivity = async (activityID: string, tagName: string): Promise<void> => {
+		const activity = activityState.activities.find((candidate) => candidate.id === activityID);
 		if (!activity) return;
 		const [meta] = await tagFilter.registerTags([tagName]);
-		const newTagIds = [...new Set([...(activity.tagIds ?? []), meta.id])];
-		await activityState.updateTags(activityId, newTagIds);
+		const newTagIDs = [...new Set([...(activity.tagIds ?? []), meta.id])];
+		await activityState.updateTags(activityID, newTagIDs);
 	};
 
 	const handleUpdateTags = async (id: string, tagIds: string[]): Promise<void> => {
 		const activity = activityState.activities.find((candidate) => candidate.id === id);
-		const removedTagIds = (activity?.tagIds ?? []).filter((tagId) => !tagIds.includes(tagId));
+		const removedTagIDs = (activity?.tagIds ?? []).filter((tagID) => !tagIds.includes(tagID));
 		await activityState.updateTags(id, tagIds);
-		if (removedTagIds.length > 0) {
+		if (removedTagIDs.length > 0) {
 			const afterUpdate = activityState.activities.map((candidate) =>
 				candidate.id === id ? { ...candidate, tagIds } : candidate,
 			);
-			const pruned = await activeTagService.pruneOrphanTags(activeWheelIdForTagOps, afterUpdate, removedTagIds);
+			const pruned = await activeTagService.pruneOrphanTags(activeWheelIDForTagOps, afterUpdate, removedTagIDs);
 			if (pruned.length > 0) tagFilter.pruneTags(pruned);
 		}
 	};
@@ -191,41 +179,41 @@ function App() {
 			affectedActivities.map((activity) =>
 				activityState.updateTags(
 					activity.id,
-					activity.tagIds.filter((tagId) => tagId !== id),
+					activity.tagIds.filter((tagID) => tagID !== id),
 				),
 			),
 		);
-		await activeTagService.deleteTagMetadata(activeWheelIdForTagOps, id);
+		await activeTagService.deleteTagMetadata(activeWheelIDForTagOps, id);
 		tagFilter.pruneTags([id]);
 	};
 
-	const handleBatchAddTagByName = async (name: string, activityIds: readonly string[]): Promise<void> => {
+	const handleBatchAddTagByName = async (name: string, activityIDs: readonly string[]): Promise<void> => {
 		const [meta] = await tagFilter.registerTags([name]);
 		const updates = activityState.activities
-			.filter((activity) => activityIds.includes(activity.id) && !(activity.tagIds ?? []).includes(meta.id))
+			.filter((activity) => activityIDs.includes(activity.id) && !(activity.tagIds ?? []).includes(meta.id))
 			.map((activity) => activityState.updateTags(activity.id, [...(activity.tagIds ?? []), meta.id]));
 		await Promise.all(updates);
 	};
 
 	const handleDelete = async (id: string): Promise<void> => {
 		const activity = activityState.activities.find((candidate) => candidate.id === id);
-		const tagIdsToPrune = activity?.tagIds ?? [];
+		const tagIDsToPrune = activity?.tagIds ?? [];
 		await activityState.remove(id);
-		if (tagIdsToPrune.length > 0) {
+		if (tagIDsToPrune.length > 0) {
 			const afterDelete = activityState.activities.filter((candidate) => candidate.id !== id);
-			const pruned = await activeTagService.pruneOrphanTags(activeWheelIdForTagOps, afterDelete, tagIdsToPrune);
+			const pruned = await activeTagService.pruneOrphanTags(activeWheelIDForTagOps, afterDelete, tagIDsToPrune);
 			if (pruned.length > 0) tagFilter.pruneTags(pruned);
 		}
 	};
 
 	const handleCreateWheel = async (
 		name: string,
-		fromWheelId: string | null,
+		fromWheelID: string | null,
 		resetWeights: boolean,
 	): Promise<void> => {
 		let newWheel;
-		if (fromWheelId) {
-			newWheel = await wheels.copyWheel(fromWheelId, name, resetWeights);
+		if (fromWheelID) {
+			newWheel = await wheels.copyWheel(fromWheelID, name, resetWeights);
 		}
 		else {
 			newWheel = await wheels.createWheel(name);
@@ -233,7 +221,7 @@ function App() {
 		wheels.switchWheel(newWheel.id);
 	};
 
-	if (sharedWheelIdFromUrl && sharedAccess.loading) {
+	if (sharedWheelIDFromUrl && sharedAccess.loading) {
 		return (
 			<main className="app">
 				<div className="app-sync-indicator" role="status">
@@ -243,7 +231,7 @@ function App() {
 			</main>
 		);
 	}
-	if (sharedWheelIdFromUrl && !sharedAccess.hasAccess && !sharedAccess.wasSharedWheelNotFound) {
+	if (sharedWheelIDFromUrl && !sharedAccess.hasAccess && !sharedAccess.wasSharedWheelNotFound) {
 		return (
 			<SharedWheelPasswordGate
 				wheelName={sharedAccess.wheelName}
@@ -254,166 +242,172 @@ function App() {
 		);
 	}
 
-	// Full-app loading gate: true only while auth is resolving or while wheels is resolving which backend to use (initial load, sign-in, sign-out). It is NOT true for a same-backend wheel switch, since switchWheel doesn't touch wheels.loading. This intentionally hides every other component, including the sign-in button, so the user never sees a flash of the wrong backend's data (local vs. cloud) or an error caused by querying before the correct wheel is known.
+	/**
+	 * True if auth or wheels are resolving
+	 */
 	const isBackendLoading = auth.loading || wheels.loading;
-	// Lighter-weight sync indicator shown without hiding the rest of the UI, e.g. while activities are refetching for a newly-switched wheel.
 	const isSyncing = isBackendLoading || activityState.isLoading;
 
 	return (
 		<SpinCountProvider>
-			<WeightProvider value={globalWeightContext}>
-				<main className="app">
-					{isBackendLoading ? (
-						<div className="app-sync-indicator" role="status">
-							<LoadingSpinner />
-							Loading your data…
-						</div>
-					) : (
-						<>
-							{isSyncing && (
-								<div className="app-sync-indicator" role="status">
-									<LoadingSpinner />
-									Loading your data…
-								</div>
-							)}
+			<main className="app">
+				{isBackendLoading ? (
+					<div className="app-sync-indicator" role="status">
+						<LoadingSpinner />
+						Loading your data…
+					</div>
+				) : (
+					<>
+						{isSyncing && (
+							<div className="app-sync-indicator" role="status">
+								<LoadingSpinner />
+								Loading your data…
+							</div>
+						)}
 
-							{(wheels.errorMessage || activityState.errorMessage) && (
-								<div className="app-error" role="alert">
-									{wheels.errorMessage ?? activityState.errorMessage}
-								</div>
-							)}
+						{(wheels.errorMessage || activityState.errorMessage) && (
+							<div className="app-error" role="alert">
+								{wheels.errorMessage ?? activityState.errorMessage}
+							</div>
+						)}
 
-							<section className={`wheel-header${wheelPinned ? ' is-pinned' : ''}`}>
-								<div className="wheel-header-auth-row">
-									<AuthButton onLocalDataImported={() => void wheels.reloadWheels()} />
-								</div>
+						<section className={`wheel-header${wheelPinned ? ' is-pinned' : ''}`}>
+							<div className="wheel-header-auth-row">
+								<AuthButton onLocalDataImported={() => void wheels.reloadWheels()} />
+							</div>
 
-								<WheelTabs
-									wheels={tabWheels}
-									activeWheelId={combinedActiveWheelId}
-									onSwitch={handleSwitchTab}
-									onCreate={handleCreateWheel}
-									onRename={wheels.renameWheel}
-									onDelete={wheels.deleteWheel}
-								/>
+							<WheelTabs
+								wheels={tabWheels}
+								activeWheelID={combinedActiveWheelID}
+								onSwitch={handleSwitchTab}
+								onCreate={handleCreateWheel}
+								onRename={wheels.renameWheel}
+								onDelete={wheels.deleteWheel}
+							/>
 
-								<WheelView
-									activities={filteredActivities}
-									session={session}
-									rngSeed={debug.rngSeed}
-									spreadFactor={debug.spreadFactor}
-									tagFilterActive={filterOn}
-									allTagMetadata={tagFilter.tagMetadata}
-									wheelPinned={wheelPinned}
-									onToggleWheelPinned={() => setWheelPinned((wasPinned) => !wasPinned)}
-									onClearTagFilter={tagFilter.clearFilter}
-									onFeedback={async (id, action) => {
-										await activityState.applyFeedback(id, action);
-										session.exclude(id);
-									}}
-									onRename={activityState.rename}
-									onAddTagToActivity={handleAddTagToActivity}
-									onLandedActivityIdChange={setLandedActivityId}
-								/>
-							</section>
+							<WheelView
+								activities={filteredActivities}
+								session={session}
+								rngSeed={debug.rngSeed}
+								spreadFactor={debug.spreadFactor}
+								tagFilterActive={filterOn}
+								allTagMetadata={tagFilter.tagMetadata}
+								wheelPinned={wheelPinned}
+								lockedActualWeightByActivityID={lockedActualWeights.lockedActualWeightByActivityID}
+								sizeWheelByActualCurrentWeights={debug.sizeWheelByActualCurrentWeights}
+								onSpun={lockedActualWeights.reroll}
+								onToggleWheelPinned={() => setWheelPinned((wasPinned) => !wasPinned)}
+								onClearTagFilter={tagFilter.clearFilter}
+								onFeedback={async (id, action) => {
+									await activityState.applyFeedback(id, action);
+									session.exclude(id);
+									lockedActualWeights.reroll();
+								}}
+								onRename={activityState.rename}
+								onAddTagToActivity={handleAddTagToActivity}
+								onLandedActivityIDChange={setLandedActivityID}
+							/>
+						</section>
 
-							<TagFilterBar
-								allActivities={activityState.activities}
-								tagMetadata={tagFilter.tagMetadata}
-								activeTagIds={tagFilter.activeTagIds}
-								untaggedOnly={tagFilter.untaggedOnly}
-								filterMode={tagFilter.filterMode}
-								onToggleTag={tagFilter.toggleTag}
-								onToggleUntagged={tagFilter.toggleUntagged}
-								onClearFilter={tagFilter.clearFilter}
-								onToggleMode={tagFilter.toggleMode}
+						<TagFilterBar
+							allActivities={activityState.activities}
+							tagMetadata={tagFilter.tagMetadata}
+							activeTagIDs={tagFilter.activeTagIDs}
+							untaggedOnly={tagFilter.untaggedOnly}
+							filterMode={tagFilter.filterMode}
+							onToggleTag={tagFilter.toggleTag}
+							onToggleUntagged={tagFilter.toggleUntagged}
+							onClearFilter={tagFilter.clearFilter}
+							onToggleMode={tagFilter.toggleMode}
+							onSetTagColor={tagFilter.setTagColor}
+							onRenameTag={handleRenameTag}
+							onDeleteTag={handleDeleteTag}
+						/>
+
+						<section className="app-panel">
+							<div className='app-panel-title'>
+								<h2>
+									Activities
+									{filterOn && (
+										<span className="app-panel-filter-badge">
+											{filteredActivities.length} shown
+										</span>
+									)}
+								</h2>
+								{isPhone && <div ref={setAddActivityButtonContainer} />}
+							</div>
+							<AddActivity onAdd={activityState.add} mobileButtonContainer={addActivityButtonContainer} />
+							<ActivityList
+								activities={filterOn ? filteredActivities : activityState.activities}
+								debugValuePillKeyToIsVisible={debug.debugValuePillKeyToIsVisible}
+								spreadFactor={debug.spreadFactor}
+								allTagMetadata={tagFilter.tagMetadata}
+								lockedActualWeightByActivityID={lockedActualWeights.lockedActualWeightByActivityID}
+								lockedActualProbabilityByActivityID={lockedActualWeights.lockedActualProbabilityByActivityID}
+								onRename={activityState.rename}
+								onFeedback={async (id, action) => {
+									await activityState.applyFeedback(id, action);
+									lockedActualWeights.reroll();
+								}}
+								onDelete={handleDelete}
+								onUpdateTags={handleUpdateTags}
+								onAddTag={handleAddTagToActivity}
 								onSetTagColor={tagFilter.setTagColor}
 								onRenameTag={handleRenameTag}
 								onDeleteTag={handleDeleteTag}
+								onAddTagByName={handleBatchAddTagByName}
+								onEditingChange={handleEditingChange}
 							/>
+						</section>
 
-							<section className="app-panel">
-								<div className='app-panel-title'>
-									<h2>
-										Activities
-										{filterOn && (
-											<span className="app-panel-filter-badge">
-												{filteredActivities.length} shown
-											</span>
-										)}
-									</h2>
-									{isPhone && <div ref={setAddActivityButtonContainer} />}
-								</div>
-								<AddActivity onAdd={activityState.add} mobileButtonContainer={addActivityButtonContainer} />
-								<ActivityList
-									activities={filterOn ? filteredActivities : activityState.activities}
-									allActivities={activityState.activities}
-									showWeights={debug.showWeights}
-									showProbabilities={debug.showProbabilities}
-									spreadFactor={debug.spreadFactor}
-									allTagMetadata={tagFilter.tagMetadata}
-									onRename={activityState.rename}
-									onFeedback={activityState.applyFeedback}
-									onDelete={handleDelete}
-									onUpdateTags={handleUpdateTags}
-									onAddTag={handleAddTagToActivity}
-									onSetTagColor={tagFilter.setTagColor}
-									onRenameTag={handleRenameTag}
-									onDeleteTag={handleDeleteTag}
-									onAddTagByName={handleBatchAddTagByName}
-									onEditingChange={handleEditingChange}
-								/>
-							</section>
-
-							<section className="app-panel app-panel-tight">
-								<DebugPanel debug={debug} />
-								<BackupControls
-									readOnly={!!activeSharedWheelId}
-									exportJson={
-										activeSharedWheelId
-											? () => exportSharedWheelBackup(activeSharedWheelId)
-											: wheelService.exportFullBackup
-									}
-									importJson={async (json) => {
-										const firstWheelId = await wheelService.importFullBackup(json);
-										await wheels.reloadWheels();
-										wheels.switchWheel(firstWheelId);
-										// If the active wheel ID didn't change, force-reload activities + tags.
-										if (firstWheelId === wheels.activeWheelId) {
-											await activityState.reload();
-											tagFilter.clearFilter();
-											await tagFilter.reloadMetadata();
-										}
-									}}
-									clearWheel={async () => {
-										await activityState.clearEverything();
-										await tagService.clearWheelTagMetadata(wheels.activeWheelId);
+						<section className="app-panel app-panel-tight">
+							<DebugPanel debug={debug} />
+							<BackupControls
+								readOnly={!!activeSharedWheelID}
+								exportJson={
+									activeSharedWheelID
+										? () => exportSharedWheelBackup(activeSharedWheelID)
+										: wheelService.exportFullBackup
+								}
+								importJson={async (json) => {
+									const firstWheelID = await wheelService.importFullBackup(json);
+									await wheels.reloadWheels();
+									wheels.switchWheel(firstWheelID);
+									// If the active wheel ID didn't change, force-reload activities + tags.
+									if (firstWheelID === wheels.activeWheelID) {
+										await activityState.reload();
 										tagFilter.clearFilter();
 										await tagFilter.reloadMetadata();
-									}}
-									clearAllWheels={async () => {
-										const newWheel = await wheelService.resetToBlankWheel();
-										await wheels.reloadWheels();
-										wheels.switchWheel(newWheel.id);
-									}}
-								/>
-							</section>
+									}
+								}}
+								clearWheel={async () => {
+									await activityState.clearEverything();
+									await tagService.clearWheelTagMetadata(wheels.activeWheelID);
+									tagFilter.clearFilter();
+									await tagFilter.reloadMetadata();
+								}}
+								clearAllWheels={async () => {
+									const newWheel = await wheelService.resetToBlankWheel();
+									await wheels.reloadWheels();
+									wheels.switchWheel(newWheel.id);
+								}}
+							/>
+						</section>
 
-							<footer className="app-footer">
-								<p>
-									{userId
-										? 'Signed in. Your wheels are saved privately to your account.'
-										: "Data lives only in this browser. Sign in to save it to your account, or use Backup & restore to keep a copy."}
-								</p>
-							</footer>
+						<footer className="app-footer">
+							<p>
+								{userID
+									? 'Signed in. Your wheels are saved privately to your account.'
+									: "Data lives only in this browser. Sign in to save it to your account, or use Backup & restore to keep a copy."}
+							</p>
+						</footer>
 
-							{toastMessage && (
-								<Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />
-							)}
-						</>
-					)}
-				</main>
-			</WeightProvider>
+						{toastMessage && (
+							<Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />
+						)}
+					</>
+				)}
+			</main>
 		</SpinCountProvider>
 	);
 }

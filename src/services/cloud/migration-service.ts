@@ -14,27 +14,27 @@ import { createCloudActivityService } from './activity-service';
  * wheels, so a freshly signed-in user will always have exactly that one empty wheel. That
  * case still counts as "no real data".
  */
-export async function hasSavedCloudWheels(userId: string): Promise<boolean> {
-	const cloudWheelService = createCloudWheelService(userId);
-	const cloudActivityService = createCloudActivityService(userId);
+export async function hasSavedCloudWheels(userID: string): Promise<boolean> {
+	const cloudWheelService = createCloudWheelService(userID);
+	const cloudActivityService = createCloudActivityService(userID);
 
-	const existingCloudWheels = await cloudWheelService.listWheels();
+	const existingCloudWheels = await cloudWheelService.getWheelsInOrder();
 	const existingActivityCounts = await Promise.all(
-		existingCloudWheels.map((wheel) => cloudActivityService.listActivities(wheel.id)),
+		existingCloudWheels.map((wheel) => cloudActivityService.loadActivitiesOfWheel(wheel.id)),
 	);
 	return existingActivityCounts.some((activities) => activities.length > 0);
 }
 
-export async function migrateLocalDataToCloud(userId: string): Promise<number> {
-	const cloudWheelService = createCloudWheelService(userId);
+export async function migrateLocalDataToCloud(userID: string): Promise<number> {
+	const cloudWheelService = createCloudWheelService(userID);
 
 	// importFullBackup replaces ALL existing wheels for the target account, so this
 	// must only ever run against an account with no real data.
-	if (await hasSavedCloudWheels(userId)) {
+	if (await hasSavedCloudWheels(userID)) {
 		throw new Error('This account already has saved wheels. Import would overwrite them.');
 	}
 
-	const localWheels = await localWheelService.listWheels();
+	const localWheels = await localWheelService.getWheelsInOrder();
 	if (localWheels.length === 0) return 0;
 
 	const backupJson = await localWheelService.exportFullBackup();

@@ -80,21 +80,19 @@
 
 .activity-row-name-area {
 	display: flex;
-	align-items: center;
+	align-items: flex-start;
 	gap: 6px;
+	row-gap: 4px;
+	flex-wrap: wrap;
 	flex: 1;
 	min-width: 0;
-	overflow: hidden;
 }
 
+/* display: contents flattens this into direct children of .activity-row-name-area, so the date and the pill group can each wrap onto their own line independently instead of wrapping together as one block */
 .activity-row-meta {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	flex-wrap: wrap;
+	display: contents;
 	font-size: 0.75rem;
 	color: var(--text-mute);
-	align-items: center;
 }
 
 .activity-row-feedback {
@@ -146,18 +144,19 @@
 	font-family: var(--mono);
 	font-size: 0.6875rem;
 	color: var(--text-soft);
+	white-space: nowrap;
+	flex-shrink: 0;
 }
 
-/* Groups the pills into a single flex item so they wrap to a new line together, never split across lines */
+/* display: contents so each pill is its own flex item in the parent's wrap, letting pills that fit stay on the first line and only the overflow wrap */
 .activity-row-pills {
-	display: flex;
-	align-items: center;
-	gap: 8px;
+	display: contents;
 }
 
-/* Compact: body becomes a horizontal row */
+/* Compact: body becomes a horizontal row that wraps individual pills onto new lines once they no longer fit next to the name and feedback buttons */
 .activity-row.is-compact .activity-row-body {
 	flex-direction: row;
+	flex-wrap: wrap;
 	align-items: center;
 	gap: 6px;
 }
@@ -475,14 +474,6 @@
 
 	.activity-row-name-area {
 		order: 1;
-		flex-wrap: wrap;
-		row-gap: 4px;
-		align-items: flex-start;
-		overflow: visible;
-	}
-
-	.activity-row-meta {
-		display: contents;
 	}
 
 	.activity-row-tags {

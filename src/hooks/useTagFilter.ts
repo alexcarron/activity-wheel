@@ -14,7 +14,7 @@ import { createSharedTagService } from '../services/cloud/shared-tag-service';
 export type { FilterMode };
 
 export interface TagFilterApi {
-	readonly activeTagIds: readonly string[];
+	readonly activeTagIDs: readonly string[];
 	readonly untaggedOnly: boolean;
 	readonly filterMode: FilterMode;
 
@@ -34,18 +34,18 @@ export interface TagFilterApi {
 
 export function useTagFilter(
 	wheelId: string,
-	userId: string | null,
-	sharedWheelId: string | null,
+	userID: string | null,
+	sharedWheelID: string | null,
 ): TagFilterApi {
-	// Memoized separately from the owned-wheel backend so that userId changing (e.g. sign-out) while a shared wheel is active can't produce a new tagService reference and retrigger the fetch effect below under a session that no longer has access.
+	// Memoized separately from the owned-wheel backend so that userID changing (e.g. sign-out) while a shared wheel is active can't produce a new tagService reference and retrigger the fetch effect below under a session that no longer has access.
 	const sharedTagService = useMemo(() => createSharedTagService(), []);
 	const ownedTagService = useMemo(
-		() => (userId ? createCloudTagService(userId) : localTagService),
-		[userId],
+		() => (userID ? createCloudTagService(userID) : localTagService),
+		[userID],
 	);
-	const tagService: CloudTagService = sharedWheelId ? sharedTagService : ownedTagService;
+	const tagService: CloudTagService = sharedWheelID ? sharedTagService : ownedTagService;
 
-	const [activeTagIds, setActiveTagIds] = useState<readonly string[]>([]);
+	const [activeTagIDs, setActiveTagIDs] = useState<readonly string[]>([]);
 	const [untaggedOnly, setUntaggedOnly] = useState(false);
 	const [filterMode, setFilterMode] = useState<FilterMode>('OR');
 	const [tagMetadata, setTagMetadata] = useState<readonly TagMetadata[]>([]);
@@ -63,7 +63,7 @@ export function useTagFilter(
 		// Intentional: this effect's job is to reset filter state for the newly
 		// active wheel before fetching its tag metadata.
 		// eslint-disable-next-line react-hooks/set-state-in-effect
-		setActiveTagIds([]);
+		setActiveTagIDs([]);
 		setUntaggedOnly(false);
 		setFilterMode('OR');
 		if (!wheelId) {
@@ -80,18 +80,18 @@ export function useTagFilter(
 
 	const toggleTag = useCallback((id: string): void => {
 		setUntaggedOnly(false);
-		setActiveTagIds((prev) =>
-			prev.includes(id) ? prev.filter((tagId) => tagId !== id) : [...prev, id],
+		setActiveTagIDs((prev) =>
+			prev.includes(id) ? prev.filter((tagID) => tagID !== id) : [...prev, id],
 		);
 	}, []);
 
 	const toggleUntagged = useCallback((): void => {
-		setActiveTagIds([]);
+		setActiveTagIDs([]);
 		setUntaggedOnly((prev) => !prev);
 	}, []);
 
 	const clearFilter = useCallback((): void => {
-		setActiveTagIds([]);
+		setActiveTagIDs([]);
 		setUntaggedOnly(false);
 		setFilterMode('OR');
 	}, []);
@@ -127,8 +127,8 @@ export function useTagFilter(
 			if (names.length === 0) return [];
 			const resolved = await tagService.ensureTagsExist(wheelRef.current, names);
 			setTagMetadata((prev) => {
-				const existingIds = new Set(prev.map((tag) => tag.id));
-				const fresh = resolved.filter((tag) => !existingIds.has(tag.id));
+				const existingIDs = new Set(prev.map((tag) => tag.id));
+				const fresh = resolved.filter((tag) => !existingIDs.has(tag.id));
 				return fresh.length === 0 ? prev : [...prev, ...fresh];
 			});
 			return resolved;
@@ -144,12 +144,12 @@ export function useTagFilter(
 	const pruneTags = useCallback((ids: string[]): void => {
 		const pruned = new Set(ids);
 		setTagMetadata((prev) => prev.filter((tag) => !pruned.has(tag.id)));
-		setActiveTagIds((prev) => prev.filter((id) => !pruned.has(id)));
+		setActiveTagIDs((prev) => prev.filter((id) => !pruned.has(id)));
 	}, []);
 
 	return useMemo<TagFilterApi>(
 		() => ({
-			activeTagIds,
+			activeTagIDs,
 			untaggedOnly,
 			filterMode,
 			toggleTag,
@@ -164,7 +164,7 @@ export function useTagFilter(
 			pruneTags,
 		}),
 		[
-			activeTagIds,
+			activeTagIDs,
 			untaggedOnly,
 			filterMode,
 			toggleTag,

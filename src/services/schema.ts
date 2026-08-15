@@ -4,7 +4,8 @@
  */
 
 import type { DBConfig, Migration, StoreSchema } from '../libraries/indexeddb/types';
-import { newId } from '../utils/id';
+import { newID } from '../utils/id';
+import { replayMigratedPreferenceEstimate } from '../domain-logic/weight-logic/migration-replay-logic';
 
 export const ACTIVITIES_STORE: StoreSchema = {
 	name: 'activities',
@@ -117,7 +118,7 @@ const v3MultiWheel: Migration = {
 	},
 };
 
-const v4TagIds: Migration = {
+const v4TagIDs: Migration = {
 	toVersion: 4,
 	apply: ({ db, transaction }) => {
 		const tagStore = transaction.objectStore('tag-metadata');
@@ -136,7 +137,7 @@ const v4TagIds: Migration = {
 			const newTagStore = db.createObjectStore('tag-metadata', { keyPath: 'id' });
 			newTagStore.createIndex('wheelId', 'wheelId');
 			for (const record of oldRecords) {
-				const id = newId();
+				const id = newID();
 				idByWheelAndName.set(`${record.wheelId}:${record.name}`, id);
 				const entry: Record<string, unknown> = { id, wheelId: record.wheelId, name: record.name };
 				if (record.color) entry.color = record.color;
@@ -162,9 +163,46 @@ const v4TagIds: Migration = {
 	},
 };
 
+const v5PreferenceBasedWeighting: Migration = {
+	toVersion: 5,
+	apply: ({ transaction }) => {
+		const activitiesStore = transaction.objectStore(ACTIVITIES_STORE.name);
+		const migratedAt = Date.now();
+		const activitiesCursor = activitiesStore.openCursor();
+		activitiesCursor.onsuccess = (event) => {
+			const cursor = (event.target as IDBRequest<IDBCursorWithValue | null>).result;
+			if (!cursor) return;
+			const row = cursor.value as Record<string, unknown> & {
+				acceptCount?: unknown;
+				rejectCount?: unknown;
+				weight?: unknown;
+				streak?: unknown;
+				lastAcceptDelta?: unknown;
+			};
+			const acceptCount = typeof row.acceptCount === 'number' ? row.acceptCount : 0;
+			const rejectCount = typeof row.rejectCount === 'number' ? row.rejectCount : 0;
+			const { preferenceScore, preferenceScoreConfidence } = replayMigratedPreferenceEstimate(
+				acceptCount,
+				rejectCount,
+			);
+			const { weight, streak, lastAcceptDelta, ...withoutOldWeightFields } = row;
+			void weight;
+			void streak;
+			void lastAcceptDelta;
+			cursor.update({
+				...withoutOldWeightFields,
+				preferenceScore,
+				preferenceScoreConfidence,
+				lastFeedbackAt: migratedAt,
+			});
+			cursor.continue();
+		};
+	},
+};
+
 export const dbConfig: DBConfig = {
 	name: 'activity-wheel',
-	version: 4,
-	migrations: [v1Initial, v2AddTagMetadata, v3MultiWheel, v4TagIds],
+	version: 5,
+	migrations: [v1Initial, v2AddTagMetadata, v3MultiWheel, v4TagIDs, v5PreferenceBasedWeighting],
 	expectedStores: [ACTIVITIES_STORE, TAG_METADATA_STORE, WHEELS_STORE],
 };

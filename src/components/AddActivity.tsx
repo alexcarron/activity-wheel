@@ -39,7 +39,7 @@ export function AddActivity({ onAdd, mobileButtonContainer }: Props) {
 	);
 
 	const addActivityButton = (
-		<AddActivityButton formId={ADD_ACTIVITY_FORM_ID} disabled={busy || name.trim().length === 0} />
+		<AddActivityButton formID={ADD_ACTIVITY_FORM_ID} disabled={busy || name.trim().length === 0} />
 	);
 
 	return (

@@ -12,30 +12,30 @@ export type FilterMode = 'OR' | 'AND';
  */
 export function filterActivitiesByTags(
 	activities: readonly Activity[],
-	activeTagIds: readonly string[],
+	activeTagIDs: readonly string[],
 	mode: FilterMode,
 	untaggedOnly: boolean,
 ): readonly Activity[] {
 	if (untaggedOnly) {
 		return activities.filter((activity) => activity.tagIds.length === 0);
 	}
-	if (activeTagIds.length === 0) {
+	if (activeTagIDs.length === 0) {
 		return activities; // return same reference. No filter active
 	}
 	return activities.filter((activity) => {
 		if (mode === 'OR') {
-			return activeTagIds.some((tagId) => activity.tagIds.includes(tagId));
+			return activeTagIDs.some((tagID) => activity.tagIds.includes(tagID));
 		}
 		// AND: every active tag must be present
-		return activeTagIds.every((tagId) => activity.tagIds.includes(tagId));
+		return activeTagIDs.every((tagID) => activity.tagIds.includes(tagID));
 	});
 }
 
 /**
  * Returns true when any tag filter is currently active (either tag pills selected, or untaggedOnly mode, but NOT when filter would return everything).
  */
-export function isFilterActive(activeTagIds: readonly string[], untaggedOnly: boolean): boolean {
-	return untaggedOnly || activeTagIds.length > 0;
+export function isFilterActive(activeTagIDs: readonly string[], untaggedOnly: boolean): boolean {
+	return untaggedOnly || activeTagIDs.length > 0;
 }
 
 /**
@@ -44,8 +44,8 @@ export function isFilterActive(activeTagIds: readonly string[], untaggedOnly: bo
 export function computeTagCounts(activities: readonly Activity[]): Map<string, number> {
 	const counts = new Map<string, number>();
 	for (const activity of activities) {
-		for (const tagId of activity.tagIds) {
-			counts.set(tagId, (counts.get(tagId) ?? 0) + 1);
+		for (const tagID of activity.tagIds) {
+			counts.set(tagID, (counts.get(tagID) ?? 0) + 1);
 		}
 	}
 	return counts;

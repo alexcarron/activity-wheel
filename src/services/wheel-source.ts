@@ -2,5 +2,5 @@
 
 export type WheelSource =
 	| { kind: 'local' }
-	| { kind: 'cloud'; userId: string }
-	| { kind: 'shared'; sharedWheelId: string };
+	| { kind: 'cloud'; userID: string }
+	| { kind: 'shared'; sharedWheelID: string };

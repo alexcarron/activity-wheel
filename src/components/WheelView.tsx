@@ -4,9 +4,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Activity, FeedbackAction, TagMetadata } from '../domain-logic/types';
-import { applySpreadToWeights } from '../domain-logic/weight-logic/weight-spread-logic';
-import { getEffectiveWeight } from '../domain-logic/weight-logic/effective-weight-logic';
-import { useWeightContext } from '../context/WeightContext';
+import { estimateStableProbabilities } from '../domain-logic/weight-logic/stable-probability-estimate-logic';
+import { getProbabilitiesFromActualCurrentWeights } from '../domain-logic/weight-logic/preference-to-weight-logic';
+import { defaultRng } from '../utils/random-utils';
 import { useNow } from '../hooks/useNow';
 import { useWheel } from '../hooks/wheel/useWheel';
 import { useHotkey } from '../hooks/useHotkey';
@@ -45,21 +45,27 @@ interface Props {
 	readonly rngSeed: string;
 	/** Debug-only: how much to exaggerate (>1) or compress (<1) differences between weights. 1 = unchanged. */
 	readonly spreadFactor: number;
-	/** True when a tag filter is currently restricting the pool. */
+	/** True when a tag filter is currently restricting the activities. */
 	readonly tagFilterActive: boolean;
 	/** All known tag metadata. Passed through to PostSpinActions for the tag nudge. */
 	readonly allTagMetadata: readonly TagMetadata[];
 	/** Whether the wheel header is currently pinned while scrolling. */
 	readonly wheelPinned: boolean;
+	/** The locked-in actual current weight for each activity, used to pick the spin winner so it matches whatever the debug pills are showing. */
+	readonly lockedActualWeightByActivityID: Map<string, number>;
+	/** Debug-only: when true, the wheel's slices are sized by each activity's locked actual current weight instead of its estimated stable weight. */
+	readonly sizeWheelByActualCurrentWeights: boolean;
+	/** Called right after a spin is started, so a new random actual current weight gets picked for the next round. */
+	onSpun(): void;
 	onToggleWheelPinned(): void;
 	/** Called by the empty-state "clear filter" button. */
 	onClearTagFilter(): void;
 	onFeedback(id: string, action: FeedbackAction): Promise<void>;
 	onRename(id: string, name: string): Promise<void>;
 	/** Called when user adds a tag from the post-spin "Add a tag?" prompt. */
-	onAddTagToActivity(activityId: string, tagName: string): Promise<void>;
+	onAddTagToActivity(activityID: string, tagName: string): Promise<void>;
 	/** Called whenever the currently-landed-on activity id changes (null when not landed). Used to detect confusing remote changes to a shared wheel's in-progress spin. */
-	onLandedActivityIdChange?(id: string | null): void;
+	onLandedActivityIDChange?(id: string | null): void;
 }
 
 export function WheelView({
@@ -70,48 +76,50 @@ export function WheelView({
 	tagFilterActive,
 	allTagMetadata,
 	wheelPinned,
+	lockedActualWeightByActivityID,
+	sizeWheelByActualCurrentWeights,
+	onSpun,
 	onToggleWheelPinned,
 	onClearTagFilter,
 	onFeedback,
 	onRename,
 	onAddTagToActivity,
-	onLandedActivityIdChange,
+	onLandedActivityIDChange,
 }: Props) {
 	const wheel = useWheel();
 	const [busy, setBusy] = useState(false);
-	const globalWeightContext = useWeightContext();
 	const now = useNow();
 
-	// The wheel renders the *session* pool, not the full activity list. That's
-	// why the slices visibly shrink as you spin through a session.
-	const pool = session.pool;
+	const remainingActivities = session.remainingActivities;
 
-	// Effective weights for each pool item. Used to size wheel slices.
-	// The debug "spread" slider then exaggerates or compresses the differences
-	// between them, without touching the stored weights.
-	const poolWeights = useMemo(() => {
-		const effectiveWeights = pool.map((activity) =>
-			getEffectiveWeight(activity, now, globalWeightContext),
+	const estimatedStableProbabilities = useMemo(
+		() => estimateStableProbabilities({ activities: remainingActivities, now, rng: defaultRng, spreadFactor }),
+		[remainingActivities, now, spreadFactor],
+	);
+
+	const actualCurrentProbabilities = useMemo(() => {
+		const actualCurrentWeights = remainingActivities.map(
+			(activity) => lockedActualWeightByActivityID.get(activity.id) ?? 0,
 		);
-		return applySpreadToWeights(effectiveWeights, spreadFactor);
-	}, [pool, now, globalWeightContext, spreadFactor]);
+		return getProbabilitiesFromActualCurrentWeights({ actualCurrentWeights, spreadFactor });
+	}, [remainingActivities, lockedActualWeightByActivityID, spreadFactor]);
 
-	// Sort pool by effective weight descending so the heaviest slice sits at
-	// 12 o'clock. The sorted order is passed to both Wheel (draw) and spin()
-	// so the rotation math stays consistent.
-	const { sortedPool, sortedWeights } = useMemo(() => {
-		const pairs = pool.map((activity, index) => ({ activity, weight: poolWeights[index] }));
-		pairs.sort((pair1, pair2) => pair2.weight - pair1.weight);
+	const { sortedActivities, sliceProbabilities } = useMemo(() => {
+		const sortProbabilities = sizeWheelByActualCurrentWeights
+			? actualCurrentProbabilities
+			: estimatedStableProbabilities;
+		const pairs = remainingActivities.map((activity, index) => ({
+			activity,
+			sliceProbability: sortProbabilities[index],
+		}));
+		pairs.sort((pair1, pair2) => pair2.sliceProbability - pair1.sliceProbability);
 		return {
-			sortedPool: pairs.map((pair) => pair.activity),
-			sortedWeights: pairs.map((pair) => pair.weight),
+			sortedActivities: pairs.map((pair) => pair.activity),
+			sliceProbabilities: pairs.map((pair) => pair.sliceProbability),
 		};
-	}, [pool, poolWeights]);
+	}, [remainingActivities, estimatedStableProbabilities, actualCurrentProbabilities, sizeWheelByActualCurrentWeights]);
 
-	// Resolve the winner against the live activities array so that renames made
-	// from the post-spin panel are reflected immediately without needing the
-	// wheel to re-spin. Falls back to the snapshot if the activity was deleted.
-	const liveWinner = useMemo(() => {
+	const pickedActivity = useMemo(() => {
 		if (!wheel.result) return null;
 		return (
 			activities.find((activity) => activity.id === wheel.result!.activity.id) ??
@@ -120,10 +128,12 @@ export function WheelView({
 	}, [activities, wheel.result]);
 
 	const handleSpin = useCallback(() => {
-		if (sortedPool.length === 0) return;
-		const seed = rngSeed.trim() ? `${rngSeed}|${Date.now()}|${sortedPool.length}` : undefined;
-		wheel.spin(sortedPool, seed, spreadFactor);
-	}, [sortedPool, rngSeed, spreadFactor, wheel]);
+		if (sortedActivities.length === 0) return;
+		const seed = rngSeed.trim() ? `${rngSeed}|${Date.now()}|${sortedActivities.length}` : undefined;
+		const weights = sortedActivities.map((activity) => lockedActualWeightByActivityID.get(activity.id) ?? 0);
+		const didSpin = wheel.spin({ activities: sortedActivities, weights, seed, spreadFactor });
+		if (didSpin) onSpun();
+	}, [sortedActivities, lockedActualWeightByActivityID, rngSeed, spreadFactor, wheel, onSpun]);
 
 	const handleAnimationComplete = useCallback(() => {
 		wheel.finish();
@@ -132,66 +142,55 @@ export function WheelView({
 
 	const handleFeedback = useCallback(
 		async (action: FeedbackAction): Promise<void> => {
-			const winner = wheel.result?.activity;
-			if (!winner) return;
+			if (!pickedActivity) return;
 			setBusy(true);
 			try {
-				await onFeedback(winner.id, action);
+				await onFeedback(pickedActivity.id, action);
 			}
 			finally {
 				setBusy(false);
 				wheel.resetWheel();
 			}
 		},
-		[onFeedback, wheel],
+		[onFeedback, wheel, pickedActivity],
 	);
 
 	const handleSpinAgain = useCallback(() => {
-		// useWheel.spin only blocks when phase === 'spinning'; from 'landed' it
-		// simply replaces the result, so we don't need a reset round-trip.
-		if (session.pool.length > 0) handleSpin();
-	}, [handleSpin, session.pool.length]);
+		if (session.remainingActivities.length > 0) handleSpin();
+	}, [handleSpin, session.remainingActivities.length]);
 
 	const handleResetSession = useCallback(() => {
 		session.reset();
 		wheel.resetWheelAndSession();
 	}, [session, wheel]);
 
-	// If the active list shrinks (deletion) and the winner was deleted while
-	// we're animating, reset gracefully.
 	useEffect(() => {
 		if (wheel.result && !activities.find((activity) => activity.id === wheel.result?.activity.id)) {
 			wheel.resetWheel();
 		}
 	}, [activities, wheel]);
 
-	const idle = wheel.phase === 'idle';
-	const animating = wheel.phase === 'spinning';
-	const landed = wheel.phase === 'landed';
+	const isIdle = wheel.phase === 'idle';
+	const isAnimating = wheel.phase === 'spinning';
+	const isLanded = wheel.phase === 'landed';
 
 	useEffect(() => {
-		onLandedActivityIdChange?.(landed && liveWinner ? liveWinner.id : null);
-	}, [landed, liveWinner, onLandedActivityIdChange]);
+		onLandedActivityIDChange?.(isLanded && pickedActivity ? pickedActivity.id : null);
+	}, [isLanded, pickedActivity, onLandedActivityIDChange]);
 
-	// Space spins the wheel when idle. PostSpinActions mounts its own Space
-	// binding for "spin again" while landed. The two are mutually exclusive
-	// because each is only enabled in its respective phase.
-	useHotkey(HOTKEYS.SPIN_WHEEL.code, handleSpin, idle && pool.length > 0);
+	useHotkey(HOTKEYS.SPIN_WHEEL.code, handleSpin, isIdle && remainingActivities.length > 0);
 
-	// `currentRotation` is where the wheel sits *right now*. The previous
-	// landing point. While spinning, the Wheel component animates from this
-	// value to `targetRotation`. When idle, both are equal (no animation).
 	const currentRotation = wheel.rotationDeg;
 	const targetRotation = wheel.result?.targetRotationDeg ?? wheel.rotationDeg;
 
 	const headline = useMemo(() => {
 		if (activities.length === 0 && !tagFilterActive) return 'Add an activity to start the wheel.';
-		if (activities.length === 0 && tagFilterActive) return null; // handled by tag empty state below
-		if (pool.length === 0 && !tagFilterActive)
-			return 'Session pool is empty. Reset to spin again.';
-		if (pool.length === 0 && tagFilterActive) return null; // handled by tag empty state below
+		if (activities.length === 0 && tagFilterActive) return null;
+		if (remainingActivities.length === 0 && !tagFilterActive)
+			return 'No activities left this session. Reset to spin again.';
+		if (remainingActivities.length === 0 && tagFilterActive) return null;
 		return null;
-	}, [activities.length, pool.length, tagFilterActive]);
+	}, [activities.length, remainingActivities.length, tagFilterActive]);
 
 	return (
 		<section className="wheel-view">
@@ -207,17 +206,16 @@ export function WheelView({
 			</button>
 
 			<Wheel
-				pool={sortedPool}
-				weights={sortedWeights}
+				activities={sortedActivities}
+				sliceProbabilities={sliceProbabilities}
 				currentRotationDeg={currentRotation}
 				targetRotationDeg={targetRotation}
-				animating={animating}
+				animating={isAnimating}
 				onComplete={handleAnimationComplete}
 			/>
 
-			{idle && (
+			{isIdle && (
 				<div className="wheel-actions">
-					{/* Tag filter empty state. No activities match the current filter */}
 					{tagFilterActive && activities.length === 0 && (
 						<div className="wheel-tag-empty">
 							<p className="wheel-empty">No activities match this filter.</p>
@@ -226,8 +224,7 @@ export function WheelView({
 							</button>
 						</div>
 					)}
-					{/* Session pool exhausted under an active tag filter */}
-					{tagFilterActive && activities.length > 0 && pool.length === 0 && (
+					{tagFilterActive && activities.length > 0 && remainingActivities.length === 0 && (
 						<div className="wheel-tag-empty">
 							<p className="wheel-empty">All filtered activities have been spun this session.</p>
 							<div style={{ display: 'flex', gap: 8 }}>
@@ -240,10 +237,8 @@ export function WheelView({
 							</div>
 						</div>
 					)}
-					{/* Normal headline (no activities at all, session empty without filter) */}
 					{headline && <p className="wheel-empty">{headline}</p>}
-					{/* Spin button. Only when pool has items */}
-					{pool.length > 0 && (
+					{remainingActivities.length > 0 && (
 						<button
 							type="button"
 							className="btn btn-primary btn-large"
@@ -254,8 +249,7 @@ export function WheelView({
 							<KbdHint label={HOTKEYS.SPIN_WHEEL.label} />
 						</button>
 					)}
-					{/* Session reset for no-filter empty pool */}
-					{pool.length === 0 && activities.length > 0 && !tagFilterActive && (
+					{remainingActivities.length === 0 && activities.length > 0 && !tagFilterActive && (
 						<button type="button" className="btn btn-secondary" onClick={handleResetSession}>
 							Reset session
 						</button>
@@ -263,16 +257,16 @@ export function WheelView({
 				</div>
 			)}
 
-			{animating && (
+			{isAnimating && (
 				<div className="wheel-actions">
 					<p className="wheel-spinning">Spinning…</p>
 				</div>
 			)}
 
-			{landed && liveWinner && (
+			{isLanded && pickedActivity && (
 				<PostSpinActions
-					winner={liveWinner}
-					remainingInPool={session.pool.length}
+					pickedActivity={pickedActivity}
+					remainingActivityCount={session.remainingActivities.length}
 					onChoose={(action) => void handleFeedback(action)}
 					onSpinAgain={handleSpinAgain}
 					onResetSession={handleResetSession}

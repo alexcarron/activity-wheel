@@ -2,24 +2,35 @@
  * Domain types for the activity wheel.
  */
 
+/**
+ * A snapshot of an activity's preference estimate, captured just before the most recent feedback so UNDO can restore it.
+ */
+export interface PreferenceEstimateSnapshot {
+	preferenceScore: number;
+	preferenceScoreConfidence: number;
+	lastFeedbackAt: number;
+}
+
 export interface Activity {
 	id: string;
 	/** Which wheel this activity belongs to. Defaults to 'default' for migrated records */
 	wheelId: string;
 	/** User-facing display name */
 	name: string;
-	/** The base weight of the activity */
-	weight: number;
+	/** The app's current guess at how much the user likes this activity */
+	preferenceScore: number;
+	/** How confident the app is about preferenceScore, before any confidence decay */
+	preferenceScoreConfidence: number;
+	/** Unix ms of the most recent feedback */
+	lastFeedbackAt: number;
 	/** Unix ms when the activity was first added */
 	createdAt: number;
 	/** Total accept/love it presses ever */
 	acceptCount: number;
 	/** Total reject/hate it presses ever */
 	rejectCount: number;
-	/** Signed streak of consecutive same-direction feedback */
-	streak: number;
-	/** The exact weight delta applied by the most recent accept or boost. Stored so UNDO can reverse it */
-	lastAcceptDelta?: number;
+	/** The preference estimate as it was just before the most recent feedback */
+	preferenceEstimateHistory?: PreferenceEstimateSnapshot;
 	/** The ids of the tags for this activity */
 	tagIds: string[];
 }
@@ -58,5 +69,5 @@ export interface Wheel {
 export type FeedbackAction = 'accept' | 'reject' | 'skip' | 'boost' | 'hate' | 'undo';
 
 /** Sort orders available in the activity list view. */
-export type SortKey = 'name' | 'createdAt' | 'weight';
+export type SortKey = 'name' | 'createdAt' | 'preferenceScore';
 export type SortDirection = 'asc' | 'desc';

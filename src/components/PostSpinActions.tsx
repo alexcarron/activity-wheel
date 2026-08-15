@@ -3,8 +3,8 @@
  * - Accept (boost weight + exclude from this session)
  * - Reject (drop weight + exclude from this session)
  * - Skip (no weight change, but still exclude. The user has seen this option)
- * - Spin again (uses the remaining session pool)
- * - Reset session (puts every excluded activity back into the pool)
+ * - Spin again (uses the remaining activities this session)
+ * - Reset session (makes every excluded activity available again)
  * "Spin again" only enables when there's still something to spin.
  * Keyboard shortcuts are active for as long as this component is mounted (i.e. while the wheel is in the "landed" phase) and are disabled while a write is in flight (`busy`). Space fires "spin again" when available, matching the idle-phase convention so the user's muscle memory stays the same throughout the session. 
  */
@@ -76,26 +76,26 @@ const PHONE_FEEDBACK_BUTTON_ORDER: readonly ManualFeedbackAction[][] = [
 ];
 
 interface Props {
-	readonly winner: Activity;
-	readonly remainingInPool: number;
+	readonly pickedActivity: Activity;
+	readonly remainingActivityCount: number;
 	/** Triggered by accept/reject/skip. Caller persists feedback + excludes. */
 	onChoose(action: FeedbackAction): void;
 	onSpinAgain(): void;
 	onResetSession(): void;
 	/** Disabled while a write is in flight, to avoid double-clicks. */
 	readonly busy: boolean;
-	/** Optional: allows renaming the winner's activity name inline. */
+	/** Optional: allows renaming the pickedActivity's activity name inline. */
 	onRename?(id: string, name: string): Promise<void>;
 	/** All known tag metadata. Needed for the "Add a tag?" combobox. */
 	readonly allTagMetadata: readonly TagMetadata[];
 	/** Called when the user adds a tag from the post-spin prompt. */
-	onAddTag?(activityId: string, tagName: string): Promise<void>;
+	onAddTag?(activityID: string, tagName: string): Promise<void>;
 }
 
 export function PostSpinActions(props: Props) {
 	const {
-		winner,
-		remainingInPool,
+		pickedActivity,
+		remainingActivityCount,
 		onChoose,
 		onSpinAgain,
 		onResetSession,
@@ -104,8 +104,8 @@ export function PostSpinActions(props: Props) {
 		allTagMetadata,
 		onAddTag,
 	} = props;
-	const canSpinAgain = remainingInPool > 0;
-	const hasNoTags = (winner.tagIds ?? []).length === 0;
+	const canSpinAgain = remainingActivityCount > 0;
+	const hasNoTags = (pickedActivity.tagIds ?? []).length === 0;
 	const { isPhone } = useViewportBreakpoint();
 	const feedbackButtonOrder = isPhone ? PHONE_FEEDBACK_BUTTON_ORDER : DESKTOP_FEEDBACK_BUTTON_ORDER;
 
@@ -123,10 +123,10 @@ export function PostSpinActions(props: Props) {
 	const commitTag = useCallback(async () => {
 		const trimmed = tagDraft.trim();
 		if (!trimmed || !onAddTag) return;
-		await onAddTag(winner.id, trimmed);
+		await onAddTag(pickedActivity.id, trimmed);
 		setTagDraft('');
 		setTagPromptOpen(false);
-	}, [tagDraft, onAddTag, winner.id]);
+	}, [tagDraft, onAddTag, pickedActivity.id]);
 
 	const onTagKey = useCallback(
 		(event: KeyboardEvent<HTMLInputElement>) => {
@@ -142,30 +142,29 @@ export function PostSpinActions(props: Props) {
 	const tagSuggestions = (() => {
 		const queryText = tagDraft.trim().toLowerCase();
 		return allTagMetadata
-			.filter((tag) => !(winner.tagIds ?? []).includes(tag.id))
+			.filter((tag) => !(pickedActivity.tagIds ?? []).includes(tag.id))
 			.map((tag) => tag.name)
 			.filter((tagName) => !queryText || tagName.toLowerCase().includes(queryText))
 			.slice(0, 6);
 	})();
 
 	const [editing, setEditing] = useState(false);
-	// draft is only populated when entering edit mode; the displayed name when
-	// not editing always comes from winner.name directly (the live prop).
+	// draft is only populated when entering edit mode. The displayed name when not editing always comes from pickedActivity.name directly (the live prop).
 	const [draft, setDraft] = useState('');
 	const inputRef = useRef<HTMLInputElement>(null);
 
 	const startEditing = useCallback(() => {
 		if (!onRename || busy) return;
-		setDraft(winner.name);
+		setDraft(pickedActivity.name);
 		setEditing(true);
-	}, [onRename, busy, winner.name]);
+	}, [onRename, busy, pickedActivity.name]);
 
 	const commit = useCallback(async () => {
 		const trimmed = draft.trim();
 		setEditing(false);
-		if (!trimmed || trimmed === winner.name || !onRename) return;
-		await onRename(winner.id, trimmed);
-	}, [draft, winner.id, winner.name, onRename]);
+		if (!trimmed || trimmed === pickedActivity.name || !onRename) return;
+		await onRename(pickedActivity.id, trimmed);
+	}, [draft, pickedActivity.id, pickedActivity.name, onRename]);
 
 	const onKey = useCallback(
 		(event: KeyboardEvent<HTMLInputElement>) => {
@@ -220,7 +219,7 @@ export function PostSpinActions(props: Props) {
 								: undefined
 						}
 					>
-						{winner.name}
+						{pickedActivity.name}
 					</span>
 				)}
 			</div>

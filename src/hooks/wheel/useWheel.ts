@@ -1,9 +1,7 @@
 /**
  * `useWheel`. Coordinates a spin from start to finish.
- * Flow: 1. The user clicks Spin. 2. We compute the *winner* immediately using the seeded selection algorithm. The animation is only a presentation of that already-known answer. 3. We compute the target rotation that will make the winning slice align with the pointer at the top, plus a few full revolutions for feel. 4. The wheel component animates from current to target rotation; on done, it calls `onComplete()` to flip us into the post-spin state.
- * This separation keeps:
- * - selection unbiased (no slot-machine "near miss" corrections),
- * - animation predictable (no "how did it land?" surprise after the fact). 
+ * Flow: the user clicks Spin, we compute the picked activity immediately using the seeded selection algorithm, we compute the target rotation that lands the picked slice under the pointer (plus a few full revolutions for feel), and the wheel component animates to that rotation and calls `onComplete()` when done, flipping us into the post-spin state.
+ * The animation is only a presentation of the already-known answer. This keeps selection unbiased (no slot-machine near-miss corrections) and animation predictable (no surprise about how it landed).
  */
 
 import { useCallback, useMemo, useRef, useState } from 'react';
@@ -12,21 +10,19 @@ import {
 	applySpreadToWeights,
 	DEFAULT_SPREAD_FACTOR,
 } from '../../domain-logic/weight-logic/weight-spread-logic';
-import { getEffectiveWeight } from '../../domain-logic/weight-logic/effective-weight-logic';
-import { useWeightContext } from '../../context/WeightContext';
 import { useSpinCount } from '../../context/SpinCountContext';
-import { pickFromWeightedPool } from '../../domain-logic/weighted-selection-logic';
+import { pickFromWeightedItems } from '../../domain-logic/weighted-selection-logic';
 import { makeRng } from '../../utils/random-utils';
 import { getNextSpinTiming } from './spin-duration-logic';
 
 export type WheelPhase = 'idle' | 'spinning' | 'landed';
 
 interface SpinResult {
-	/** Index of the winning slice within the *current* pool. */
+	/** Index of the picked slice within the activities passed to spin. */
 	index: number;
-	/** Winning activity. */
+	/** The picked activity. */
 	activity: Activity;
-	/** Final rotation in degrees that will land slice center under the pointer. */
+	/** Final rotation in degrees that lands the picked slice under the pointer. */
 	targetRotationDeg: number;
 }
 
@@ -35,7 +31,7 @@ export interface UseWheelApi {
 	readonly result: SpinResult | null;
 	readonly rotationDeg: number;
 	/** Returns true if a spin was actually started. */
-	spin(pool: readonly Activity[], seed?: string, spreadFactor?: number): boolean;
+	spin(input: { activities: readonly Activity[]; weights: readonly number[]; seed?: string; spreadFactor?: number }): boolean;
 	/** Called by the wheel component when the animation completes. */
 	finish(): void;
 	/** Resets to idle without consuming the result; used after accepting/rejecting/skipping. */
@@ -45,7 +41,6 @@ export interface UseWheelApi {
 }
 
 export function useWheel(): UseWheelApi {
-	const globalWeightContext = useWeightContext();
 	const spinCountContext = useSpinCount();
 	const [phase, setPhase] = useState<WheelPhase>('idle');
 	const [result, setResult] = useState<SpinResult | null>(null);
@@ -53,65 +48,65 @@ export function useWheel(): UseWheelApi {
 	const rotationRef = useRef(0);
 
 	const spin = useCallback(
-		(
-			pool: readonly Activity[],
-			seed?: string,
-			spreadFactor: number = DEFAULT_SPREAD_FACTOR,
-		): boolean => {
-			if (pool.length === 0) return false;
+		({
+			activities,
+			weights,
+			seed,
+			spreadFactor = DEFAULT_SPREAD_FACTOR,
+		}: {
+			activities: readonly Activity[];
+			weights: readonly number[];
+			seed?: string;
+			spreadFactor?: number;
+		}): boolean => {
+			if (activities.length === 0) return false;
 			if (phase === 'spinning') return false;
 
-			const now = Date.now();
-			const effectiveWeights = pool.map((activity) =>
-				getEffectiveWeight(activity, now, globalWeightContext),
-			);
-			const spreadWeights = applySpreadToWeights(effectiveWeights, spreadFactor);
-			const weighted = pool.map((activity, index) => ({
+			const rng = makeRng(seed);
+			const spreadWeights = applySpreadToWeights(weights, spreadFactor);
+			const weightedActivities = activities.map((activity, index) => ({
 				item: activity,
 				weight: spreadWeights[index],
 			}));
-			const rng = makeRng(seed);
-			const winner = pickFromWeightedPool(weighted, rng);
-			if (!winner) return false;
+			const pickedActivity = pickFromWeightedItems({ weightedItems: weightedActivities, rng });
+			if (!pickedActivity) return false;
 
-			const index = pool.indexOf(winner);
-			if (index < 0) return false;
+			const pickedActivityIndex = activities.indexOf(pickedActivity);
+			if (pickedActivityIndex < 0) return false;
 
-			// Slice 0's left edge is at 12 o'clock (top) when rotation = 0.
-			// Each slice's arc is proportional to its effective weight.
-			// The center of slice i is therefore at:
-			//   (cumulative_weight_before_i + weight_i / 2) / totalWeight * 360  degrees CW from top.
-			// Rotating by (360 − sliceCenterFromTop) % 360 brings that center to the pointer.
-			// For equal weights this reduces to (i + 0.5) * (360 / n), matching the old formula.
-			const totalWeight = weighted.reduce((sum, entry) => sum + entry.weight, 0);
-			let cumulativeWeight = 0;
-			for (let j = 0; j < index; j++) cumulativeWeight += weighted[j].weight;
-			const sliceCenterFromTop =
-				totalWeight > 0
-					? ((cumulativeWeight + weighted[index].weight / 2) / totalWeight) * 360
-					: (index + 0.5) * (360 / pool.length);
+			const totalWeight = weightedActivities.reduce((sum, entry) => sum + entry.weight, 0);
+			let weightBeforePickedActivity = 0;
+			for (let precedingIndex = 0; precedingIndex < pickedActivityIndex; precedingIndex++) {
+				weightBeforePickedActivity += weightedActivities[precedingIndex].weight;
+			}
+
+			let sliceCenterFromTop: number;
+			if (totalWeight > 0) {
+				sliceCenterFromTop = ((weightBeforePickedActivity + weightedActivities[pickedActivityIndex].weight / 2) / totalWeight) * 360;
+			}
+			else {
+				sliceCenterFromTop = (pickedActivityIndex + 0.5) * (360 / activities.length);
+			}
+
 			const baseAlignment = (360 - sliceCenterFromTop) % 360;
-			// Always go "forward". Accumulate rotation rather than snapping back.
-			const current = rotationRef.current;
-			const currentMod = ((current % 360) + 360) % 360;
-			let delta = baseAlignment - currentMod;
-			if (delta < 0) delta += 360;
+			const currentRotation = rotationRef.current;
+			const currentRotationMod = ((currentRotation % 360) + 360) % 360;
+			let rotationDelta = baseAlignment - currentRotationMod;
+			if (rotationDelta < 0) rotationDelta += 360;
 
-			// Compute dynamic timing for this spin using the current spinCount from context.
 			const spinTiming = getNextSpinTiming(spinCountContext.spinCount);
 			SPIN_TIMING.durationMs = spinTiming.durationMs;
 			SPIN_TIMING.fullRotations = spinTiming.fullRotations;
 
-			// Increment spinCount in context
 			spinCountContext.incrementSpinCount();
 
-			const target = current + spinTiming.fullRotations * 360 + delta;
+			const targetRotationDeg = currentRotation + spinTiming.fullRotations * 360 + rotationDelta;
 
-			setResult({ index, activity: winner, targetRotationDeg: target });
+			setResult({ index: pickedActivityIndex, activity: pickedActivity, targetRotationDeg });
 			setPhase('spinning');
 			return true;
 		},
-		[phase, globalWeightContext, spinCountContext],
+		[phase, spinCountContext],
 	);
 
 	const finish = useCallback((): void => {
@@ -128,8 +123,6 @@ export function useWheel(): UseWheelApi {
 	const resetWheel = useCallback((): void => {
 		setPhase('idle');
 		setResult(null);
-		// Note: Do NOT reset spinCount here. spinCount persists across results.
-		// Only reset spinCount when explicitly resetting the session via resetWheelAndSession().
 	}, []);
 
 	const resetWheelAndSession = useCallback((): void => {
@@ -145,7 +138,7 @@ export function useWheel(): UseWheelApi {
 }
 
 /**
- * Mutable timing object shared with Wheel.tsx. Values are updated in-place by `spin()` before each animation starts, so Wheel.tsx always reads the correct duration for the current spin. Initial values match the first-spin defaults from useSpinDuration. 
+ * Mutable timing object shared with Wheel.tsx. Values are updated in-place by `spin()` before each animation starts, so Wheel.tsx always reads the correct duration for the current spin. Initial values match the first-spin defaults from `getNextSpinTiming`.
  */
 export const SPIN_TIMING = {
 	durationMs: 2_000,

@@ -43,23 +43,23 @@ export async function signOut(): Promise<void> {
 	if (error) throw error;
 }
 
-export async function fetchProfile(userId: string): Promise<Profile> {
+export async function fetchProfile(userID: string): Promise<Profile> {
 	const { data, error } = await requireSupabase()
 		.from('profiles')
 		.select('id, display_name')
-		.eq('id', userId)
+		.eq('id', userID)
 		.single();
 	if (error) throw error;
 	return { id: data.id, displayName: data.display_name };
 }
 
-export async function updateDisplayName(userId: string, displayName: string): Promise<Profile> {
+export async function updateDisplayName(userID: string, displayName: string): Promise<Profile> {
 	const trimmed = displayName.trim();
 	if (!trimmed) throw new Error('Display name cannot be empty');
 	const { data, error } = await requireSupabase()
 		.from('profiles')
 		.update({ display_name: trimmed })
-		.eq('id', userId)
+		.eq('id', userID)
 		.select('id, display_name')
 		.single();
 	if (error) throw error;

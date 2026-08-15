@@ -1,55 +1,35 @@
-/**
- * Wheel service. CRUD for the `wheels` IDB store.
- * Each wheel is a named namespace for a set of activities + tags. The active wheel ID is persisted in localStorage (UI preference state). 
- */
-
 import type { TypedStore } from '../libraries/indexeddb/store';
 import type { Activity, TagMetadata, Wheel } from '../domain-logic/types';
 import { db } from './activity-service';
 import { TAG_METADATA_STORE, WHEELS_STORE } from './schema';
-import { newId } from '../utils/id';
-import { addActivity, bulkPut, clearWheelActivities, listActivities } from './activity-service';
+import { newID } from '../utils/id';
+import { addActivity, bulkPut, clearWheelActivities, loadActivitiesOfWheel } from './activity-service';
 import { clearWheelTagMetadata, copyTagMetadata, listTagMetadata } from './tag-service';
-import { DEFAULT_WEIGHT } from '../domain-logic/weight-logic/weight-constants';
+import { replayMigratedPreferenceEstimate } from '../domain-logic/weight-logic/migration-replay-logic';
 
 const wheelStore = (): TypedStore<Wheel> => db.store<Wheel>(WHEELS_STORE.name);
 
 export const ACTIVE_WHEEL_KEY = 'activeWheelId';
 
-// Active wheel
-// `scopeUserId` keeps signed-in accounts from leaking "last active wheel" across
-// each other on a shared browser; omit it for the signed-out/local-only case.
-
-function activeWheelStorageKey(scopeUserId?: string): string {
-	return scopeUserId ? `${ACTIVE_WHEEL_KEY}:${scopeUserId}` : ACTIVE_WHEEL_KEY;
+function getActiveWheelStorageKey(scopeUserID?: string): string {
+	return scopeUserID ? `${ACTIVE_WHEEL_KEY}:${scopeUserID}` : ACTIVE_WHEEL_KEY;
 }
 
-/**
- * `'default'` is only a meaningful fallback for the local/signed-out case (it's the
- * literal ID of the pre-multi-wheel migrated wheel, see schema.ts v3). Cloud wheel
- * IDs are UUIDs, so a signed-in user with nothing stored yet gets '' instead.
- * Callers must treat '' as "no active wheel resolved yet", not query it directly.
- */
-export function getStoredActiveWheelId(scopeUserId?: string): string {
-	const stored = localStorage.getItem(activeWheelStorageKey(scopeUserId));
-	// 'default' can only ever be a legitimate value in the unscoped/local case
-	// (see the doc comment above); a scoped key holding it is leftover bad state
-	// from before this guard existed, and must be treated as "nothing stored".
-	if (stored && !(scopeUserId && stored === 'default')) return stored;
-	return scopeUserId ? '' : 'default';
+export function getStoredActiveWheelID(scopeUserID?: string): string {
+	const storedActiveWheelID = localStorage.getItem(getActiveWheelStorageKey(scopeUserID));
+	if (storedActiveWheelID && !(scopeUserID && storedActiveWheelID === 'default')) 
+		return storedActiveWheelID;
+
+	return scopeUserID ? '' : 'default';
 }
 
-export function persistActiveWheelId(id: string, scopeUserId?: string): void {
-	localStorage.setItem(activeWheelStorageKey(scopeUserId), id);
+export function persistActiveWheelID(id: string, scopeUserID?: string): void {
+	localStorage.setItem(getActiveWheelStorageKey(scopeUserID), id);
 }
 
-// Reads
-
-export async function listWheels(): Promise<Wheel[]> {
-	const all = await wheelStore().getAll();
-	// Sort by lastUsedAt descending so the most recently used appears first,
-	// then fall back to createdAt for stable ordering of new wheels.
-	return all.sort(
+export async function getWheelsInOrder(): Promise<Wheel[]> {
+	const allWheels = await wheelStore().getAll();
+	return allWheels.sort(
 		(wheel1, wheel2) => wheel2.lastUsedAt - wheel1.lastUsedAt || wheel1.createdAt - wheel2.createdAt,
 	);
 }
@@ -58,50 +38,46 @@ export async function getWheel(id: string): Promise<Wheel | undefined> {
 	return wheelStore().get(id);
 }
 
-// Writes
+export async function createWheel(wheelName: string): Promise<Wheel> {
+	const trimmedName = wheelName.trim();
+	if (!trimmedName) 
+		throw new Error('Wheel name cannot be empty');
 
-export async function createWheel(name: string): Promise<Wheel> {
-	const trimmed = name.trim();
-	if (!trimmed) throw new Error('Wheel name cannot be empty');
 	const now = Date.now();
-	const wheel: Wheel = { id: newId(), name: trimmed, createdAt: now, lastUsedAt: now };
+	const wheel: Wheel = { id: newID(), name: trimmedName, createdAt: now, lastUsedAt: now };
 	await wheelStore().put(wheel);
 	return wheel;
 }
 
-export async function renameWheel(id: string, name: string): Promise<Wheel> {
-	const trimmed = name.trim();
-	if (!trimmed) throw new Error('Wheel name cannot be empty');
-	const existing = await wheelStore().get(id);
-	if (!existing) throw new Error(`Wheel ${id} not found`);
-	const next: Wheel = { ...existing, name: trimmed };
-	await wheelStore().put(next);
-	return next;
+export async function renameWheel(wheelID: string, wheelName: string): Promise<Wheel> {
+	const trimmedName = wheelName.trim();
+	if (!trimmedName) 
+		throw new Error('Wheel name cannot be empty');
+
+	const existingWheel = await wheelStore().get(wheelID);
+	if (!existingWheel) 
+		throw new Error(`Wheel ${wheelID} not found`);
+
+	const nextWheel: Wheel = { ...existingWheel, name: trimmedName };
+	await wheelStore().put(nextWheel);
+	return nextWheel;
 }
 
-export async function touchWheel(id: string): Promise<void> {
-	const existing = await wheelStore().get(id);
-	if (!existing) return;
-	await wheelStore().put({ ...existing, lastUsedAt: Date.now() });
-}
-
-/**
- * Delete a wheel and all its activities + tag metadata. The caller must ensure this is not the last wheel. 
- */
-export async function deleteWheel(id: string): Promise<void> {
-	await clearWheelActivities(id);
-	await clearWheelTagMetadata(id);
-	await wheelStore().delete(id);
+export async function recordWheelBeingUsed(WheelID: string): Promise<void> {
+	const existingWheel = await wheelStore().get(WheelID);
+	if (!existingWheel) return;
+	await wheelStore().put({ ...existingWheel, lastUsedAt: Date.now() });
 }
 
 /**
- * Copy all activities (and tag metadata) from one wheel into a newly-created wheel.
- *
- * @param fromWheelId - Source wheel ID.
- * @param name - Name for the new wheel.
- * @param resetWeights - If true, all copied activities start at WEIGHT_DEFAULT. 
+ * Delete a wheel and all its activities and tag metadata. 
+ * The caller of this function must ensure this is not the last wheel. 
  */
-// Backup / restore
+export async function deleteWheel(wheelID: string): Promise<void> {
+	await clearWheelActivities(wheelID);
+	await clearWheelTagMetadata(wheelID);
+	await wheelStore().delete(wheelID);
+}
 
 export interface FullBackupEntry {
 	wheel: Wheel;
@@ -109,12 +85,88 @@ export interface FullBackupEntry {
 	tags: TagMetadata[];
 }
 
+/**
+ * All fields required for migrating to the estimated preference model
+ */
+interface WeightBasedActivityFields {
+	id: string;
+	wheelId: string;
+	name: string;
+	createdAt: number;
+	acceptCount: number;
+	rejectCount: number;
+	tagIds: string[];
+}
+
+/**
+ * Replays a legacy activity's acceptCount and rejectCount into a preference estimate. 
+ * Drops the old weight, streak, and lastAcceptDelta fields.
+ */
+function migrateWeightBasedActivityToPreferenceBased(
+	legacyActivity: WeightBasedActivityFields,
+	migratedAt: number,
+): Activity {
+	const { preferenceScore, preferenceScoreConfidence } = replayMigratedPreferenceEstimate(
+		legacyActivity.acceptCount,
+		legacyActivity.rejectCount,
+	);
+	return {
+		id: legacyActivity.id,
+		wheelId: legacyActivity.wheelId,
+		name: legacyActivity.name,
+		preferenceScore,
+		preferenceScoreConfidence,
+		lastFeedbackAt: migratedAt,
+		createdAt: legacyActivity.createdAt,
+		acceptCount: legacyActivity.acceptCount,
+		rejectCount: legacyActivity.rejectCount,
+		tagIds: legacyActivity.tagIds,
+	};
+}
+
+export const CURRENT_FULL_BACKUP_FORMAT = 'full-backup-v4';
+
 export interface FullBackup {
-	format: 'full-backup-v3';
+	format: typeof CURRENT_FULL_BACKUP_FORMAT;
 	exportedAt: number;
 	wheels: FullBackupEntry[];
 }
 
+/** The weight-based, tagIds-based shape backups were exported in before preference-based weighting. */
+interface LegacyActivityV3 {
+	id: string;
+	wheelId: string;
+	name: string;
+	weight: number;
+	createdAt: number;
+	acceptCount: number;
+	rejectCount: number;
+	streak: number;
+	lastAcceptDelta?: number;
+	tagIds: string[];
+}
+
+interface LegacyFullBackupEntryV3 {
+	wheel: Wheel;
+	activities: LegacyActivityV3[];
+	tags: TagMetadata[];
+}
+
+export interface LegacyFullBackupV3 {
+	format: 'full-backup-v3';
+	exportedAt: number;
+	wheels: LegacyFullBackupEntryV3[];
+}
+
+export function convertLegacyBackupEntryV3(entry: LegacyFullBackupEntryV3): FullBackupEntry {
+	const migratedAt = Date.now();
+	const activities = entry.activities.map((legacyActivity) =>
+		migrateWeightBasedActivityToPreferenceBased(legacyActivity, migratedAt),
+	);
+	return { wheel: entry.wheel, activities, tags: entry.tags };
+}
+
+/** The weight-based, tag-name-based (pre-tagIds) shape backups were exported in. */
 interface LegacyActivity {
 	id: string;
 	wheelId: string;
@@ -148,8 +200,9 @@ export interface LegacyFullBackup {
 }
 
 export function convertLegacyBackupEntry(entry: LegacyFullBackupEntry): FullBackupEntry {
+	const migratedAt = Date.now();
 	const tags: TagMetadata[] = entry.tags.map((legacyTag) => {
-		const tag: TagMetadata = { id: newId(), wheelId: legacyTag.wheelId, name: legacyTag.name };
+		const tag: TagMetadata = { id: newID(), wheelId: legacyTag.wheelId, name: legacyTag.name };
 		if (legacyTag.color) tag.color = legacyTag.color;
 		return tag;
 	});
@@ -158,35 +211,23 @@ export function convertLegacyBackupEntry(entry: LegacyFullBackupEntry): FullBack
 		const tagIds = (legacyActivity.tags ?? [])
 			.map((name) => idByName.get(name))
 			.filter((id): id is string => !!id);
-		const activity: Activity = {
-			id: legacyActivity.id,
-			wheelId: legacyActivity.wheelId,
-			name: legacyActivity.name,
-			weight: legacyActivity.weight,
-			createdAt: legacyActivity.createdAt,
-			acceptCount: legacyActivity.acceptCount,
-			rejectCount: legacyActivity.rejectCount,
-			streak: legacyActivity.streak,
-			tagIds,
-		};
-		if (legacyActivity.lastAcceptDelta !== undefined) activity.lastAcceptDelta = legacyActivity.lastAcceptDelta;
-		return activity;
+		return migrateWeightBasedActivityToPreferenceBased({ ...legacyActivity, tagIds }, migratedAt);
 	});
 	return { wheel: entry.wheel, activities, tags };
 }
 
 /** Export all wheels, their activities, and tag metadata as a portable JSON snapshot. */
 export async function exportFullBackup(): Promise<string> {
-	const wheels = await listWheels();
+	const wheels = await getWheelsInOrder();
 	const data: FullBackupEntry[] = await Promise.all(
 		wheels.map(async (wheel) => ({
 			wheel,
-			activities: await listActivities(wheel.id),
+			activities: await loadActivitiesOfWheel(wheel.id),
 			tags: await listTagMetadata(wheel.id),
 		})),
 	);
 	return JSON.stringify(
-		{ format: 'full-backup-v3', exportedAt: Date.now(), wheels: data },
+		{ format: CURRENT_FULL_BACKUP_FORMAT, exportedAt: Date.now(), wheels: data },
 		null,
 		2,
 	);
@@ -201,7 +242,7 @@ export async function importFullBackup(json: string): Promise<string> {
 	// Legacy full-DB dump (pre-multi-wheel). Restore raw IDB snapshot.
 	if (isLegacyDbDump(parsed)) {
 		await db.importAll(parsed as import('../libraries/indexeddb/types').DBBackup);
-		const wheels = await listWheels();
+		const wheels = await getWheelsInOrder();
 		return wheels[0]?.id ?? 'default';
 	}
 
@@ -209,9 +250,16 @@ export async function importFullBackup(json: string): Promise<string> {
 	if (isFullBackup(parsed)) {
 		backup = parsed;
 	}
+	else if (isLegacyFullBackupV3(parsed)) {
+		backup = {
+			format: CURRENT_FULL_BACKUP_FORMAT,
+			exportedAt: parsed.exportedAt,
+			wheels: parsed.wheels.map(convertLegacyBackupEntryV3),
+		};
+	}
 	else if (isLegacyFullBackupV2(parsed)) {
 		backup = {
-			format: 'full-backup-v3',
+			format: CURRENT_FULL_BACKUP_FORMAT,
 			exportedAt: parsed.exportedAt,
 			wheels: parsed.wheels.map(convertLegacyBackupEntry),
 		};
@@ -227,13 +275,11 @@ export async function importFullBackup(json: string): Promise<string> {
 		throw new Error('Not a valid activity-wheel backup file.');
 	}
 
-	// Wipe all existing wheels at the service level (bypasses the "last wheel" UI guard).
-	const existing = await listWheels();
+	const existing = await getWheelsInOrder();
 	for (const wheel of existing) {
 		await deleteWheel(wheel.id);
 	}
 
-	// Write imported wheels, activities, and tags.
 	const wheelsStore = db.store<Wheel>(WHEELS_STORE.name);
 	const tagMetadataStore = db.store<TagMetadata>(TAG_METADATA_STORE.name);
 	for (const { wheel, activities, tags } of backup.wheels) {
@@ -251,7 +297,7 @@ export async function importFullBackup(json: string): Promise<string> {
 
 /** Delete all wheels and their data, then create one fresh blank wheel. */
 export async function resetToBlankWheel(): Promise<Wheel> {
-	const all = await listWheels();
+	const all = await getWheelsInOrder();
 	for (const wheel of all) {
 		await deleteWheel(wheel.id);
 	}
@@ -259,6 +305,12 @@ export async function resetToBlankWheel(): Promise<Wheel> {
 }
 
 function isFullBackup(value: unknown): value is FullBackup {
+	if (typeof value !== 'object' || value === null) return false;
+	const obj = value as Record<string, unknown>;
+	return obj.format === CURRENT_FULL_BACKUP_FORMAT && Array.isArray(obj.wheels);
+}
+
+export function isLegacyFullBackupV3(value: unknown): value is LegacyFullBackupV3 {
 	if (typeof value !== 'object' || value === null) return false;
 	const obj = value as Record<string, unknown>;
 	return obj.format === 'full-backup-v3' && Array.isArray(obj.wheels);
@@ -277,37 +329,38 @@ function isLegacyDbDump(value: unknown): boolean {
 }
 
 export async function copyWheel(
-	fromWheelId: string,
+	fromWheelID: string,
 	name: string,
 	resetWeights: boolean,
 ): Promise<Wheel> {
 	const newWheel = await createWheel(name);
-	const tagIdMap = await copyTagMetadata(fromWheelId, newWheel.id);
+	const tagIDMap = await copyTagMetadata(fromWheelID, newWheel.id);
 
-	const sourceActivities = await listActivities(fromWheelId);
+	const sourceActivities = await loadActivitiesOfWheel(fromWheelID);
 	const now = Date.now();
 	for (const activity of sourceActivities) {
 		await addActivity(activity.name, newWheel.id, now);
 	}
 
 	if (sourceActivities.length > 0) {
-		const created = await listActivities(newWheel.id);
+		const created = await loadActivitiesOfWheel(newWheel.id);
 		const nameToSource = new Map(sourceActivities.map((activity) => [activity.name, activity]));
 		await bulkPut(
 			created.map((activity) => {
 				const source = nameToSource.get(activity.name);
 				if (!source) return activity;
 				const tagIds = source.tagIds
-					.map((tagId) => tagIdMap.get(tagId))
-					.filter((tagId): tagId is string => !!tagId);
+					.map((tagID) => tagIDMap.get(tagID))
+					.filter((tagID): tagID is string => !!tagID);
 				return resetWeights
-					? { ...activity, weight: DEFAULT_WEIGHT, tagIds }
+					? { ...activity, tagIds }
 					: {
 						...activity,
-						weight: source.weight,
+						preferenceScore: source.preferenceScore,
+						preferenceScoreConfidence: source.preferenceScoreConfidence,
+						lastFeedbackAt: source.lastFeedbackAt,
 						acceptCount: source.acceptCount,
 						rejectCount: source.rejectCount,
-						streak: source.streak,
 						tagIds,
 					};
 			}),
