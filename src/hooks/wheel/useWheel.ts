@@ -18,12 +18,14 @@ import { getNextSpinTiming } from './spin-duration-logic';
 export type WheelPhase = 'idle' | 'spinning' | 'landed';
 
 interface SpinResult {
-	/** Index of the picked slice within the activities passed to spin. */
-	index: number;
-	/** The picked activity. */
-	activity: Activity;
+	pickedSliceIndex: number;
+	pickedActivity: Activity;
 	/** Final rotation in degrees that lands the picked slice under the pointer. */
-	targetRotationDeg: number;
+	targetRotationDegrees: number;
+	/** Activities in the exact order rendered on the wheel for this spin. Frozen so the wheel doesn't reshuffle mid-animation or right after landing. */
+	orderedDisplayedActivities: readonly Activity[];
+	/** Slice sizes matching `orderedDisplayedActivities` in the same order. */
+	displaySliceProbabilities: readonly number[];
 }
 
 export interface UseWheelApi {
@@ -31,7 +33,15 @@ export interface UseWheelApi {
 	readonly result: SpinResult | null;
 	readonly rotationDeg: number;
 	/** Returns true if a spin was actually started. */
-	spin(input: { activities: readonly Activity[]; weights: readonly number[]; seed?: string; spreadFactor?: number }): boolean;
+	spin(input: {
+		activities: readonly Activity[];
+		/** Actual curren weights used to pick the activity. */
+		weights: readonly number[];
+		/** Visual slice sizes in the same order as `activities` that the wheel is actually drawn with. */
+		displaySliceProbabilities: readonly number[];
+		seed?: string;
+		spreadFactor?: number;
+	}): boolean;
 	/** Called by the wheel component when the animation completes. */
 	finish(): void;
 	/** Resets to idle without consuming the result; used after accepting/rejecting/skipping. */
@@ -51,11 +61,13 @@ export function useWheel(): UseWheelApi {
 		({
 			activities,
 			weights,
+			displaySliceProbabilities,
 			seed,
 			spreadFactor = DEFAULT_SPREAD_FACTOR,
 		}: {
 			activities: readonly Activity[];
 			weights: readonly number[];
+			displaySliceProbabilities: readonly number[];
 			seed?: string;
 			spreadFactor?: number;
 		}): boolean => {
@@ -74,19 +86,20 @@ export function useWheel(): UseWheelApi {
 			const pickedActivityIndex = activities.indexOf(pickedActivity);
 			if (pickedActivityIndex < 0) return false;
 
-			const totalWeight = weightedActivities.reduce((sum, entry) => sum + entry.weight, 0);
-			let weightBeforePickedActivity = 0;
-			for (let precedingIndex = 0; precedingIndex < pickedActivityIndex; precedingIndex++) {
-				weightBeforePickedActivity += weightedActivities[precedingIndex].weight;
-			}
+			const totalDisplayProbability =
+				displaySliceProbabilities.length === activities.length
+					? displaySliceProbabilities.reduce((sum, probability) => sum + probability, 0)
+					: 0;
+					
+			const displayArcSizes = activities.map((_, index) =>
+				totalDisplayProbability > 0 ? displaySliceProbabilities[index] / totalDisplayProbability : 1 / activities.length,
+			);
 
-			let sliceCenterFromTop: number;
-			if (totalWeight > 0) {
-				sliceCenterFromTop = ((weightBeforePickedActivity + weightedActivities[pickedActivityIndex].weight / 2) / totalWeight) * 360;
+			let arcBeforePickedActivity = 0;
+			for (let precedingIndex = 0; precedingIndex < pickedActivityIndex; precedingIndex++) {
+				arcBeforePickedActivity += displayArcSizes[precedingIndex];
 			}
-			else {
-				sliceCenterFromTop = (pickedActivityIndex + 0.5) * (360 / activities.length);
-			}
+			const sliceCenterFromTop = (arcBeforePickedActivity + displayArcSizes[pickedActivityIndex] / 2) * 360;
 
 			const baseAlignment = (360 - sliceCenterFromTop) % 360;
 			const currentRotation = rotationRef.current;
@@ -102,7 +115,13 @@ export function useWheel(): UseWheelApi {
 
 			const targetRotationDeg = currentRotation + spinTiming.fullRotations * 360 + rotationDelta;
 
-			setResult({ index: pickedActivityIndex, activity: pickedActivity, targetRotationDeg });
+			setResult({
+				pickedSliceIndex: pickedActivityIndex,
+				pickedActivity,
+				targetRotationDegrees: targetRotationDeg,
+				orderedDisplayedActivities: activities,
+				displaySliceProbabilities,
+			});
 			setPhase('spinning');
 			return true;
 		},
@@ -113,8 +132,8 @@ export function useWheel(): UseWheelApi {
 		setPhase((current) => (current === 'spinning' ? 'landed' : current));
 		setResult((previousResult) => {
 			if (previousResult) {
-				rotationRef.current = previousResult.targetRotationDeg;
-				setRotationDeg(previousResult.targetRotationDeg);
+				rotationRef.current = previousResult.targetRotationDegrees;
+				setRotationDeg(previousResult.targetRotationDegrees);
 			}
 			return previousResult;
 		});

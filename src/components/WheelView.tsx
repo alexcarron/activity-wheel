@@ -122,23 +122,35 @@ export function WheelView({
 	const pickedActivity = useMemo(() => {
 		if (!wheel.result) return null;
 		return (
-			activities.find((activity) => activity.id === wheel.result!.activity.id) ??
-			wheel.result.activity
+			activities.find((activity) => activity.id === wheel.result!.pickedActivity.id) ??
+			wheel.result.pickedActivity
 		);
 	}, [activities, wheel.result]);
 
+	const spinActivities = useCallback(
+		(candidateActivities: readonly Activity[], candidateSliceProbabilities: readonly number[]) => {
+			if (candidateActivities.length === 0) return;
+			const seed = rngSeed.trim() ? `${rngSeed}|${Date.now()}|${candidateActivities.length}` : undefined;
+			const weights = candidateActivities.map((activity) => lockedActualWeightByActivityID.get(activity.id) ?? 0);
+			const didSpin = wheel.spin({
+				activities: candidateActivities,
+				weights,
+				displaySliceProbabilities: candidateSliceProbabilities,
+				seed,
+				spreadFactor,
+			});
+			if (didSpin) onSpun();
+		},
+		[lockedActualWeightByActivityID, rngSeed, spreadFactor, wheel, onSpun],
+	);
+
 	const handleSpin = useCallback(() => {
-		if (sortedActivities.length === 0) return;
-		const seed = rngSeed.trim() ? `${rngSeed}|${Date.now()}|${sortedActivities.length}` : undefined;
-		const weights = sortedActivities.map((activity) => lockedActualWeightByActivityID.get(activity.id) ?? 0);
-		const didSpin = wheel.spin({ activities: sortedActivities, weights, seed, spreadFactor });
-		if (didSpin) onSpun();
-	}, [sortedActivities, lockedActualWeightByActivityID, rngSeed, spreadFactor, wheel, onSpun]);
+		spinActivities(sortedActivities, sliceProbabilities);
+	}, [spinActivities, sortedActivities, sliceProbabilities]);
 
 	const handleAnimationComplete = useCallback(() => {
 		wheel.finish();
-		if (wheel.result) session.exclude(wheel.result.activity.id);
-	}, [session, wheel]);
+	}, [wheel]);
 
 	const handleFeedback = useCallback(
 		async (action: FeedbackAction): Promise<void> => {
@@ -148,24 +160,35 @@ export function WheelView({
 				await onFeedback(pickedActivity.id, action);
 			}
 			finally {
+				session.excludeActivity(pickedActivity.id);
 				setBusy(false);
 				wheel.resetWheel();
 			}
 		},
-		[onFeedback, wheel, pickedActivity],
+		[onFeedback, wheel, session, pickedActivity],
 	);
 
 	const handleSpinAgain = useCallback(() => {
-		if (session.remainingActivities.length > 0) handleSpin();
-	}, [handleSpin, session.remainingActivities.length]);
+		if (pickedActivity)
+			session.excludeActivity(pickedActivity.id);
+
+		const nextCandidateIndices = sortedActivities
+			.map((activity, index) => ({ activity, index }))
+			.filter((pair) => pair.activity.id !== pickedActivity?.id);
+
+		spinActivities(
+			nextCandidateIndices.map((pair) => pair.activity),
+			nextCandidateIndices.map((pair) => sliceProbabilities[pair.index]),
+		);
+	}, [spinActivities, sortedActivities, sliceProbabilities, pickedActivity, session]);
 
 	const handleResetSession = useCallback(() => {
-		session.reset();
+		session.resetExcludedActivities();
 		wheel.resetWheelAndSession();
 	}, [session, wheel]);
 
 	useEffect(() => {
-		if (wheel.result && !activities.find((activity) => activity.id === wheel.result?.activity.id)) {
+		if (wheel.result && !activities.find((activity) => activity.id === wheel.result?.pickedActivity.id)) {
 			wheel.resetWheel();
 		}
 	}, [activities, wheel]);
@@ -181,7 +204,10 @@ export function WheelView({
 	useHotkey(HOTKEYS.SPIN_WHEEL.code, handleSpin, isIdle && remainingActivities.length > 0);
 
 	const currentRotation = wheel.rotationDeg;
-	const targetRotation = wheel.result?.targetRotationDeg ?? wheel.rotationDeg;
+	const targetRotation = wheel.result?.targetRotationDegrees ?? wheel.rotationDeg;
+
+	const displayedActivities = wheel.result?.orderedDisplayedActivities ?? sortedActivities;
+	const displayedSliceProbabilities = wheel.result?.displaySliceProbabilities ?? sliceProbabilities;
 
 	const headline = useMemo(() => {
 		if (activities.length === 0 && !tagFilterActive) return 'Add an activity to start the wheel.';
@@ -206,8 +232,8 @@ export function WheelView({
 			</button>
 
 			<Wheel
-				activities={sortedActivities}
-				sliceProbabilities={sliceProbabilities}
+				activities={displayedActivities}
+				sliceProbabilities={displayedSliceProbabilities}
 				currentRotationDeg={currentRotation}
 				targetRotationDeg={targetRotation}
 				animating={isAnimating}
@@ -266,7 +292,9 @@ export function WheelView({
 			{isLanded && pickedActivity && (
 				<PostSpinActions
 					pickedActivity={pickedActivity}
-					remainingActivityCount={session.remainingActivities.length}
+					remainingActivityCount={
+						session.remainingActivities.filter((activity) => activity.id !== pickedActivity.id).length
+					}
 					onChoose={(action) => void handleFeedback(action)}
 					onSpinAgain={handleSpinAgain}
 					onResetSession={handleResetSession}

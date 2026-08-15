@@ -9,12 +9,12 @@ import type { Activity } from '../domain-logic/types';
 export interface SessionApi {
 	/** Activities still available to spin this session. */
 	readonly remainingActivities: readonly Activity[];
-	/** Set of activity ids excluded from the rest of this session. */
-	readonly excluded: ReadonlySet<string>;
-	/** Mark an id as spun (call after every spin, regardless of feedback). */
-	exclude(id: string): void;
-	/** Drop everything from the excluded set. */
-	reset(): void;
+	/** Set of ids of activities excluded from the rest of this session. */
+	readonly excludedActivities: ReadonlySet<string>;
+	/** Marks an activity as spun after a spin */
+	excludeActivity(activityID: string): void;
+	/** Resets all activities to not be excluded */
+	resetExcludedActivities(): void;
 }
 
 export function useSession(activities: readonly Activity[]): SessionApi {
@@ -39,7 +39,7 @@ export function useSession(activities: readonly Activity[]): SessionApi {
 	}, []);
 
 	return useMemo<SessionApi>(
-		() => ({ remainingActivities, excluded, exclude, reset }),
+		() => ({ remainingActivities, excludedActivities: excluded, excludeActivity: exclude, resetExcludedActivities: reset }),
 		[remainingActivities, excluded, exclude, reset],
 	);
 }

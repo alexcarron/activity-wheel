@@ -300,7 +300,7 @@ function App() {
 								onClearTagFilter={tagFilter.clearFilter}
 								onFeedback={async (id, action) => {
 									await activityState.applyFeedback(id, action);
-									session.exclude(id);
+									session.excludeActivity(id);
 									lockedActualWeights.reroll();
 								}}
 								onRename={activityState.rename}
