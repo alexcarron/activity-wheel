@@ -95,15 +95,14 @@ export function BackupControls({ exportJson, importJson, clearWheel, clearAllWhe
 
 	return (
 		<details className="backup">
-			<summary className="backup-summary">Backup &amp; restore</summary>
+			<summary className="backup-summary">Backup and Restore</summary>
 			<div className="backup-body">
 				<p className="backup-help">
 					{readOnly ? (
 						"This is a shared wheel, so you can export it to JSON, but you can't import, wipe, or overwrite it."
 					) : (
 						<>
-							Your data lives in this browser's IndexedDB. Export exports <strong>all wheels</strong> to
-							JSON; import replaces all wheels with the file contents.
+							Export all of your wheels to a JSON file, or import a JSON file that replaces all wheels with its contents.
 						</>
 					)}
 				</p>

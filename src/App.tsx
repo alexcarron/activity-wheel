@@ -398,7 +398,7 @@ function App() {
 							<p>
 								{userID
 									? 'Signed in. Your wheels are saved privately to your account.'
-									: "Data lives only in this browser. Sign in to save it to your account, or use Backup & restore to keep a copy."}
+									: "Data lives only in this browser. Sign in to save it to your account, or use Backup and Restore to keep a copy."}
 							</p>
 						</footer>
 

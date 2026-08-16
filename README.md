@@ -40,7 +40,7 @@ By default, the app stores everything in a single IndexedDB database, `activity-
 
 - The database lives entirely in the browser profile that opens the app.
 - Clearing site data, or switching browsers or devices, wipes the data.
-- Use **Backup & restore** if you want the data to survive any of that.
+- Use **Backup and Restore** if you want the data to survive any of that.
 
 Signing in with Google switches you over to private cloud storage instead (see **Signing in** below), where none of the above applies.
 
@@ -77,7 +77,7 @@ A **session** is a single round of "spin until I find something".
 - Reseting a session puts everything back (Reloading the page resets it too)
 - Accepting does not auto-reset the session, so you can still change your mind afterward or spin for your next activity
 
-### Backup & restore
+### Backup and Restore
 
 Using the backup and restore buttons, you can export the full database to a JSON file you can keep on disk, email to yourself, or import into a different browser
 

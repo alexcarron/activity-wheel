@@ -156,20 +156,29 @@
 	flex-shrink: 0;
 }
 
-.activity-row.is-compact .activity-row-body {
-	flex-direction: row;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 6px;
-}
-
 .activity-row.is-compact .activity-row-top {
 	display: flex;
-	align-items: center;
-	justify-content: space-between;
+	align-items: flex-start;
 	gap: 8px;
 	flex: 1 1 100%;
 	min-width: 0;
+}
+
+.activity-row.is-compact .activity-row-compact-primary {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 6px 8px;
+	flex: 1 1 0;
+	min-width: 0;
+}
+
+.activity-row.is-compact .activity-row-feedback {
+	align-self: flex-start;
+}
+
+.activity-row.is-compact .activity-row-pills {
+	flex-shrink: 1;
 }
 
 .activity-row.is-compact .activity-row-selector {
@@ -255,13 +264,33 @@
 	transition:
 		background 120ms ease,
 		color 120ms ease,
-		border-color 120ms ease;
+		border-color 120ms ease,
+		transform 80ms ease;
 }
 
 .icon-btn:hover:not(:disabled) {
 	background: var(--soft-accent-color);
 	border-color: var(--accent-color);
 	color: var(--strong-accent-color);
+}
+
+.icon-btn:active:not(:disabled) {
+	transform: scale(0.9);
+	background: var(--soft-accent-color);
+	border-color: var(--accent-color);
+	color: var(--strong-accent-color);
+}
+
+.icon-btn-love-it:active:not(:disabled) {
+	background: var(--strong-boost-color);
+	border-color: var(--strong-boost-color);
+	color: #fff;
+}
+
+.icon-btn-hate-it:active:not(:disabled) {
+	background: var(--strong-hate-color);
+	border-color: var(--strong-hate-color);
+	color: #fff;
 }
 
 .icon-btn-love-it:hover:not(:disabled) {
@@ -528,6 +557,10 @@
 
 	.activity-row-top {
 		display: contents;
+	}
+
+	.activity-row.is-compact .activity-row-top {
+		display: flex;
 	}
 
 	.activity-row-name-area {

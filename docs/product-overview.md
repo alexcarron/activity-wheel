@@ -75,6 +75,8 @@ Click-and-drag across the circular selector on the left of multiple rows to mult
 
 The compact-view toggle (the dense-lines icon next to sort) collapses each row to a single line and removes the list's height cap, so it can fill the whole viewport. It's meant for scanning and acting on a large activity list quickly rather than admiring one row at a time.
 
+Every change you make to an activity shows the instant you make it, and the save to storage or the server happens in the background. Saves for the same activity always run in the order you made them. If a background save ever fails, the app reloads that wheel from storage to get back in sync.
+
 ## Signing in (optional, cloud sync)
 
 By default your data lives entirely in this browser's IndexedDB and the app never makes a network call. Signing in with Google switches you over to a private Supabase-backed account instead, so your wheels follow you across browsers and devices. Every table is scoped to your account via Postgres row-level security, not by anything the frontend enforces.
@@ -97,11 +99,11 @@ Once unlocked, the shared wheel shows up as an extra tab next to your own wheels
 
 Because other people can be spinning, adding, or editing activities on the same shared wheel at the same time, changes show up live without needing to refresh. If someone else's change lands on the exact activity you're mid-edit-name on, or the activity you just spun and are looking at the result for, you'll see a brief "Wheel updated by another user" notice so the sudden change doesn't look like a bug. Any other change to the wheel just updates quietly. If two people change the same thing at the same time, whichever write reaches the database last wins.
 
-While a shared wheel is the active tab, Backup & restore only offers Export JSON. Import, Clear wheel, and Clear all wheels are hidden, since it isn't just your data to overwrite or wipe.
+While a shared wheel is the active tab, Backup and Restore only offers Export JSON. Import, Clear wheel, and Clear all wheels are hidden, since it isn't just your data to overwrite or wipe.
 
 ## Backup and restore
 
-Open the **Backup & restore** panel at the bottom of the page for:
+Open the **Backup and Restore** panel at the bottom of the page for:
 
 - **Export JSON**: downloads every wheel, activity, and tag as a single JSON file.
 - **Import JSON**: replaces *all* wheels with the contents of a file you pick, after a confirmation, since this is destructive.
@@ -152,6 +154,6 @@ The app is designed to work well on anything from a small phone to an ultrawide 
 5. Tag filter bar.
 6. Activities panel: add-activity field, search/sort/compact controls, the list itself.
 7. Debug panel (collapsed by default).
-8. Backup & restore (collapsed by default).
+8. Backup and Restore (collapsed by default).
 
 Styling is plain CSS, no framework, with theme variables in `src/index.css`, full dark-mode support via `prefers-color-scheme`, and each component's styling co-located in its own `.css` file next to it in `src/components/`.

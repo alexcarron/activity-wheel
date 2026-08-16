@@ -1,14 +1,13 @@
-/**
- * This custom React hook is the single source of truth for the activities belonging to a particular wheel id.
- * Signed-out users are backed by IndexedDB (local-only); signed-in users are backed by Supabase.
- */
-
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as localActivityService from '../services/activity-service';
 import { createCloudActivityService, type CloudActivityService } from '../services/cloud/activity-service';
 import { createSharedActivityService } from '../services/cloud/shared-activity-service';
+import { createBackgroundSaveQueue } from '../services/background-save-queue';
 import { useSharedWheelRealtimeSync, type SharedActivityChange } from './shared-wheel-realtime';
+import { applyFeedbackToActivity } from '../domain-logic/weight-logic/weight-feedback-response-logic';
+import { newActivity } from '../domain-logic/activity-logic/activity-factory';
 import type { Activity, FeedbackAction } from '../domain-logic/types';
+import { newID } from '../utils/id';
 import { toErrorMessage } from '../utils/error-message';
 
 interface UseActivitiesApi {
@@ -28,10 +27,8 @@ export function useActivities(
 	wheelId: string,
 	userID: string | null,
 	sharedWheelID: string | null,
-	/** Fires for every realtime change (shared wheels only), before it's merged into state. */
-	onRemoteActivityChange?: (change: SharedActivityChange) => void,
+	onActivityChangedRemotely?: (sharedActivityChange: SharedActivityChange) => void,
 ): UseActivitiesApi {
-	// Memoized separately from the owned-wheel backend so that userID changing (e.g. sign-out) while a shared wheel is active can't produce a new activityService/ensureTagsExist reference and retrigger the fetch effect below under a session that no longer has access.
 	const sharedActivityService = useMemo(() => createSharedActivityService(), []);
 	const ownedActivityService = useMemo(
 		() => (userID ? createCloudActivityService(userID) : localActivityService),
@@ -45,9 +42,24 @@ export function useActivities(
 	const isMounted = useRef(true);
 	const wheelRef = useRef(wheelId);
 
+	const latestActivitiesRef = useRef(activities);
+
+	const latestActivityServiceRef = useRef(activityService);
+
+	const backgroundSaveQueueRef = useRef(createBackgroundSaveQueue());
+	const backgroundSaveQueue = backgroundSaveQueueRef.current;
+
 	useEffect(() => {
 		wheelRef.current = wheelId;
 	}, [wheelId]);
+
+	useEffect(() => {
+		latestActivitiesRef.current = activities;
+	}, [activities]);
+
+	useEffect(() => {
+		latestActivityServiceRef.current = activityService;
+	}, [activityService]);
 
 	const reload = useCallback(async (): Promise<void> => {
 		try {
@@ -88,7 +100,7 @@ export function useActivities(
 	}, [wheelId, activityService]);
 
 	const applyRealtimeChange = useCallback((change: SharedActivityChange): void => {
-		onRemoteActivityChange?.(change);
+		onActivityChangedRemotely?.(change);
 		if (change.type === 'delete') {
 			setActivities((prev) => prev.filter((activity) => activity.id !== change.activityID));
 			return;
@@ -99,81 +111,96 @@ export function useActivities(
 				? prev.map((activity) => (activity.id === change.activity.id ? change.activity : activity))
 				: [...prev, change.activity];
 		});
-	}, [onRemoteActivityChange]);
+	}, [onActivityChangedRemotely]);
 	useSharedWheelRealtimeSync(sharedWheelID, applyRealtimeChange);
+
+	const saveInBackground = useCallback(
+		(activityID: string, saveTask: () => Promise<void>): void => {
+			const originatingWheelID = wheelRef.current;
+			const originatingActivityService = latestActivityServiceRef.current;
+			backgroundSaveQueue.addToQueue(activityID, async () => {
+				try {
+					await saveTask();
+				}
+				catch (error) {
+					if (!isMounted.current) return;
+					setError(toErrorMessage(error));
+					const isStillOnOriginatingWheelAndBackend =
+						wheelRef.current === originatingWheelID && latestActivityServiceRef.current === originatingActivityService;
+					if (isStillOnOriginatingWheelAndBackend) await reload();
+				}
+			});
+		},
+		[backgroundSaveQueue, reload],
+	);
 
 	const add = useCallback(
 		async (name: string): Promise<void> => {
-			try {
-				const activity = await activityService.addActivity(name, wheelRef.current);
-				setActivities((prev) => [...prev, activity]);
-			}
-			catch (error) {
-				setError(toErrorMessage(error));
-				throw error;
-			}
+			const trimmedName = name.trim();
+			if (trimmedName.length === 0) throw new Error('Activity name cannot be empty');
+			const activity = newActivity(newID(), trimmedName, Date.now(), wheelRef.current);
+			const nextActivities = [...latestActivitiesRef.current, activity];
+			latestActivitiesRef.current = nextActivities;
+			setActivities(nextActivities);
+			saveInBackground(activity.id, () => activityService.bulkPut([activity]));
 		},
-		[activityService],
+		[activityService, saveInBackground],
 	);
 
 	const rename = useCallback(
 		async (id: string, name: string): Promise<void> => {
-			try {
-				const updated = await activityService.renameActivity(id, name);
-				setActivities((prev) => prev.map((activity) => (activity.id === id ? updated : activity)));
-			}
-			catch (error) {
-				setError(toErrorMessage(error));
-				throw error;
-			}
+			const trimmedName = name.trim();
+			if (trimmedName.length === 0) throw new Error('Activity name cannot be empty');
+			const current = latestActivitiesRef.current.find((activity) => activity.id === id);
+			if (!current) return;
+			const nextActivity: Activity = { ...current, name: trimmedName };
+			const nextActivities = latestActivitiesRef.current.map((activity) => (activity.id === id ? nextActivity : activity));
+			latestActivitiesRef.current = nextActivities;
+			setActivities(nextActivities);
+			saveInBackground(id, () => activityService.bulkPut([nextActivity]));
 		},
-		[activityService],
+		[activityService, saveInBackground],
 	);
 
 	const remove = useCallback(
 		async (id: string): Promise<void> => {
-			try {
-				await activityService.deleteActivity(id);
-				setActivities((prev) => prev.filter((activity) => activity.id !== id));
-			}
-			catch (error) {
-				setError(toErrorMessage(error));
-				throw error;
-			}
+			const nextActivities = latestActivitiesRef.current.filter((activity) => activity.id !== id);
+			latestActivitiesRef.current = nextActivities;
+			setActivities(nextActivities);
+			saveInBackground(id, () => activityService.deleteActivity(id));
 		},
-		[activityService],
+		[activityService, saveInBackground],
 	);
 
 	const updateTags = useCallback(
 		async (id: string, tagIds: string[]): Promise<void> => {
-			try {
-				const updated = await activityService.updateActivityTagIDs(id, tagIds);
-				setActivities((prev) => prev.map((activity) => (activity.id === id ? updated : activity)));
-			}
-			catch (error) {
-				setError(toErrorMessage(error));
-				throw error;
-			}
+			const current = latestActivitiesRef.current.find((activity) => activity.id === id);
+			if (!current) return;
+			const nextActivity: Activity = { ...current, tagIds };
+			const nextActivities = latestActivitiesRef.current.map((activity) => (activity.id === id ? nextActivity : activity));
+			latestActivitiesRef.current = nextActivities;
+			setActivities(nextActivities);
+			saveInBackground(id, () => activityService.bulkPut([nextActivity]));
 		},
-		[activityService],
+		[activityService, saveInBackground],
 	);
 
 	const applyFeedback = useCallback(
 		async (id: string, action: FeedbackAction): Promise<void> => {
-			try {
-				const updatedActivities = await activityService.recordFeedback(id, action);
-				setActivities((prev) => prev.map((activity) => (activity.id === id ? updatedActivities : activity)));
-			}
-			catch (error) {
-				setError(toErrorMessage(error));
-				throw error;
-			}
+			const current = latestActivitiesRef.current.find((activity) => activity.id === id);
+			if (!current) return;
+			const nextActivity = applyFeedbackToActivity(current, action, Date.now());
+			const nextActivities = latestActivitiesRef.current.map((activity) => (activity.id === id ? nextActivity : activity));
+			latestActivitiesRef.current = nextActivities;
+			setActivities(nextActivities);
+			saveInBackground(id, () => activityService.bulkPut([nextActivity]));
 		},
-		[activityService],
+		[activityService, saveInBackground],
 	);
 
 	const clearEverything = useCallback(async (): Promise<void> => {
 		await activityService.clearWheelActivities(wheelRef.current);
+		latestActivitiesRef.current = [];
 		setActivities([]);
 	}, [activityService]);
 
@@ -204,4 +231,3 @@ export function useActivities(
 		],
 	);
 }
-

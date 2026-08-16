@@ -406,14 +406,8 @@ function ActivityRowComponent({
 	);
 
 	const handleFeedback = useCallback(
-		async (action: FeedbackAction): Promise<void> => {
-			setBusy(true);
-			try {
-				await onFeedback(activity.id, action);
-			}
-			finally {
-				setBusy(false);
-			}
+		(action: FeedbackAction): void => {
+			void onFeedback(activity.id, action);
 		},
 		[activity.id, onFeedback],
 	);
@@ -506,34 +500,69 @@ function ActivityRowComponent({
 				</div>
 				<div className={`activity-row-body`}>
 					<div className="activity-row-top">
-						<div className={`activity-row-compact-fields${isEditingName ? ' is-editing' : ''}`}>
-							{isEditingName ? (
-								<input
-									ref={inputRef}
-									type="text"
-									className="activity-row-edit"
-									value={draft}
-									onChange={(event) => setDraft(event.target.value)}
-									onKeyDown={onKey}
-									onBlur={() => void commit()}
-									disabled={busy}
-									maxLength={120}
-								/>
-							) : (
-								<button
-									type="button"
-									className="activity-row-name"
-									onClick={() => {
-										if (!isSelectMode) startEditing();
-									}}
-									title={isSelectMode ? undefined : 'Click to rename'}
-								>
-									{activity.name}
-								</button>
-							)}
-							{!isEditingName && isShowingDateAdded && (
-								<span className="activity-row-compact-date" title={`Added ${formatDate(activity.createdAt)}`}>
-									{formatCompactDate(activity.createdAt, now)}
+						<div className="activity-row-compact-primary">
+							<div className={`activity-row-compact-fields${isEditingName ? ' is-editing' : ''}`}>
+								{isEditingName ? (
+									<input
+										ref={inputRef}
+										type="text"
+										className="activity-row-edit"
+										value={draft}
+										onChange={(event) => setDraft(event.target.value)}
+										onKeyDown={onKey}
+										onBlur={() => void commit()}
+										disabled={busy}
+										maxLength={120}
+									/>
+								) : (
+									<button
+										type="button"
+										className="activity-row-name"
+										onClick={() => {
+											if (!isSelectMode) startEditing();
+										}}
+										title={isSelectMode ? undefined : 'Click to rename'}
+									>
+										{activity.name}
+									</button>
+								)}
+								{!isEditingName && isShowingDateAdded && (
+									<span className="activity-row-compact-date" title={`Added ${formatDate(activity.createdAt)}`}>
+										{formatCompactDate(activity.createdAt, now)}
+									</span>
+								)}
+							</div>
+							{!isEditingName &&
+								(isShowingTags ? (
+									<div className="activity-row-compact-tags">
+										{tagIds.map((tagID) => {
+											const tagMetadata = allTagMetadata.find((tag) => tag.id === tagID);
+											if (!tagMetadata) return null;
+											return (
+												<TagPill
+													key={tagID}
+													name={tagMetadata.name}
+													color={tagMetadata.color}
+													count={tagCounts.get(tagID) ?? 1}
+													onRemove={() => void handleRemoveTag(tagID)}
+													onSetColor={(color) => void handleSetTagColor(tagID, color)}
+													onRename={(newName) => handleRenameTag(tagID, newName)}
+													onDelete={() => handleDeleteTag(tagID)}
+												/>
+											);
+										})}
+										<AddTagCombobox
+											activityTagIDs={tagIds}
+											allTagMetadata={allTagMetadata}
+											onAdd={(name) => void handleAddTag(name)}
+										/>
+									</div>
+								) : (
+									<span className="activity-row-compact-spacer" />
+								))}
+							{hasVisibleDebugPills && (
+								<span className="activity-row-pills">
+									<DebugValuePills values={debugValues} ranges={debugRanges} visibility={debugValuePillKeyToIsVisible} />
 								</span>
 							)}
 						</div>
@@ -541,8 +570,7 @@ function ActivityRowComponent({
 							<button
 								type="button"
 								className="icon-btn icon-btn-love-it"
-								onClick={() => void handleFeedback('boost')}
-								disabled={busy}
+								onClick={() => handleFeedback('boost')}
 								title="Love It! (big weight boost)"
 								aria-label="Love It!"
 							>
@@ -551,8 +579,7 @@ function ActivityRowComponent({
 							<button
 								type="button"
 								className="icon-btn"
-								onClick={() => void handleFeedback('accept')}
-								disabled={busy}
+								onClick={() => handleFeedback('accept')}
 								title="Increase enjoyment"
 								aria-label="Increase enjoyment"
 							>
@@ -561,8 +588,7 @@ function ActivityRowComponent({
 							<button
 								type="button"
 								className="icon-btn"
-								onClick={() => void handleFeedback('reject')}
-								disabled={busy}
+								onClick={() => handleFeedback('reject')}
 								title="Decrease enjoyment"
 								aria-label="Decrease enjoyment"
 							>
@@ -571,8 +597,7 @@ function ActivityRowComponent({
 							<button
 								type="button"
 								className="icon-btn icon-btn-hate-it"
-								onClick={() => void handleFeedback('hate')}
-								disabled={busy}
+								onClick={() => handleFeedback('hate')}
 								title="Hate It! (big weight penalty)"
 								aria-label="Hate It!"
 							>
@@ -581,39 +606,6 @@ function ActivityRowComponent({
 							<DeleteButton onClick={() => void handleDelete()} disabled={busy} />
 						</div>
 					</div>
-					{!isEditingName &&
-						(isShowingTags ? (
-							<div className="activity-row-compact-tags">
-								{tagIds.map((tagID) => {
-									const tagMetadata = allTagMetadata.find((tag) => tag.id === tagID);
-									if (!tagMetadata) return null;
-									return (
-										<TagPill
-											key={tagID}
-											name={tagMetadata.name}
-											color={tagMetadata.color}
-											count={tagCounts.get(tagID) ?? 1}
-											onRemove={() => void handleRemoveTag(tagID)}
-											onSetColor={(color) => void handleSetTagColor(tagID, color)}
-											onRename={(newName) => handleRenameTag(tagID, newName)}
-											onDelete={() => handleDeleteTag(tagID)}
-										/>
-									);
-								})}
-								<AddTagCombobox
-									activityTagIDs={tagIds}
-									allTagMetadata={allTagMetadata}
-									onAdd={(name) => void handleAddTag(name)}
-								/>
-							</div>
-						) : (
-							<span className="activity-row-compact-spacer" />
-						))}
-					{hasVisibleDebugPills && (
-						<span className="activity-row-pills">
-							<DebugValuePills values={debugValues} ranges={debugRanges} visibility={debugValuePillKeyToIsVisible} />
-						</span>
-					)}
 				</div>
 			</li>
 		);
@@ -704,8 +696,7 @@ function ActivityRowComponent({
 						<button
 							type="button"
 							className="icon-btn icon-btn-love-it"
-							onClick={() => void handleFeedback('boost')}
-							disabled={busy}
+							onClick={() => handleFeedback('boost')}
 							title="Love It! (big weight boost)"
 							aria-label="Love It! (big weight boost)"
 						>
@@ -714,8 +705,7 @@ function ActivityRowComponent({
 						<button
 							type="button"
 							className="icon-btn"
-							onClick={() => void handleFeedback('accept')}
-							disabled={busy}
+							onClick={() => handleFeedback('accept')}
 							title="Increase enjoyment"
 							aria-label="Increase enjoyment"
 						>
@@ -724,8 +714,7 @@ function ActivityRowComponent({
 						<button
 							type="button"
 							className="icon-btn"
-							onClick={() => void handleFeedback('reject')}
-							disabled={busy}
+							onClick={() => handleFeedback('reject')}
 							title="Decrease enjoyment"
 							aria-label="Decrease enjoyment"
 						>
@@ -734,8 +723,7 @@ function ActivityRowComponent({
 						<button
 							type="button"
 							className="icon-btn icon-btn-hate-it"
-							onClick={() => void handleFeedback('hate')}
-							disabled={busy}
+							onClick={() => handleFeedback('hate')}
 							title="Hate It! (big weight penalty)"
 							aria-label="Hate It!"
 						>
