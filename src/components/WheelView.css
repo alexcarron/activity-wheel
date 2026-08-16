@@ -1,6 +1,6 @@
 .wheel-view {
 	position: relative;
-	background: var(--bg-elev);
+	background: var(--elevated-background-color);
 	border-radius: var(--radius);
 	padding: 28px 20px;
 	box-shadow: var(--shadow);
@@ -21,10 +21,10 @@
 	justify-content: center;
 	border: none;
 	border-radius: 50%;
-	background: var(--bg-soft);
+	background: var(--soft-background-color);
 	box-shadow: var(--shadow);
 	cursor: pointer;
-	color: var(--text);
+	color: var(--text-color);
 	opacity: 0.55;
 	transition:
 		opacity 0.15s,
@@ -37,7 +37,7 @@
 
 .wheel-pin-btn.is-active {
 	opacity: 1;
-	background: var(--accent);
+	background: var(--accent-color);
 	transform: rotate(-35deg);
 }
 
@@ -53,7 +53,7 @@
 .wheel-empty,
 .wheel-spinning {
 	margin: 0;
-	color: var(--text-soft);
+	color: var(--soft-text-color);
 	font-size: 0.9375rem;
 }
 

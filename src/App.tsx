@@ -292,9 +292,9 @@ function App() {
 								spreadFactor={debug.spreadFactor}
 								tagFilterActive={filterOn}
 								allTagMetadata={tagFilter.tagMetadata}
-								wheelPinned={wheelPinned}
-								lockedActualWeightByActivityID={lockedActualWeights.lockedActualWeightByActivityID}
-								sizeWheelByActualCurrentWeights={debug.sizeWheelByActualCurrentWeights}
+								isWheelPinned={wheelPinned}
+								activityIDToLockedActualWeight={lockedActualWeights.lockedActualWeightByActivityID}
+								shouldSizeWheelByActualCurrentWeights={debug.sizeWheelByActualCurrentWeights}
 								onSpun={lockedActualWeights.reroll}
 								onToggleWheelPinned={() => setWheelPinned((wasPinned) => !wasPinned)}
 								onClearTagFilter={tagFilter.clearFilter}

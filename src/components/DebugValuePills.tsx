@@ -1,11 +1,8 @@
 import type { CSSProperties } from 'react';
-import { DEBUG_VALUE_PILLS, type DebugValuePillKey } from './debug-value-pills';
+import { DEBUG_VALUE_PILLS, type DebugValuePillKey, type DebugValuePillRange } from './debug-value-pills';
 
-/** Returns a pill that is filled like a bar chart from red at the lowest values, through orange-yellow in the middle, to green at the highest values. */
-function getBarPillStyle(value: number, min: number, max: number): CSSProperties {
-	const range = max - min;
-	const normalizedPosition = range === 0 ? 1 : Math.max(0, Math.min(1, (value - min) / range));
-
+/** Returns a pill style filled like a bar chart from red at normalizedPosition 0, through orange-yellow at 0.5, to green at 1. */
+function getBarPillStyle(normalizedPosition: number): CSSProperties {
 	let red: number, green: number, blue: number;
 	if (normalizedPosition <= 0.5) {
 		const blendRatio = normalizedPosition * 2;
@@ -25,7 +22,7 @@ function getBarPillStyle(value: number, min: number, max: number): CSSProperties
 	const borderColor = `rgb(${red}, ${green}, ${blue})`;
 
 	return {
-		background: `linear-gradient(to right, ${fillColor} ${fillPercent}%, var(--bg-soft) ${fillPercent}%)`,
+		background: `linear-gradient(to right, ${fillColor} ${fillPercent}%, var(--soft-background-color) ${fillPercent}%)`,
 		borderColor,
 	};
 }
@@ -36,7 +33,7 @@ export function DebugValuePills({
 	visibility,
 }: {
 	values: Record<DebugValuePillKey, number> | null;
-	ranges: Record<DebugValuePillKey, { min: number; max: number }>;
+	ranges: Record<DebugValuePillKey, DebugValuePillRange>;
 	visibility: Record<DebugValuePillKey, boolean>;
 }) {
 	if (!values) return null;
@@ -47,11 +44,12 @@ export function DebugValuePills({
 			{visiblePills.map((pill) => {
 				const value = values[pill.key];
 				const range = ranges[pill.key] ?? { min: 0, max: 1 };
+				const normalizedPosition = pill.getNormalizedFillPosition(value, range);
 				return (
 					<span
 						key={pill.key}
 						className="meta-pill"
-						style={getBarPillStyle(value, range.min, range.max)}
+						style={getBarPillStyle(normalizedPosition)}
 						title={pill.pillTooltip}
 					>
 						{pill.pillLabel} {pill.format(value)}

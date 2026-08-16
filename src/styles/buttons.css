@@ -6,8 +6,8 @@
 	padding: 10px 17px;
 	border-radius: var(--radius-sm);
 	border: none;
-	background: var(--bg-soft);
-	color: var(--text);
+	background: var(--soft-background-color);
+	color: var(--text-color);
 	font-weight: 500;
 	font-size: 0.875rem;
 	transition:
@@ -18,7 +18,7 @@
 }
 
 .btn:hover:not(:disabled) {
-	background: var(--accent-soft);
+	background: var(--soft-accent-color);
 }
 
 .btn:active:not(:disabled) {
@@ -30,11 +30,11 @@
 }
 
 .btn-primary {
-	background: var(--accent);
+	background: var(--accent-color);
 	color: #fff;
 }
 .btn-primary:hover:not(:disabled) {
-	background: var(--accent-strong);
+	background: var(--strong-accent-color);
 }
 
 .btn-large {
@@ -54,17 +54,17 @@
 }
 
 .btn-secondary {
-	background: var(--bg-soft);
-	border-color: var(--border);
+	background: var(--soft-background-color);
+	border-color: var(--border-color);
 }
 .btn-secondary:hover:not(:disabled) {
-	background: var(--bg-elev);
-	border-color: var(--border-strong);
+	background: var(--elevated-background-color);
+	border-color: var(--strong-border-color);
 }
 
 .btn-ghost {
 	background: transparent;
-	border-color: var(--border);
+	border-color: var(--border-color);
 }
 
 .btn-small {
@@ -73,48 +73,48 @@
 }
 
 .btn-love-it {
-	background: var(--boost);
+	background: var(--boost-color);
 	color: #fff;
 }
 .btn-love-it:hover:not(:disabled) {
-	background: var(--boost-strong);
+	background: var(--strong-boost-color);
 }
 
 .btn-accept {
-	background: var(--good);
+	background: var(--good-color);
 	color: #fff;
 }
 .btn-accept:hover:not(:disabled) {
-	background: var(--good-strong);
+	background: var(--strong-good-color);
 }
 
 .btn-reject {
-	background: var(--warn);
+	background: var(--warning-color);
 	color: #fff;
 }
 .btn-reject:hover:not(:disabled) {
-	background: var(--warn-strong);
+	background: var(--strong-warning-color);
 }
 
 .btn-hate-it {
-	background: var(--hate);
+	background: var(--hate-color);
 	color: #fff;
 }
 .btn-hate-it:hover:not(:disabled) {
-	background: var(--hate-strong);
+	background: var(--strong-hate-color);
 }
 
 .btn-skip {
-	background: var(--bg-soft);
-	border-color: var(--border);
+	background: var(--soft-background-color);
+	border-color: var(--border-color);
 }
 
 .btn-danger {
 	background: transparent;
-	border-color: var(--warn);
-	color: var(--warn);
+	border-color: var(--warning-color);
+	color: var(--warning-color);
 }
 .btn-danger:hover:not(:disabled) {
-	background: var(--warn);
+	background: var(--warning-color);
 	color: #fff;
 }

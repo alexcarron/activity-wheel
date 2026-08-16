@@ -1,0 +1,29 @@
+.icon-toggle-button {
+	height: calc(0.875rem * 1.45 + 14px);
+	aspect-ratio: 1;
+	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: var(--radius-sm);
+	border: none;
+	background: var(--background-color);
+	color: var(--text-color);
+	transition:
+		background 120ms ease,
+		color 120ms ease;
+}
+
+.icon-toggle-button:hover:not(:disabled) {
+	background: var(--soft-accent-color);
+}
+
+.icon-toggle-button.is-active {
+	background: var(--soft-accent-color);
+	color: var(--strong-accent-color);
+}
+
+.icon-toggle-button.is-active:hover:not(:disabled) {
+	background: var(--soft-accent-color);
+	color: var(--strong-accent-color);
+}

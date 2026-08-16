@@ -1,9 +1,3 @@
-/**
- * Canvas-based wheel. Why canvas, not SVG: drawing 200 SVG `<path>` slices + labels chews through layout per frame and forces React/the DOM to do work that's irrelevant to a simple rotation, and with a single canvas we draw once and just CSS-transform the element.
- * What this component does NOT do: pick the activity. It is given the target rotation (via `targetRotationDeg` when `animating` flips on) and animates to it.
- * Animation runs in requestAnimationFrame and writes `transform` directly to the DOM so React doesn't re-render every frame. 
- */
-
 import { memo, useEffect, useRef, useState } from 'react';
 import type { Activity } from '../domain-logic/types';
 import { SPIN_TIMING } from '../hooks/wheel/useWheel';
@@ -19,20 +13,13 @@ interface WheelProps {
 	readonly targetRotationDeg: number;
 	/** True between spin click and animation end. */
 	readonly animating: boolean;
-	/** Called when the rAF loop reaches t = 1. */
 	readonly onComplete: () => void;
 	readonly size?: number;
 }
 
-// Interpolates from red (low value) to green (high value) in HSL space.
-// Matches the warn/good semantic colors used elsewhere in the UI:
-//   low  → hsl(0,  68%, 42%)  ≈ --warn   (#C83A3A)
-//   high → hsl(145, 87%, 36%) ≈ --boost  (#06b354)
-// When all values are equal, falls back to a neutral teal.
 function sliceColor(value: number, minValue: number, maxValue: number): string {
 	if (maxValue <= minValue) return '#0AA6B5';
 	const linear = (value - minValue) / (maxValue - minValue);
-	// Power curve < 1 expands the low end so small differences among low-value activities produce visually distinct hues, while high-value activities compress toward green.
 	const curved = Math.pow(linear, 0.55);
 	const hue = Math.round(curved * 145);
 	const saturation = Math.round(68 + curved * 19);
@@ -93,7 +80,6 @@ function drawWheel({
 		return;
 	}
 
-	// Compute arc for each slice. Fall back to equal slices if the probabilities are missing, mismatched, or sum to zero.
 	const totalProbability =
 		sliceProbabilities.length === activities.length ? sliceProbabilities.reduce((sum, probability) => sum + probability, 0) : 0;
 	const arcs: number[] = activities.map((_, index) =>
@@ -103,9 +89,6 @@ function drawWheel({
 	const minProbability = sliceProbabilities.length > 0 ? Math.min(...sliceProbabilities) : 0;
 	const maxProbability = sliceProbabilities.length > 0 ? Math.max(...sliceProbabilities) : 0;
 
-	// Slice 0's LEFT EDGE starts at -π/2 (12 o'clock, top of wheel). This keeps the spin-formula's sliceCenterFromTop consistent, matching useWheel.ts.
-
-	// First pass. Fill slices.
 	let angle = -Math.PI / 2;
 	for (let i = 0; i < activities.length; i++) {
 		const start = angle;
@@ -181,7 +164,6 @@ function WheelComponent(props: WheelProps) {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const rotorRef = useRef<HTMLDivElement>(null);
 
-	// Measures the CSS-driven `.wheel-size-wrap` box so the canvas's imperative pixel buffer (set in drawWheel) can track it. min()/aspect-ratio in CSS picks the target size responsively; this just reads it back into JS.
 	useEffect(() => {
 		const wheelSizeWrap = wheelSizeWrapRef.current;
 		if (!wheelSizeWrap) return;
@@ -204,12 +186,10 @@ function WheelComponent(props: WheelProps) {
 		};
 	}, []);
 
-	// Redraw whenever the activities or their slice probabilities change.
 	useEffect(() => {
 		if (canvasRef.current) drawWheel({ canvas: canvasRef.current, activities, sliceProbabilities, pixelSize: size });
 	}, [activities, sliceProbabilities, size]);
 
-	// Animate when `animating` is true.
 	useEffect(() => {
 		const rotor = rotorRef.current;
 		if (!rotor) return;
@@ -240,9 +220,6 @@ function WheelComponent(props: WheelProps) {
 		};
 		animationFrameID = requestAnimationFrame(frame);
 		return () => cancelAnimationFrame(animationFrameID);
-		// We deliberately depend only on the `animating` flip. `currentRotation`
-		// and `targetRotation` are captured at the moment the spin begins.
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [animating]);
 
 	return (

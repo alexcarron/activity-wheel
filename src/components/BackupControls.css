@@ -1,5 +1,5 @@
 .backup {
-	background: var(--bg-elev);
+	background: var(--elevated-background-color);
 	border: none;
 	border-radius: var(--radius);
 	padding: 8px 14px;
@@ -9,7 +9,7 @@
 	cursor: pointer;
 	font-weight: 500;
 	font-size: 0.875rem;
-	color: var(--text-soft);
+	color: var(--soft-text-color);
 	padding: 6px 0;
 	user-select: none;
 }
@@ -23,7 +23,7 @@
 
 .backup-help {
 	font-size: 0.8125rem;
-	color: var(--text-soft);
+	color: var(--soft-text-color);
 	margin: 0;
 }
 
@@ -36,7 +36,7 @@
 .backup-status {
 	margin: 0;
 	font-size: 0.8125rem;
-	color: var(--text-soft);
+	color: var(--soft-text-color);
 }
 
 @media (max-width: 599px) {

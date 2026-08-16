@@ -8,8 +8,8 @@
 	padding: 10px 12px;
 	border-radius: var(--radius-sm);
 	border: none;
-	background: var(--bg);
-	color: var(--text);
+	background: var(--background-color);
+	color: var(--text-color);
 	font-size: 0.875rem;
 	transition:
 		border-color 120ms ease,
@@ -18,8 +18,8 @@
 
 .add-activity-input:focus {
 	outline: none;
-	border-color: var(--accent);
-	box-shadow: 0 0 0 3px var(--accent-soft);
+	border-color: var(--accent-color);
+	box-shadow: 0 0 0 3px var(--soft-accent-color);
 }
 
 @media (max-width: 599px) {

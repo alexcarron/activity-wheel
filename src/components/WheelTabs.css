@@ -20,20 +20,20 @@
 	display: flex;
 	align-items: center;
 	border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-	background: var(--bg-soft);
+	background: var(--soft-background-color);
 	border-bottom: none;
 	transition: background 120ms ease;
 	overflow: hidden;
 }
 
 .wheel-tab:hover {
-	background: var(--bg-elev);
+	background: var(--elevated-background-color);
 }
 
 .wheel-tab-active {
-	background: var(--bg-elev);
-	border-color: var(--border-strong);
-	border-bottom: 2px solid var(--accent);
+	background: var(--elevated-background-color);
+	border-color: var(--strong-border-color);
+	border-bottom: 2px solid var(--accent-color);
 	z-index: 1;
 }
 
@@ -46,7 +46,7 @@
 	border: none;
 	font-size: 0.875rem;
 	font-weight: 500;
-	color: var(--text-soft);
+	color: var(--soft-text-color);
 	cursor: pointer;
 	white-space: nowrap;
 	max-width: 180px;
@@ -55,12 +55,12 @@
 }
 
 .wheel-tab-active .wheel-tab-btn {
-	color: var(--text);
+	color: var(--text-color);
 	font-weight: 600;
 }
 
 .wheel-tab-btn:hover {
-	color: var(--text);
+	color: var(--text-color);
 }
 
 .wheel-tab-hotkeys {
@@ -80,7 +80,7 @@
 	border-radius: 50%;
 	border: none;
 	background: transparent;
-	color: var(--text-mute);
+	color: var(--muted-text-color);
 	font-size: 1rem;
 	line-height: 1;
 	cursor: pointer;
@@ -95,18 +95,18 @@
 }
 
 .wheel-tab-delete:hover {
-	background: rgba(var(--warn-rgb), 0.15);
-	color: var(--warn);
+	background: rgba(var(--warning-color-rgb), 0.15);
+	color: var(--warning-color);
 }
 
 .wheel-tab-rename-input {
 	padding: 6px 10px;
 	border: none;
-	border-bottom: 2px solid var(--accent);
+	border-bottom: 2px solid var(--accent-color);
 	background: transparent;
 	font-size: 0.875rem;
 	font-weight: 600;
-	color: var(--text);
+	color: var(--text-color);
 	outline: none;
 	min-width: 80px;
 	max-width: 180px;
@@ -118,10 +118,10 @@
 	justify-content: center;
 	padding: 8px 12px;
 	border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-	border: 1px dashed var(--border);
+	border: 1px dashed var(--border-color);
 	border-bottom: none;
 	background: transparent;
-	color: var(--text-mute);
+	color: var(--muted-text-color);
 	font-size: 1.125rem;
 	line-height: 1;
 	cursor: pointer;
@@ -132,9 +132,9 @@
 }
 
 .wheel-tab-add:hover {
-	color: var(--accent);
-	border-color: var(--accent);
-	background: var(--accent-soft);
+	color: var(--accent-color);
+	border-color: var(--accent-color);
+	background: var(--soft-accent-color);
 }
 
 .wheel-create-form {
@@ -143,8 +143,8 @@
 	align-items: center;
 	gap: 10px;
 	padding: 12px 16px;
-	background: var(--bg-elev);
-	border: 1px solid var(--border-strong);
+	background: var(--elevated-background-color);
+	border: 1px solid var(--strong-border-color);
 	border-radius: 0 var(--radius-sm) var(--radius-sm) var(--radius-sm);
 	box-shadow: var(--shadow);
 	animation: slideDown 120ms ease;
@@ -165,17 +165,17 @@
 	flex: 1;
 	min-width: 140px;
 	padding: 7px 10px;
-	border: 1px solid var(--border);
+	border: 1px solid var(--border-color);
 	border-radius: var(--radius-sm);
-	background: var(--bg);
+	background: var(--background-color);
 	font-size: 0.875rem;
-	color: var(--text);
+	color: var(--text-color);
 }
 
 .wheel-create-name:focus {
 	outline: none;
-	border-color: var(--accent);
-	box-shadow: 0 0 0 3px var(--accent-soft);
+	border-color: var(--accent-color);
+	box-shadow: 0 0 0 3px var(--soft-accent-color);
 }
 
 .wheel-create-label {
@@ -183,17 +183,17 @@
 	align-items: center;
 	gap: 6px;
 	font-size: 0.8125rem;
-	color: var(--text-soft);
+	color: var(--soft-text-color);
 	white-space: nowrap;
 }
 
 .wheel-create-select {
 	padding: 6px 8px;
 	border-radius: var(--radius-sm);
-	border: 1px solid var(--border);
-	background: var(--bg);
+	border: 1px solid var(--border-color);
+	background: var(--background-color);
 	font-size: 0.8125rem;
-	color: var(--text);
+	color: var(--text-color);
 }
 
 .wheel-create-reset {
@@ -201,7 +201,7 @@
 	align-items: center;
 	gap: 6px;
 	font-size: 0.8125rem;
-	color: var(--text-soft);
+	color: var(--soft-text-color);
 	cursor: pointer;
 }
 
@@ -213,7 +213,7 @@
 
 .wheel-tab-shared-icon {
 	margin-right: 4px;
-	color: var(--text-soft);
+	color: var(--soft-text-color);
 	vertical-align: -1px;
 }
 

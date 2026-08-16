@@ -47,7 +47,7 @@ export function AddActivity({ onAdd, mobileButtonContainer }: Props) {
 			<input
 				type="text"
 				className="add-activity-input"
-				placeholder="Add an activity (e.g. Play Celeste)"
+				placeholder="Add an activity (e.g. Play Minecraft)"
 				value={name}
 				onChange={(event) => setName(event.target.value)}
 				maxLength={120}

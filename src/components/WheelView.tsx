@@ -15,56 +15,27 @@ import type { SessionApi } from '../hooks/useSession';
 import { Wheel } from './Wheel';
 import { PostSpinActions } from './PostSpinActions';
 import { KbdHint } from './KbdHint';
+import { PinIcon } from './svg-icons/PinIcon';
 import './WheelView.css';
-
-/** Pin glyph used on the wheel-pin toggle button. */
-function PinIcon() {
-	return (
-		<svg
-			width="14"
-			height="14"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth="2"
-			strokeLinecap="round"
-			strokeLinejoin="round"
-			aria-hidden="true"
-			className="wheel-pin-icon"
-		>
-			<path d="M12 17v5" />
-			<path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
-		</svg>
-	);
-}
 
 interface Props {
 	readonly activities: readonly Activity[];
 	readonly session: SessionApi;
-	/** Optional seed string. Empty/undefined = real randomness. */
 	readonly rngSeed: string;
-	/** Debug-only: how much to exaggerate (>1) or compress (<1) differences between weights. 1 = unchanged. */
 	readonly spreadFactor: number;
-	/** True when a tag filter is currently restricting the activities. */
 	readonly tagFilterActive: boolean;
-	/** All known tag metadata. Passed through to PostSpinActions for the tag nudge. */
 	readonly allTagMetadata: readonly TagMetadata[];
-	/** Whether the wheel header is currently pinned while scrolling. */
-	readonly wheelPinned: boolean;
-	/** The locked-in actual current weight for each activity, used to pick the spin winner so it matches whatever the debug pills are showing. */
-	readonly lockedActualWeightByActivityID: Map<string, number>;
-	/** Debug-only: when true, the wheel's slices are sized by each activity's locked actual current weight instead of its estimated stable weight. */
-	readonly sizeWheelByActualCurrentWeights: boolean;
+	readonly isWheelPinned: boolean;
+	readonly activityIDToLockedActualWeight: Map<string, number>;
+	readonly shouldSizeWheelByActualCurrentWeights: boolean;
 	/** Called right after a spin is started, so a new random actual current weight gets picked for the next round. */
 	onSpun(): void;
 	onToggleWheelPinned(): void;
-	/** Called by the empty-state "clear filter" button. */
 	onClearTagFilter(): void;
 	onFeedback(id: string, action: FeedbackAction): Promise<void>;
 	onRename(id: string, name: string): Promise<void>;
-	/** Called when user adds a tag from the post-spin "Add a tag?" prompt. */
 	onAddTagToActivity(activityID: string, tagName: string): Promise<void>;
-	/** Called whenever the currently-landed-on activity id changes (null when not landed). Used to detect confusing remote changes to a shared wheel's in-progress spin. */
+	/** Called whenever the currently-landed-on activity id changes. Used to detect confusing remote changes to a shared wheel's in-progress spin. */
 	onLandedActivityIDChange?(id: string | null): void;
 }
 
@@ -75,9 +46,9 @@ export function WheelView({
 	spreadFactor,
 	tagFilterActive,
 	allTagMetadata,
-	wheelPinned,
-	lockedActualWeightByActivityID,
-	sizeWheelByActualCurrentWeights,
+	isWheelPinned: wheelPinned,
+	activityIDToLockedActualWeight: lockedActualWeightByActivityID,
+	shouldSizeWheelByActualCurrentWeights: sizeWheelByActualCurrentWeights,
 	onSpun,
 	onToggleWheelPinned,
 	onClearTagFilter,
@@ -228,7 +199,7 @@ export function WheelView({
 				aria-label={wheelPinned ? 'Unpin wheel' : 'Pin wheel'}
 				aria-pressed={wheelPinned}
 			>
-				<PinIcon />
+				<PinIcon isFilled={wheelPinned} />
 			</button>
 
 			<Wheel

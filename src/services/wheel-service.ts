@@ -3,28 +3,27 @@ import type { Activity, TagMetadata, Wheel } from '../domain-logic/types';
 import { db } from './activity-service';
 import { TAG_METADATA_STORE, WHEELS_STORE } from './schema';
 import { newID } from '../utils/id';
+import { LOCAL_STORAGE_KEYS, loadStringFromLocalStorage, saveStringToLocalStorage } from '../utils/local-storage';
 import { addActivity, bulkPut, clearWheelActivities, loadActivitiesOfWheel } from './activity-service';
 import { clearWheelTagMetadata, copyTagMetadata, listTagMetadata } from './tag-service';
 import { replayMigratedPreferenceEstimate } from '../domain-logic/weight-logic/migration-replay-logic';
 
 const wheelStore = (): TypedStore<Wheel> => db.store<Wheel>(WHEELS_STORE.name);
 
-export const ACTIVE_WHEEL_KEY = 'activeWheelId';
-
 function getActiveWheelStorageKey(scopeUserID?: string): string {
-	return scopeUserID ? `${ACTIVE_WHEEL_KEY}:${scopeUserID}` : ACTIVE_WHEEL_KEY;
+	return scopeUserID ? `${LOCAL_STORAGE_KEYS.activeWheelID}:${scopeUserID}` : LOCAL_STORAGE_KEYS.activeWheelID;
 }
 
 export function getStoredActiveWheelID(scopeUserID?: string): string {
-	const storedActiveWheelID = localStorage.getItem(getActiveWheelStorageKey(scopeUserID));
-	if (storedActiveWheelID && !(scopeUserID && storedActiveWheelID === 'default')) 
+	const storedActiveWheelID = loadStringFromLocalStorage(getActiveWheelStorageKey(scopeUserID));
+	if (storedActiveWheelID && !(scopeUserID && storedActiveWheelID === 'default'))
 		return storedActiveWheelID;
 
 	return scopeUserID ? '' : 'default';
 }
 
 export function persistActiveWheelID(id: string, scopeUserID?: string): void {
-	localStorage.setItem(getActiveWheelStorageKey(scopeUserID), id);
+	saveStringToLocalStorage(getActiveWheelStorageKey(scopeUserID), id);
 }
 
 export async function getWheelsInOrder(): Promise<Wheel[]> {

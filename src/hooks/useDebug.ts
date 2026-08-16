@@ -15,8 +15,7 @@ import {
 	DEBUG_VALUE_PILL_KEYS,
 	type DebugValuePillKey,
 } from '../components/debug-value-pills';
-
-const KEY = 'activity-wheel.debug';
+import { LOCAL_STORAGE_KEYS, loadJSONFromLocalStorage, saveJSONToLocalStorage } from '../utils/local-storage';
 
 export interface DebugState {
 	/** Which debug value pills are currently shown on each activity row. */
@@ -30,14 +29,6 @@ export interface DebugState {
 	/** When true, the wheel sizes its slices by each activity's locked actual current weight instead of its estimated stable weight. */
 	sizeWheelByActualCurrentWeights: boolean;
 }
-
-const DEFAULT: DebugState = {
-	debugValuePillKeyToIsVisible: createHiddenDebugValuePillKeyToIsVisible(),
-	rngSeed: '',
-	spreadFactor: DEFAULT_SPREAD_FACTOR,
-	allowExtremeSpread: false,
-	sizeWheelByActualCurrentWeights: false,
-};
 
 function maxSpreadFactorFor(allowExtremeSpread: boolean): number {
 	return allowExtremeSpread ? MAXIMUM_SPREAD_FACTOR_WHEN_EXTREME_ENABLED : MAXIMUM_SPREAD_FACTOR;
@@ -57,25 +48,18 @@ function readDebugValuePillKeyToIsVisible(parsed: Partial<DebugState>): Record<D
 }
 
 function read(): DebugState {
-	try {
-		const raw = localStorage.getItem(KEY);
-		if (!raw) return DEFAULT;
-		const parsed = JSON.parse(raw) as Partial<DebugState>;
-		const allowExtremeSpread = !!parsed.allowExtremeSpread;
-		return {
-			debugValuePillKeyToIsVisible: readDebugValuePillKeyToIsVisible(parsed),
-			rngSeed: typeof parsed.rngSeed === 'string' ? parsed.rngSeed : '',
-			spreadFactor:
-				typeof parsed.spreadFactor === 'number'
-					? clampSpreadFactor(parsed.spreadFactor, allowExtremeSpread)
-					: DEFAULT_SPREAD_FACTOR,
-			allowExtremeSpread,
-			sizeWheelByActualCurrentWeights: !!parsed.sizeWheelByActualCurrentWeights,
-		};
-	}
-	catch {
-		return DEFAULT;
-	}
+	const parsed = loadJSONFromLocalStorage<Partial<DebugState>>(LOCAL_STORAGE_KEYS.debugState, {});
+	const allowExtremeSpread = !!parsed.allowExtremeSpread;
+	return {
+		debugValuePillKeyToIsVisible: readDebugValuePillKeyToIsVisible(parsed),
+		rngSeed: typeof parsed.rngSeed === 'string' ? parsed.rngSeed : '',
+		spreadFactor:
+			typeof parsed.spreadFactor === 'number'
+				? clampSpreadFactor(parsed.spreadFactor, allowExtremeSpread)
+				: DEFAULT_SPREAD_FACTOR,
+		allowExtremeSpread,
+		sizeWheelByActualCurrentWeights: !!parsed.sizeWheelByActualCurrentWeights,
+	};
 }
 
 export interface UseDebugApi extends DebugState {
@@ -90,12 +74,7 @@ export function useDebug(): UseDebugApi {
 	const [state, setState] = useState<DebugState>(() => read());
 
 	useEffect(() => {
-		try {
-			localStorage.setItem(KEY, JSON.stringify(state));
-		}
-		catch {
-			// Ignore quota errors. Debug mode is non-critical.
-		}
+		saveJSONToLocalStorage(LOCAL_STORAGE_KEYS.debugState, state);
 	}, [state]);
 
 	const setValuePillVisible = useCallback(

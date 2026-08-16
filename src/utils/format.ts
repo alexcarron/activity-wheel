@@ -8,6 +8,16 @@ export function formatDate(timestamp: number): string {
 	});
 }
 
+/**
+ * Formats a date as M/D, or M/D/YY when its year differs from the current year.
+ */
+export function formatCompactDate(timestamp: number, now: number): string {
+	const date = new Date(timestamp);
+	const monthAndDay = `${date.getMonth() + 1}/${date.getDate()}`;
+	if (date.getFullYear() === new Date(now).getFullYear()) return monthAndDay;
+	return `${monthAndDay}/${String(date.getFullYear()).slice(-2)}`;
+}
+
 export function formatPercent(probability: number): string {
 	if (!isFinite(probability)) return '-';
 	return `${(probability * 100).toFixed(1)}%`;

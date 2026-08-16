@@ -15,7 +15,13 @@ import { getDecayedPreferenceScoreConfidence } from '../domain-logic/weight-logi
 import { defaultRng } from '../utils/random-utils';
 import { useNow } from '../hooks/useNow';
 import { ActivityRow, AddTagCombobox } from './ActivityRow';
-import { DEBUG_VALUE_PILL_KEYS, type DebugValuePillKey } from './debug-value-pills';
+import { DEBUG_VALUE_PILL_KEYS, type DebugValuePillKey, type DebugValuePillRange } from './debug-value-pills';
+import { LOCAL_STORAGE_KEYS, loadJSONFromLocalStorage, saveJSONToLocalStorage } from '../utils/local-storage';
+import { IconToggleButton } from './IconToggleButton';
+import { SortDirectionIcon } from './svg-icons/SortDirectionIcon';
+import { TagIcon } from './svg-icons/TagIcon';
+import { CalendarIcon } from './svg-icons/CalendarIcon';
+import { CompactModeIcon } from './svg-icons/CompactModeIcon';
 import './ActivityList.css';
 
 interface ActivityListProps {
@@ -75,6 +81,20 @@ export function ActivityList(props: ActivityListProps) {
 	const [sortKey, setSortKey] = useState<SortKey>('createdAt');
 	const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 	const [compactMode, setCompactMode] = useState(false);
+	const [isShowingTags, setIsShowingTags] = useState(() =>
+		loadJSONFromLocalStorage(LOCAL_STORAGE_KEYS.showTags, true),
+	);
+	const [isShowingDateAdded, setIsShowingDateAdded] = useState(() =>
+		loadJSONFromLocalStorage(LOCAL_STORAGE_KEYS.showDateAdded, true),
+	);
+
+	useEffect(() => {
+		saveJSONToLocalStorage(LOCAL_STORAGE_KEYS.showTags, isShowingTags);
+	}, [isShowingTags]);
+
+	useEffect(() => {
+		saveJSONToLocalStorage(LOCAL_STORAGE_KEYS.showDateAdded, isShowingDateAdded);
+	}, [isShowingDateAdded]);
 
 	const [selectedIDs, setSelectedIDs] = useState<Set<string>>(new Set());
 	const isDragging = useRef(false);
@@ -117,7 +137,7 @@ export function ActivityList(props: ActivityListProps) {
 
 	const { debugValuesByActivityID, debugRangesByKey } = useMemo(() => {
 		const valuesByActivityID = new Map<string, Record<DebugValuePillKey, number>>();
-		const emptyRanges = {} as Record<DebugValuePillKey, { min: number; max: number }>;
+		const emptyRanges = {} as Record<DebugValuePillKey, DebugValuePillRange>;
 		for (const key of DEBUG_VALUE_PILL_KEYS) emptyRanges[key] = { min: 0, max: 1 };
 		if (!isAnyDebugPillVisible || activities.length === 0) {
 			return { debugValuesByActivityID: valuesByActivityID, debugRangesByKey: emptyRanges };
@@ -144,7 +164,7 @@ export function ActivityList(props: ActivityListProps) {
 			});
 		});
 
-		const rangesByKey = {} as Record<DebugValuePillKey, { min: number; max: number }>;
+		const rangesByKey = {} as Record<DebugValuePillKey, DebugValuePillRange>;
 		for (const key of DEBUG_VALUE_PILL_KEYS) {
 			let min = Infinity;
 			let max = -Infinity;
@@ -268,103 +288,36 @@ export function ActivityList(props: ActivityListProps) {
 								</option>
 							))}
 						</select>
-						<button
-							type="button"
-							className="btn btn-ghost btn-small"
-							onClick={toggleSortDirection}
+						<IconToggleButton
 							title={sortDirection === 'asc' ? 'Ascending' : 'Descending'}
+							onClick={toggleSortDirection}
 						>
-							{sortDirection === 'asc' ? '↑' : '↓'}
-						</button>
+							<SortDirectionIcon sortDirection={sortDirection} />
+						</IconToggleButton>
 					</div>
-					<button
-						type="button"
-						className={`btn btn-ghost btn-small btn-icon-only${compactMode ? ' btn-compact-active' : ''}`}
-						onClick={() => setCompactMode((wasCompact) => !wasCompact)}
-						title={compactMode ? 'Switch to normal view' : 'Switch to compact view'}
-						aria-pressed={compactMode}
-						aria-label={compactMode ? 'Switch to normal view' : 'Switch to compact view'}
-					>
-						{compactMode ? (
-							<svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-								<line
-									x1="1"
-									y1="2.5"
-									x2="13"
-									y2="2.5"
-									stroke="currentColor"
-									strokeWidth="1.8"
-									strokeLinecap="round"
-								/>
-								<line
-									x1="1"
-									y1="7"
-									x2="13"
-									y2="7"
-									stroke="currentColor"
-									strokeWidth="1.8"
-									strokeLinecap="round"
-								/>
-								<line
-									x1="1"
-									y1="11.5"
-									x2="13"
-									y2="11.5"
-									stroke="currentColor"
-									strokeWidth="1.8"
-									strokeLinecap="round"
-								/>
-							</svg>
-						) : (
-							<svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-								<line
-									x1="1"
-									y1="1.5"
-									x2="13"
-									y2="1.5"
-									stroke="currentColor"
-									strokeWidth="1.3"
-									strokeLinecap="round"
-								/>
-								<line
-									x1="1"
-									y1="4"
-									x2="13"
-									y2="4"
-									stroke="currentColor"
-									strokeWidth="1.3"
-									strokeLinecap="round"
-								/>
-								<line
-									x1="1"
-									y1="6.5"
-									x2="13"
-									y2="6.5"
-									stroke="currentColor"
-									strokeWidth="1.3"
-									strokeLinecap="round"
-								/>
-								<line
-									x1="1"
-									y1="9"
-									x2="13"
-									y2="9"
-									stroke="currentColor"
-									strokeWidth="1.3"
-									strokeLinecap="round"
-								/>
-								<line
-									x1="1"
-									y1="11.5"
-									x2="13"
-									y2="11.5"
-									stroke="currentColor"
-									strokeWidth="1.3"
-									strokeLinecap="round"
-								/>
-							</svg>
-						)}
-					</button>
+					<div className="activity-list-toggle-group">
+						<IconToggleButton
+							isActive={!isShowingTags}
+							title={isShowingTags ? 'Hide tags on activities' : 'Show tags on activities'}
+							onClick={() => setIsShowingTags((wasShowingTags) => !wasShowingTags)}
+						>
+							<TagIcon isCrossedOut={!isShowingTags} />
+						</IconToggleButton>
+						<IconToggleButton
+							isActive={!isShowingDateAdded}
+							title={isShowingDateAdded ? 'Hide date added on activities' : 'Show date added on activities'}
+							onClick={() => setIsShowingDateAdded((wasShowingDateAdded) => !wasShowingDateAdded)}
+						>
+							<CalendarIcon isCrossedOut={!isShowingDateAdded} />
+						</IconToggleButton>
+						<IconToggleButton
+							isActive={compactMode}
+							title={compactMode ? 'Switch to normal view' : 'Switch to compact view'}
+							onClick={() => setCompactMode((wasCompact) => !wasCompact)}
+						>
+							<CompactModeIcon isCompact={compactMode} />
+						</IconToggleButton>
+					</div>
 				</div>
 
 				{isSelectMode && (
@@ -411,6 +364,9 @@ export function ActivityList(props: ActivityListProps) {
 							allTagMetadata={allTagMetadata}
 							tagCounts={tagIDToCount}
 							isCompact={compactMode}
+							isShowingTags={isShowingTags}
+							isShowingDateAdded={isShowingDateAdded}
+							now={now}
 							isSelected={selectedIDs.has(activity.id)}
 							isSelectMode={isSelectMode}
 							onRename={onRename}

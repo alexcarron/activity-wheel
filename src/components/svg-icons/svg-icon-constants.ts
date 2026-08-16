@@ -1,0 +1,1 @@
+export const SVG_ICON_OUTLINE_STROKE_WIDTH = 1.5;

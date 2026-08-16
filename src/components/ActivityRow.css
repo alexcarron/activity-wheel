@@ -3,7 +3,7 @@
 	flex-direction: row;
 	align-items: stretch;
 	padding: 0;
-	background: var(--bg);
+	background: var(--background-color);
 	border: none;
 	border-radius: var(--radius-sm);
 	transition:
@@ -14,8 +14,8 @@
 }
 
 .activity-row.is-selected {
-	border-color: var(--accent);
-	background: var(--accent-soft);
+	border-color: var(--accent-color);
+	background: var(--soft-accent-color);
 }
 
 .activity-row-selector {
@@ -34,7 +34,7 @@
 	height: 16px;
 	border-radius: 50%;
 	border: 1.5px solid transparent;
-	border-color: var(--border-soft);
+	border-color: var(--soft-border-color);
 	background: transparent;
 	display: flex;
 	align-items: center;
@@ -48,18 +48,18 @@
 
 /* Show the circle outline on row hover */
 .activity-row:hover .activity-row-selector-circle {
-	border-color: var(--border-strong);
+	border-color: var(--strong-border-color);
 }
 
 /* In select mode, always show circle outlines */
 .activity-list-items.is-select-mode .activity-row-selector-circle {
-	border-color: var(--border-strong);
+	border-color: var(--strong-border-color);
 }
 
 /* Selected: filled accent circle */
 .activity-row.is-selected .activity-row-selector-circle {
-	background: var(--accent);
-	border-color: var(--accent);
+	background: var(--accent-color);
+	border-color: var(--accent-color);
 }
 
 .activity-row-body {
@@ -80,7 +80,7 @@
 
 .activity-row-name-area {
 	display: flex;
-	align-items: flex-start;
+	align-items: center;
 	gap: 6px;
 	row-gap: 4px;
 	flex-wrap: wrap;
@@ -88,11 +88,11 @@
 	min-width: 0;
 }
 
-/* display: contents flattens this into direct children of .activity-row-name-area, so the date and the pill group can each wrap onto their own line independently instead of wrapping together as one block */
-.activity-row-meta {
-	display: contents;
+.activity-row-date {
 	font-size: 0.75rem;
-	color: var(--text-mute);
+	color: var(--muted-text-color);
+	white-space: nowrap;
+	flex-shrink: 0;
 }
 
 .activity-row-feedback {
@@ -108,7 +108,7 @@
 	text-align: left;
 	font-size: 0.9375rem;
 	font-weight: 500;
-	color: var(--text);
+	color: var(--text-color);
 	display: inline-flex;
 	align-items: center;
 	gap: 8px;
@@ -121,7 +121,7 @@
 }
 
 .activity-row-name:hover {
-	color: var(--text-soft);
+	color: var(--soft-text-color);
 }
 
 .activity-row-edit {
@@ -129,28 +129,32 @@
 	min-width: 0;
 	padding: 5px 8px;
 	border-radius: var(--radius-sm);
-	border: 1px solid var(--accent);
-	background: var(--bg);
+	border: 1px solid var(--accent-color);
+	background: var(--background-color);
 	font-size: 0.875rem;
 	outline: none;
-	box-shadow: 0 0 0 3px var(--accent-soft);
+	box-shadow: 0 0 0 3px var(--soft-accent-color);
 }
 
 .meta-pill {
-	background: var(--bg-soft);
-	border: 1px solid var(--border);
+	background: var(--soft-background-color);
+	border: 1px solid var(--border-color);
 	padding: 1px 8px;
 	border-radius: 999px;
 	font-family: var(--mono);
 	font-size: 0.6875rem;
-	color: var(--text-soft);
+	color: var(--soft-text-color);
 	white-space: nowrap;
 	flex-shrink: 0;
 }
 
-/* display: contents so each pill is its own flex item in the parent's wrap, letting pills that fit stay on the first line and only the overflow wrap */
+/* Right-aligned group of debug pills, pinned next to the feedback buttons in both compact and normal rows */
 .activity-row-pills {
-	display: contents;
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 6px;
+	flex-shrink: 0;
 }
 
 /* Compact: body becomes a horizontal row that wraps individual pills onto new lines once they no longer fit next to the name and feedback buttons */
@@ -169,20 +173,61 @@
 	padding-right: 8px;
 }
 
-/* Name stretches to fill available width in compact mode */
 .activity-row.is-compact .activity-row-name {
-	flex: 1;
+	flex: 0 1 auto;
+	min-width: 40px;
 	font-size: 0.8125rem;
 }
 
-/* Edit input also stretches in compact mode */
 .activity-row.is-compact .activity-row-edit {
 	flex: 1;
 	padding: 3px 7px;
 	font-size: 0.8125rem;
 }
 
-/* Slightly smaller icon buttons in compact rows */
+.activity-row-compact-fields {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+	flex: 0 1 auto;
+}
+
+.activity-row-compact-fields.is-editing {
+	flex: 1 1 auto;
+}
+
+.activity-row-compact-date {
+	font-size: 0.75rem;
+	color: var(--muted-text-color);
+	white-space: nowrap;
+	flex-shrink: 0;
+}
+
+.activity-row-compact-spacer {
+	flex: 1 1 0;
+	min-width: 0;
+}
+
+.activity-row-compact-tags {
+	display: flex;
+	align-items: center;
+	flex-wrap: nowrap;
+	flex: 1 1 0;
+	min-width: 0;
+	gap: 4px;
+	overflow-x: auto;
+	scrollbar-width: none;
+}
+
+.activity-row-compact-tags::-webkit-scrollbar {
+	display: none;
+}
+
+.activity-row-compact-tags > * {
+	flex-shrink: 0;
+}
+
 .activity-row.is-compact .icon-btn {
 	width: 26px;
 	height: 26px;
@@ -197,8 +242,8 @@
 	justify-content: center;
 	border-radius: var(--radius-sm);
 	border: none;
-	background: var(--bg-elev);
-	color: var(--text);
+	background: var(--elevated-background-color);
+	color: var(--text-color);
 	font-size: 1.0625rem;
 	line-height: 1;
 	transition:
@@ -208,38 +253,38 @@
 }
 
 .icon-btn:hover:not(:disabled) {
-	background: var(--accent-soft);
-	border-color: var(--accent);
-	color: var(--accent-strong);
+	background: var(--soft-accent-color);
+	border-color: var(--accent-color);
+	color: var(--strong-accent-color);
 }
 
 .icon-btn-love-it:hover:not(:disabled) {
-	background: var(--boost);
-	border-color: var(--boost-strong);
+	background: var(--boost-color);
+	border-color: var(--strong-boost-color);
 	color: #fff;
 }
 
 .icon-btn-hate-it:hover:not(:disabled) {
-	background: var(--hate);
-	border-color: var(--hate-strong);
+	background: var(--hate-color);
+	border-color: var(--strong-hate-color);
 	color: #fff;
 }
 
 .icon-btn-danger:hover:not(:disabled) {
-	background: var(--warn);
-	border-color: var(--warn);
+	background: var(--warning-color);
+	border-color: var(--warning-color);
 	color: #fff;
 }
 
 .icon-btn-delete {
-	color: var(--hate);
-	border-color: rgba(var(--hate-rgb), 0.4);
+	color: var(--hate-color);
+	border-color: rgba(var(--hate-color-rgb), 0.4);
 	flex-shrink: 0;
 }
 
 .icon-btn-delete:hover:not(:disabled) {
-	background: var(--hate);
-	border-color: var(--hate);
+	background: var(--hate-color);
+	border-color: var(--hate-color);
 	color: #fff;
 }
 
@@ -265,8 +310,8 @@
 	padding: 3px 8px;
 	border-radius: 999px;
 	border: none;
-	background: var(--bg-soft);
-	color: var(--text-soft);
+	background: var(--soft-background-color);
+	color: var(--soft-text-color);
 	font-size: 0.6875rem;
 	font-weight: 500;
 	white-space: nowrap;
@@ -345,9 +390,9 @@
 	justify-content: center;
 	padding: 2px 8px;
 	border-radius: 999px;
-	border: 1px dashed var(--border-strong);
+	border: 1px dashed var(--strong-border-color);
 	background: transparent;
-	color: var(--text-mute);
+	color: var(--muted-text-color);
 	font-size: 0.6875rem;
 	font-weight: 500;
 	cursor: pointer;
@@ -366,14 +411,14 @@
 }
 
 .activity-tag-add:hover {
-	border-color: var(--accent);
-	color: var(--accent);
-	background: var(--accent-soft);
+	border-color: var(--accent-color);
+	color: var(--accent-color);
+	background: var(--soft-accent-color);
 }
 
 .tag-combobox-dropdown {
-	background: var(--bg-elev);
-	border: 1px solid var(--border);
+	background: var(--elevated-background-color);
+	border: 1px solid var(--border-color);
 	border-radius: var(--radius-sm);
 	box-shadow: var(--shadow);
 	z-index: 9000;
@@ -386,16 +431,16 @@
 	width: 100%;
 	padding: 8px 10px;
 	border: none;
-	border-bottom: 1px solid var(--border);
-	background: var(--bg);
+	border-bottom: 1px solid var(--border-color);
+	background: var(--background-color);
 	font-size: 0.8125rem;
-	color: var(--text);
+	color: var(--text-color);
 	outline: none;
 }
 
 .tag-combobox-input:focus {
-	border-bottom-color: var(--accent);
-	box-shadow: inset 0 -2px 0 var(--accent);
+	border-bottom-color: var(--accent-color);
+	box-shadow: inset 0 -2px 0 var(--accent-color);
 }
 
 .tag-combobox-list {
@@ -409,25 +454,25 @@
 .tag-combobox-option {
 	padding: 7px 12px;
 	font-size: 0.8125rem;
-	color: var(--text);
+	color: var(--text-color);
 	cursor: pointer;
 	transition: background 80ms;
 }
 
 .tag-combobox-option:hover {
-	background: var(--accent-soft);
-	color: var(--accent-strong);
+	background: var(--soft-accent-color);
+	color: var(--strong-accent-color);
 }
 
 .tag-combobox-create {
-	color: var(--accent-strong);
+	color: var(--strong-accent-color);
 	font-style: italic;
 }
 
 .tag-combobox-empty {
 	padding: 8px 12px;
 	font-size: 0.75rem;
-	color: var(--text-mute);
+	color: var(--muted-text-color);
 	font-style: italic;
 	list-style: none;
 }
@@ -476,12 +521,17 @@
 		order: 1;
 	}
 
-	.activity-row-tags {
+	.activity-row-pills {
 		order: 2;
+		justify-content: flex-start;
+	}
+
+	.activity-row-tags {
+		order: 3;
 	}
 
 	.activity-row-feedback {
-		order: 3;
+		order: 4;
 		flex-wrap: wrap;
 	}
 }

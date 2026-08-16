@@ -1,7 +1,7 @@
 .kbd-hint {
 	--_kbd-bg: rgba(0, 0, 0, 0.07);
 	--_kbd-border: rgba(0, 0, 0, 0.16);
-	--_kbd-color: var(--text-mute);
+	--_kbd-color: var(--muted-text-color);
 
 	display: inline-block;
 	margin-left: 7px;

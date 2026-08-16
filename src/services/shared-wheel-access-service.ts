@@ -2,8 +2,7 @@
 
 import type { Session } from '@supabase/supabase-js';
 import { requireSupabase } from './supabase-client';
-
-const PERSISTED_ANONYMOUS_SESSION_KEY = 'persistedAnonymousSession';
+import { LOCAL_STORAGE_KEYS, loadJSONFromLocalStorage, saveJSONToLocalStorage } from '../utils/local-storage';
 
 interface PersistedAnonymousSession {
 	accessToken: string;
@@ -17,20 +16,16 @@ export function persistAnonymousSessionIfPresent(session: Session | null): void 
 		accessToken: session.access_token,
 		refreshToken: session.refresh_token,
 	};
-	localStorage.setItem(PERSISTED_ANONYMOUS_SESSION_KEY, JSON.stringify(persisted));
+	saveJSONToLocalStorage(LOCAL_STORAGE_KEYS.persistedAnonymousSession, persisted);
 }
 
 function readPersistedAnonymousSession(): PersistedAnonymousSession | null {
-	const raw = localStorage.getItem(PERSISTED_ANONYMOUS_SESSION_KEY);
-	if (!raw) return null;
-	try {
-		const parsed = JSON.parse(raw);
-		if (typeof parsed?.accessToken === 'string' && typeof parsed?.refreshToken === 'string') return parsed;
-		return null;
-	}
-	catch {
-		return null;
-	}
+	const parsed = loadJSONFromLocalStorage<Partial<PersistedAnonymousSession> | null>(
+		LOCAL_STORAGE_KEYS.persistedAnonymousSession,
+		null,
+	);
+	if (typeof parsed?.accessToken === 'string' && typeof parsed?.refreshToken === 'string') return parsed as PersistedAnonymousSession;
+	return null;
 }
 
 export async function ensureAnonymousOrExistingSession(): Promise<void> {

@@ -2,59 +2,15 @@ import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties, KeyboardEvent } from 'react';
 import type { Activity, FeedbackAction, TagMetadata } from '../domain-logic/types';
-import { formatDate } from '../utils/format';
-import { DEBUG_VALUE_PILL_KEYS, type DebugValuePillKey } from './debug-value-pills';
+import { formatDate, formatCompactDate } from '../utils/format';
+import { DEBUG_VALUE_PILL_KEYS, type DebugValuePillKey, type DebugValuePillRange } from './debug-value-pills';
 import { DebugValuePills } from './DebugValuePills';
 import { clampToViewport } from '../utils/clamp-to-viewport';
 import { useTagColorPickerPopover } from '../hooks/useTagColorPickerPopover';
 import { TagColorPickerPopover } from './TagColorPicker';
+import { TrashIcon } from './svg-icons/TrashIcon';
+import { CheckIcon } from './svg-icons/CheckIcon';
 import './ActivityRow.css';
-
-function TrashIcon() {
-	return (
-		<svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-			<path
-				d="M2 4h12M5.5 4V3a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 .5.5v1M3 4l.75 8a.75.75 0 0 0 .75.7h8a.75.75 0 0 0 .75-.7L13 4"
-				stroke="currentColor"
-				strokeWidth="1.4"
-				strokeLinecap="round"
-				strokeLinejoin="round"
-			/>
-			<line
-				x1="6"
-				y1="7"
-				x2="6"
-				y2="11"
-				stroke="currentColor"
-				strokeWidth="1.4"
-				strokeLinecap="round"
-			/>
-			<line
-				x1="10"
-				y1="7"
-				x2="10"
-				y2="11"
-				stroke="currentColor"
-				strokeWidth="1.4"
-				strokeLinecap="round"
-			/>
-		</svg>
-	);
-}
-
-function CheckIcon() {
-	return (
-		<svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-			<path
-				d="M2 5l2.5 2.5 4-4"
-				stroke="white"
-				strokeWidth="1.8"
-				strokeLinecap="round"
-				strokeLinejoin="round"
-			/>
-		</svg>
-	);
-}
 
 function DeleteButton({ onClick, disabled }: { onClick(): void; disabled: boolean }) {
 	return (
@@ -337,12 +293,15 @@ interface Props {
 	/** Values for every debug pill for this activity, or null when no pill is shown. */
 	readonly debugValues: Record<DebugValuePillKey, number> | null;
 	/** Min/max of each debug value across the shown activities, for the pill bar coloring. */
-	readonly debugRanges: Record<DebugValuePillKey, { min: number; max: number }>;
+	readonly debugRanges: Record<DebugValuePillKey, DebugValuePillRange>;
 	/** Which debug value pills are currently shown. */
 	readonly debugValuePillKeyToIsVisible: Record<DebugValuePillKey, boolean>;
 	readonly allTagMetadata: readonly TagMetadata[];
 	readonly tagCounts: ReadonlyMap<string, number>;
 	readonly isCompact?: boolean;
+	readonly isShowingTags: boolean;
+	readonly isShowingDateAdded: boolean;
+	readonly now: number;
 	readonly isSelected: boolean;
 	readonly isSelectMode: boolean;
 	onRename(id: string, name: string): Promise<void>;
@@ -367,6 +326,9 @@ function ActivityRowComponent({
 	allTagMetadata,
 	tagCounts,
 	isCompact = false,
+	isShowingTags,
+	isShowingDateAdded,
+	now,
 	isSelected,
 	isSelectMode,
 	onRename,
@@ -543,30 +505,65 @@ function ActivityRowComponent({
 					<div className="activity-row-selector-circle">{isSelected && <CheckIcon />}</div>
 				</div>
 				<div className={`activity-row-body`}>
-					{isEditingName ? (
-						<input
-							ref={inputRef}
-							type="text"
-							className="activity-row-edit"
-							value={draft}
-							onChange={(event) => setDraft(event.target.value)}
-							onKeyDown={onKey}
-							onBlur={() => void commit()}
-							disabled={busy}
-							maxLength={120}
-						/>
-					) : (
-						<button
-							type="button"
-							className="activity-row-name"
-							onClick={() => {
-								if (!isSelectMode) startEditing();
-							}}
-							title={isSelectMode ? undefined : 'Click to rename'}
-						>
-							{activity.name}
-						</button>
-					)}
+					<div className={`activity-row-compact-fields${isEditingName ? ' is-editing' : ''}`}>
+						{isEditingName ? (
+							<input
+								ref={inputRef}
+								type="text"
+								className="activity-row-edit"
+								value={draft}
+								onChange={(event) => setDraft(event.target.value)}
+								onKeyDown={onKey}
+								onBlur={() => void commit()}
+								disabled={busy}
+								maxLength={120}
+							/>
+						) : (
+							<button
+								type="button"
+								className="activity-row-name"
+								onClick={() => {
+									if (!isSelectMode) startEditing();
+								}}
+								title={isSelectMode ? undefined : 'Click to rename'}
+							>
+								{activity.name}
+							</button>
+						)}
+						{!isEditingName && isShowingDateAdded && (
+							<span className="activity-row-compact-date" title={`Added ${formatDate(activity.createdAt)}`}>
+								{formatCompactDate(activity.createdAt, now)}
+							</span>
+						)}
+					</div>
+					{!isEditingName &&
+						(isShowingTags ? (
+							<div className="activity-row-compact-tags">
+								{tagIds.map((tagID) => {
+									const tagMetadata = allTagMetadata.find((tag) => tag.id === tagID);
+									if (!tagMetadata) return null;
+									return (
+										<TagPill
+											key={tagID}
+											name={tagMetadata.name}
+											color={tagMetadata.color}
+											count={tagCounts.get(tagID) ?? 1}
+											onRemove={() => void handleRemoveTag(tagID)}
+											onSetColor={(color) => void handleSetTagColor(tagID, color)}
+											onRename={(newName) => handleRenameTag(tagID, newName)}
+											onDelete={() => handleDeleteTag(tagID)}
+										/>
+									);
+								})}
+								<AddTagCombobox
+									activityTagIDs={tagIds}
+									allTagMetadata={allTagMetadata}
+									onAdd={(name) => void handleAddTag(name)}
+								/>
+							</div>
+						) : (
+							<span className="activity-row-compact-spacer" />
+						))}
 					{hasVisibleDebugPills && (
 						<span className="activity-row-pills">
 							<DebugValuePills values={debugValues} ranges={debugRanges} visibility={debugValuePillKeyToIsVisible} />
@@ -681,19 +678,12 @@ function ActivityRowComponent({
 								{activity.name}
 							</button>
 						)}
-						{!isEditingName && (
-							<div className="activity-row-meta">
-								<span title={`Added ${formatDate(activity.createdAt)}`}>
-									{formatDate(activity.createdAt)}
-								</span>
-								{hasVisibleDebugPills && (
-									<span className="activity-row-pills">
-										<DebugValuePills values={debugValues} ranges={debugRanges} visibility={debugValuePillKeyToIsVisible} />
-									</span>
-								)}
-							</div>
+						{!isEditingName && isShowingDateAdded && (
+							<span className="activity-row-date" title={`Added ${formatDate(activity.createdAt)}`}>
+								{formatDate(activity.createdAt)}
+							</span>
 						)}
-						{!hasTags && !isEditingName && (
+						{!hasTags && !isEditingName && isShowingTags && (
 							<AddTagCombobox
 								activityTagIDs={tagIds}
 								allTagMetadata={allTagMetadata}
@@ -701,6 +691,12 @@ function ActivityRowComponent({
 							/>
 						)}
 					</div>
+
+					{hasVisibleDebugPills && (
+						<span className="activity-row-pills">
+							<DebugValuePills values={debugValues} ranges={debugRanges} visibility={debugValuePillKeyToIsVisible} />
+						</span>
+					)}
 
 					<div className="activity-row-feedback">
 						<button
@@ -747,8 +743,7 @@ function ActivityRowComponent({
 					</div>
 				</div>
 
-				{/* Tags row. Only rendered when the activity has tags */}
-				{hasTags && (
+				{hasTags && isShowingTags && (
 					<div className="activity-row-tags">
 						{tagIds.map((tagID) => {
 							const metadata = allTagMetadata.find((tag) => tag.id === tagID);

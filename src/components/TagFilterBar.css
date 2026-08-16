@@ -1,5 +1,5 @@
 .tag-filter-bar {
-	background: var(--bg-elev);
+	background: var(--elevated-background-color);
 	border-radius: var(--radius);
 	padding: 12px 16px;
 	box-shadow: var(--shadow);
@@ -9,9 +9,9 @@
 }
 
 .tag-filter-bar-active {
-	border-color: var(--accent);
+	border-color: var(--accent-color);
 	box-shadow:
-		0 0 0 2px var(--accent-soft),
+		0 0 0 2px var(--soft-accent-color),
 		var(--shadow);
 }
 
@@ -26,16 +26,16 @@
 	padding: 7px 10px;
 	border-radius: var(--radius-sm);
 	border: none;
-	background: var(--bg);
+	background: var(--background-color);
 	font-size: 0.8125rem;
-	color: var(--text);
+	color: var(--text-color);
 	min-width: 0;
 }
 
 .tag-filter-search:focus {
 	outline: none;
-	border-color: var(--accent);
-	box-shadow: 0 0 0 3px var(--accent-soft);
+	border-color: var(--accent-color);
+	box-shadow: 0 0 0 3px var(--soft-accent-color);
 }
 
 .tag-filter-mode-toggle {
@@ -46,8 +46,8 @@
 	padding: 5px 10px;
 	border-radius: var(--radius-sm);
 	border: none;
-	background: var(--bg-soft);
-	color: var(--text-soft);
+	background: var(--soft-background-color);
+	color: var(--soft-text-color);
 	transition:
 		background 120ms,
 		color 120ms,
@@ -55,19 +55,19 @@
 }
 
 .tag-filter-mode-toggle:hover:not(:disabled) {
-	border-color: var(--accent);
-	color: var(--accent-strong);
+	border-color: var(--accent-color);
+	color: var(--strong-accent-color);
 }
 
 .tag-filter-mode-and {
-	background: var(--accent);
-	border-color: var(--accent);
+	background: var(--accent-color);
+	border-color: var(--accent-color);
 	color: #fff;
 }
 
 .tag-filter-mode-and:hover:not(:disabled) {
-	background: var(--accent-strong);
-	border-color: var(--accent-strong);
+	background: var(--strong-accent-color);
+	border-color: var(--strong-accent-color);
 	color: #fff;
 }
 
@@ -86,8 +86,8 @@
 	padding: 5px 11px;
 	border-radius: 999px;
 	border: none;
-	background: var(--bg-soft);
-	color: var(--text-soft);
+	background: var(--soft-background-color);
+	color: var(--soft-text-color);
 	font-size: 0.75rem;
 	font-weight: 500;
 	cursor: pointer;
@@ -101,20 +101,20 @@
 }
 
 .tag-pill:hover {
-	border-color: var(--accent);
-	color: var(--accent-strong);
-	background: var(--accent-soft);
+	border-color: var(--accent-color);
+	color: var(--strong-accent-color);
+	background: var(--soft-accent-color);
 }
 
 .tag-pill-active {
-	background: var(--accent);
-	border-color: var(--accent);
+	background: var(--accent-color);
+	border-color: var(--accent-color);
 	color: #fff;
 }
 
 .tag-pill-active:hover {
-	background: var(--accent-strong);
-	border-color: var(--accent-strong);
+	background: var(--strong-accent-color);
+	border-color: var(--strong-accent-color);
 	color: #fff;
 }
 
@@ -145,7 +145,7 @@
 .tag-pill:not(.tag-pill-active) .tag-pill-hotkey {
 	border-color: rgba(0, 0, 0, 0.18);
 	background: rgba(0, 0, 0, 0.07);
-	color: var(--text-mute);
+	color: var(--muted-text-color);
 }
 
 @media (max-width: 599px) {

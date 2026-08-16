@@ -1,6 +1,6 @@
 .loading-spinner {
 	animation: spin 0.7s linear infinite;
-	color: var(--accent);
+	color: var(--accent-color);
 }
 
 @keyframes spin {

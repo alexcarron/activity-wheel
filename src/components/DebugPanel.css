@@ -1,5 +1,5 @@
 .debug-panel {
-	background: var(--bg-elev);
+	background: var(--elevated-background-color);
 	border: none;
 	border-radius: var(--radius);
 	padding: 8px 14px;
@@ -14,7 +14,7 @@
 	cursor: pointer;
 	font-weight: 500;
 	font-size: 0.875rem;
-	color: var(--text-soft);
+	color: var(--soft-text-color);
 	padding: 6px 0;
 	user-select: none;
 }
@@ -45,7 +45,7 @@
 	padding: 7px 9px;
 	border-radius: var(--radius-sm);
 	border: none;
-	background: var(--bg);
+	background: var(--background-color);
 	font-family: var(--mono);
 	font-size: 0.8125rem;
 }
@@ -53,5 +53,5 @@
 .debug-slider {
 	width: 100%;
 	max-width: 420px;
-	accent-color: var(--accent);
+	accent-color: var(--accent-color);
 }

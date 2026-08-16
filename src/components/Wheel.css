@@ -29,8 +29,8 @@
 	display: block;
 	border-radius: 50%;
 	box-shadow:
-		0 0 0 4px var(--bg-elev),
-		0 0 0 5px var(--border-strong),
+		0 0 0 4px var(--elevated-background-color),
+		0 0 0 5px var(--strong-border-color),
 		var(--shadow);
 }
 
@@ -43,7 +43,7 @@
 	height: 0;
 	border-left: 14px solid transparent;
 	border-right: 14px solid transparent;
-	border-top: 22px solid var(--accent-strong);
+	border-top: 22px solid var(--strong-accent-color);
 	filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25));
 	z-index: 2;
 	pointer-events: none;
