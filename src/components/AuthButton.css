@@ -17,7 +17,7 @@
 .auth-button-signout {
 	background: var(--soft-background-color);
 	border: 0px;
-	border-radius: var(--radius-sm);
+	border-radius: var(--radius-small);
 	padding: 8px 14px;
 	font-size: 0.875rem;
 	font-weight: 500;
@@ -49,7 +49,7 @@
 	align-items: center;
 	gap: 8px;
 	padding: 8px 16px 8px 12px;
-	border-radius: var(--radius-sm);
+	border-radius: var(--radius-small);
 	border: 1px solid var(--border-color);
 	background: var(--soft-background-color);
 	color: var(--text-color);

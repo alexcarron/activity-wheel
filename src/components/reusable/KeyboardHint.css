@@ -1,19 +1,19 @@
 .keyboard-hint {
-	--_kbd-bg: rgba(0, 0, 0, 0.07);
-	--_kbd-border: rgba(0, 0, 0, 0.16);
-	--_kbd-color: var(--muted-text-color);
+	--_keyboard-hint-background-color: color-mix(in srgb, currentColor 15%, transparent);
+	--_keyboard-hint-border-color: color-mix(in srgb, currentColor 45%, transparent);
+	--_keyboard-hint-text-color: color-mix(in srgb, currentColor 65%, transparent);
 
 	display: inline-block;
 	margin-left: 7px;
 	padding: 2px 6px;
 	border-radius: 4px;
-	border: 1px solid var(--_kbd-border);
-	background: var(--_kbd-bg);
+	border: 1px solid var(--_keyboard-hint-border-color);
+	background: var(--_keyboard-hint-background-color);
 	font-family: inherit;
 	font-size: 0.6875rem;
 	font-weight: 600;
 	letter-spacing: 0.03em;
-	color: var(--_kbd-color);
+	color: var(--_keyboard-hint-text-color);
 	line-height: 1.4;
 	vertical-align: middle;
 	pointer-events: none;
@@ -26,7 +26,7 @@
 	border-radius: 3px;
 	border: 1px solid rgba(255, 255, 255, 0.35);
 	background: rgba(255, 255, 255, 0.15);
-	font-family: var(--mono);
+	font-family: var(--monospace-font);
 	font-size: 0.625rem;
 	line-height: 1.4;
 }

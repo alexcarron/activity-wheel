@@ -24,7 +24,7 @@
 .tag-filter-search {
 	flex: 1;
 	padding: 7px 10px;
-	border-radius: var(--radius-sm);
+	border-radius: var(--radius-small);
 	border: none;
 	background: var(--background-color);
 	font-size: 0.8125rem;
@@ -44,7 +44,7 @@
 	font-weight: 700;
 	letter-spacing: 0.06em;
 	padding: 5px 10px;
-	border-radius: var(--radius-sm);
+	border-radius: var(--radius-small);
 	border: none;
 	background: var(--soft-background-color);
 	color: var(--soft-text-color);

@@ -8,8 +8,8 @@ import { DebugValuePills } from '../../reusable/DebugValuePills';
 import { clampToViewport } from '../../../utils/clamp-to-viewport';
 import { useTagColorPickerPopover } from '../../../hooks/useTagColorPickerPopover';
 import { TagColorPickerPopover } from '../../reusable/TagColorPicker';
-import { TrashIcon } from '../../reusable/svg-icons/TrashIcon';
-import { CheckIcon } from '../../reusable/svg-icons/CheckIcon';
+import { TrashIcon } from '../../svg-icons/TrashIcon';
+import { CheckIcon } from '../../svg-icons/CheckIcon';
 import './ActivityRow.css';
 
 function DeleteButton({ onClick, disabled }: { onClick(): void; disabled: boolean }) {

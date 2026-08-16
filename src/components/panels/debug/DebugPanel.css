@@ -43,10 +43,10 @@
 	width: 100%;
 	max-width: 280px;
 	padding: 7px 9px;
-	border-radius: var(--radius-sm);
+	border-radius: var(--radius-small);
 	border: none;
 	background: var(--background-color);
-	font-family: var(--mono);
+	font-family: var(--monospace-font);
 	font-size: 0.8125rem;
 }
 

@@ -18,10 +18,10 @@ import { ActivityRow, AddTagCombobox } from './ActivityRow';
 import { DEBUG_VALUE_PILL_KEYS, type DebugValuePillKey, type DebugValuePillRange } from '../../reusable/debug-value-pills';
 import { LOCAL_STORAGE_KEYS, loadJSONFromLocalStorage, saveJSONToLocalStorage } from '../../../utils/local-storage';
 import { IconToggleButton } from '../../reusable/IconToggleButton';
-import { SortDirectionIcon } from '../../reusable/svg-icons/SortDirectionIcon';
-import { TagIcon } from '../../reusable/svg-icons/TagIcon';
-import { CalendarIcon } from '../../reusable/svg-icons/CalendarIcon';
-import { CompactModeIcon } from '../../reusable/svg-icons/CompactModeIcon';
+import { SortDirectionIcon } from '../../svg-icons/SortDirectionIcon';
+import { TagIcon } from '../../svg-icons/TagIcon';
+import { CalendarIcon } from '../../svg-icons/CalendarIcon';
+import { CompactModeIcon } from '../../svg-icons/CompactModeIcon';
 import './ActivityList.css';
 
 interface ActivityListProps {

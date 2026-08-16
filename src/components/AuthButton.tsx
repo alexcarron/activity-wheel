@@ -1,16 +1,10 @@
-/**
- * Top-right auth control, anchored in the wheel header (where the pin button
- * used to sit). Shows a minimal "Sign in with Google" button when signed out,
- * or the resolved display name (click to edit) when signed in.
- */
-
 import { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { DisplayNameEditor } from './reusable/DisplayNameEditor';
 import { LoadingSpinner } from './reusable/LoadingSpinner';
 import { hasSavedCloudWheels, migrateLocalDataToCloud } from '../services/cloud/migration-service';
 import { toErrorMessage } from '../utils/error-message';
-import { GoogleIcon } from './reusable/svg-icons/GoogleIcon';
+import { GoogleIcon } from './svg-icons/GoogleIcon';
 import './AuthButton.css';
 
 interface AuthButtonProps {

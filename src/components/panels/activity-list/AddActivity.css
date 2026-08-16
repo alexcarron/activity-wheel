@@ -6,7 +6,7 @@
 .add-activity-input {
 	flex: 1;
 	padding: 10px 12px;
-	border-radius: var(--radius-sm);
+	border-radius: var(--radius-small);
 	border: none;
 	background: var(--background-color);
 	color: var(--text-color);

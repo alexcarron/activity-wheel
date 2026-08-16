@@ -15,7 +15,7 @@ import type { SessionApi } from '../../../hooks/useSession';
 import { Wheel } from './Wheel';
 import { PostSpinActions } from './PostSpinActions';
 import { KeyboardHint } from '../../reusable/KeyboardHint';
-import { PinIcon } from '../../reusable/svg-icons/PinIcon';
+import { PinIcon } from '../../svg-icons/PinIcon';
 import './WheelView.css';
 
 interface Props {

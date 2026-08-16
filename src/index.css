@@ -27,7 +27,7 @@
 	--neutral-color: #9aa6a6;
 
 	--radius: 10px;
-	--radius-sm: 6px;
+	--radius-small: 6px;
 	--icon-toggle-button-size: calc(0.875rem * 1.45 + 14px);
 	--shadow: 0 6px 24px rgba(45, 52, 54, 0.08), 0 2px 6px rgba(45, 52, 54, 0.05);
 
@@ -37,10 +37,10 @@
 	--spacing-large: 8px;
 	--spacing-extra-large: 10px;
 
-	--sans: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-	--mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	--sans-serif-font: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+	--monospace-font: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-	font: 16px/1.45 var(--sans);
+	font: 16px/1.45 var(--sans-serif-font);
 	color: var(--text-color);
 	background: var(--background-color);
 	color-scheme: light dark;

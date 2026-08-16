@@ -10,7 +10,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Wheel } from '../../../domain-logic/types';
-import { SharedWheelIcon } from '../../reusable/svg-icons/SharedWheelIcon';
+import { SharedWheelIcon } from '../../svg-icons/SharedWheelIcon';
 import './WheelTabs.css';
 
 interface Props {

@@ -5,7 +5,7 @@
 	padding: 0;
 	background: var(--background-color);
 	border: none;
-	border-radius: var(--radius-sm);
+	border-radius: var(--radius-small);
 	transition:
 		border-color 120ms ease,
 		background 120ms ease;
@@ -128,7 +128,7 @@
 	flex: 1;
 	min-width: 0;
 	padding: 5px 8px;
-	border-radius: var(--radius-sm);
+	border-radius: var(--radius-small);
 	border: 1px solid var(--accent-color);
 	background: var(--background-color);
 	font-size: 0.875rem;
@@ -141,7 +141,7 @@
 	border: 1px solid var(--border-color);
 	padding: 1px 8px;
 	border-radius: 999px;
-	font-family: var(--mono);
+	font-family: var(--monospace-font);
 	font-size: 0.6875rem;
 	color: var(--soft-text-color);
 	white-space: nowrap;
@@ -246,7 +246,7 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	border-radius: var(--radius-sm);
+	border-radius: var(--radius-small);
 	border: none;
 	background: var(--elevated-background-color);
 	color: var(--text-color);
@@ -425,7 +425,7 @@
 .tag-combobox-dropdown {
 	background: var(--elevated-background-color);
 	border: 1px solid var(--border-color);
-	border-radius: var(--radius-sm);
+	border-radius: var(--radius-small);
 	box-shadow: var(--shadow);
 	z-index: 9000;
 	overflow: hidden;

@@ -111,7 +111,7 @@
 	align-items: center;
 	gap: 8px;
 	padding: 6px 10px;
-	border-radius: var(--radius-sm);
+	border-radius: var(--radius-small);
 	background: var(--soft-background-color);
 	border: 1px solid var(--border-color);
 }
@@ -132,7 +132,7 @@
 	flex: 1;
 	min-width: 120px;
 	padding: 7px 10px;
-	border-radius: var(--radius-sm);
+	border-radius: var(--radius-small);
 	border: 1px solid var(--accent-color);
 	background: var(--background-color);
 	font-size: 0.8125rem;

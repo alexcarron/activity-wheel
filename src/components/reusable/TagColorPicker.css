@@ -3,7 +3,7 @@
 	flex-direction: column;
 	background: var(--elevated-background-color);
 	border: 1px solid var(--border-color);
-	border-radius: var(--radius-sm);
+	border-radius: var(--radius-small);
 	box-shadow: var(--shadow);
 	padding: 10px 12px;
 	z-index: 9001;
@@ -40,7 +40,7 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	border-radius: var(--radius-sm);
+	border-radius: var(--radius-small);
 	border: none;
 	background: var(--elevated-background-color);
 	color: var(--hate-color);

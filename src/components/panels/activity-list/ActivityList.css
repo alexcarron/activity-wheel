@@ -35,7 +35,7 @@
 	flex: 999 0 160px;
 	min-width: 160px;
 	padding: 8px 12px;
-	border-radius: var(--radius-sm);
+	border-radius: var(--radius-small);
 	border: none;
 	background: var(--background-color);
 	font-size: 0.875rem;
@@ -66,7 +66,7 @@
 	min-width: 0;
 	max-width: max-content;
 	padding: 7px 8px;
-	border-radius: var(--radius-sm);
+	border-radius: var(--radius-small);
 	border: none;
 	background: var(--background-color);
 	font-size: 0.875rem;
@@ -117,7 +117,7 @@
 	padding: 0 12px;
 	background: var(--soft-accent-color);
 	border: 1px solid var(--accent-color);
-	border-radius: var(--radius-sm);
+	border-radius: var(--radius-small);
 	position: absolute;
 	inset: 0;
 }

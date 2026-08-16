@@ -5,7 +5,7 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	border-radius: var(--radius-sm);
+	border-radius: var(--radius-small);
 	border: none;
 	background: var(--background-color);
 	color: var(--text-color);
