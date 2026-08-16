@@ -148,7 +148,6 @@
 	flex-shrink: 0;
 }
 
-/* Right-aligned group of debug pills, pinned next to the feedback buttons in both compact and normal rows */
 .activity-row-pills {
 	display: flex;
 	flex-wrap: wrap;
@@ -157,7 +156,6 @@
 	flex-shrink: 0;
 }
 
-/* Compact: body becomes a horizontal row that wraps individual pills onto new lines once they no longer fit next to the name and feedback buttons */
 .activity-row.is-compact .activity-row-body {
 	flex-direction: row;
 	flex-wrap: wrap;
@@ -165,7 +163,15 @@
 	gap: 6px;
 }
 
-/* Compact: smaller selector area */
+.activity-row.is-compact .activity-row-top {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	flex: 1 1 100%;
+	min-width: 0;
+}
+
 .activity-row.is-compact .activity-row-selector {
 	width: 28px;
 	min-width: 28px;
@@ -477,20 +483,23 @@
 	list-style: none;
 }
 
-@media (pointer: coarse) {
+@media (pointer: coarse) and (min-width: 600px) {
 	.icon-btn {
 		min-width: 44px;
 		min-height: 44px;
 	}
-	
-	.activity-row.is-compact .icon-btn-love-it, 
-	.activity-row.is-compact .icon-btn-hate-it {
-		display: none;
-	}
-	
+
 	.activity-row.is-compact .icon-btn {
 		min-width: 34px;
 		min-height: 34px;
+	}
+}
+
+/* Below 600px, the feedback buttons wrap onto their own left-aligned line on non-compact rows, so keep them touch-sized there too */
+@media (pointer: coarse) and (max-width: 599px) {
+	.activity-row:not(.is-compact) .icon-btn {
+		min-width: 44px;
+		min-height: 44px;
 	}
 }
 
@@ -513,6 +522,10 @@
 		gap: 8px;
 	}
 
+	.activity-row.is-compact .activity-row-feedback .icon-btn:not(.icon-btn-delete) {
+		display: none;
+	}
+
 	.activity-row-top {
 		display: contents;
 	}
@@ -533,5 +546,15 @@
 	.activity-row-feedback {
 		order: 4;
 		flex-wrap: wrap;
+	}
+
+	.icon-btn {
+		width: var(--icon-toggle-button-size);
+		height: var(--icon-toggle-button-size);
+	}
+
+	.activity-row.is-compact .icon-btn {
+		width: var(--icon-toggle-button-size);
+		height: var(--icon-toggle-button-size);
 	}
 }

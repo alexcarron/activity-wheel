@@ -1,4 +1,5 @@
 .post-spin {
+	container-type: inline-size;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -61,15 +62,42 @@
 }
 
 .post-spin-feedback {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
+	display: grid;
+	grid-template-columns: repeat(5, auto);
+	grid-template-areas: "boost accept skip reject hate";
+	justify-content: center;
+	justify-items: center;
 	gap: 8px;
-
 	width: 100%;
 }
 
-.post-spin-feedback-row,
+.post-spin-feedback .btn {
+	white-space: nowrap;
+}
+
+@container (max-width: 640px) {
+	.post-spin-feedback {
+		grid-template-columns: repeat(4, 1fr);
+		justify-content: stretch;
+		justify-items: stretch;
+		grid-template-areas:
+			"boost accept reject hate"
+			"skip skip skip skip";
+	}
+}
+
+@container (max-width: 380px) {
+	.post-spin-feedback {
+		grid-template-columns: repeat(2, 1fr);
+		justify-content: stretch;
+		justify-items: stretch;
+		grid-template-areas:
+			"boost accept"
+			"reject hate"
+			"skip skip";
+	}
+}
+
 .post-spin-nav {
 	display: flex;
 	gap: 10px;
@@ -121,11 +149,9 @@
 }
 
 @media (max-width: 599px) {
-	.post-spin-feedback,
 	.post-spin-nav {
 		width: 100%;
 	}
-	.post-spin-feedback .btn,
 	.post-spin-nav .btn {
 		flex: 1;
 	}

@@ -4,20 +4,21 @@
  * - A search input that filters the pill list (doesn't affect the wheel directly)
  * - "All" pill (clears filter)
  * - "Untagged" pseudo-pill (shows only activities with no tags)
- * - Scrollable row of tag pills with count badges
+ * - Scrollable row of tag pills
  * - AND/OR toggle (only visible when 2+ tags are active)
  * - Digit hotkeys (1–9) on the first 9 pills sorted by popularity
  * The filter state lives in the parent (App) via useTagFilter. This is purely presentational plus hotkey wiring.
  */
 
 import { useMemo, useRef, useState } from 'react';
-import type { Activity, TagMetadata } from '../domain-logic/types';
-import type { FilterMode } from '../domain-logic/tag-filter-logic';
-import { computeTagCounts, countUntagged, isFilterActive } from '../domain-logic/tag-filter-logic';
-import { useHotkey } from '../hooks/useHotkey';
-import { useTagColorPickerPopover } from '../hooks/useTagColorPickerPopover';
-import { TAG_HOTKEYS } from '../constants/hotkeys';
-import { TagColorPickerPopover } from './TagColorPicker';
+import type { Activity, TagMetadata } from '../../../domain-logic/types';
+import type { FilterMode } from '../../../domain-logic/tag-filter-logic';
+import { computeTagCounts, countUntagged, isFilterActive } from '../../../domain-logic/tag-filter-logic';
+import { useHotkey } from '../../../hooks/useHotkey';
+import { useTagColorPickerPopover } from '../../../hooks/useTagColorPickerPopover';
+import { TAG_HOTKEYS } from '../../../constants/hotkeys';
+import { TagColorPickerPopover } from '../../reusable/TagColorPicker';
+import { KeyboardHint } from '../../reusable/KeyboardHint';
 import './TagFilterBar.css';
 
 interface Props {
@@ -174,7 +175,7 @@ export function TagFilterBar({
 						onClick={onToggleUntagged}
 						aria-pressed={untaggedOnly}
 					>
-						Untagged <span className="tag-pill-count">({untaggedCount})</span>
+						Untagged
 					</button>
 				)}
 
@@ -190,7 +191,6 @@ export function TagFilterBar({
 							key={tag.id}
 							id={tag.id}
 							name={tag.name}
-							count={tag.count}
 							color={tag.color}
 							isActive={isActive}
 							hotkeyLabel={hotkey}
@@ -209,7 +209,6 @@ export function TagFilterBar({
 interface TagFilterPillProps {
 	id: string;
 	name: string;
-	count: number;
 	color?: string;
 	isActive: boolean;
 	hotkeyLabel: string | null;
@@ -219,7 +218,7 @@ interface TagFilterPillProps {
 	onDelete(): Promise<void>;
 }
 
-function TagFilterPill({ name, count, color, isActive, hotkeyLabel, onToggle, onSetColor, onRename, onDelete }: TagFilterPillProps) {
+function TagFilterPill({ name, color, isActive, hotkeyLabel, onToggle, onSetColor, onRename, onDelete }: TagFilterPillProps) {
 	const pillRef = useRef<HTMLButtonElement>(null);
 	const { isOpen, position, popoverRef, open, close } = useTagColorPickerPopover(pillRef);
 
@@ -247,8 +246,7 @@ function TagFilterPill({ name, count, color, isActive, hotkeyLabel, onToggle, on
 				}
 			>
 				{name}
-				<span className="tag-pill-count"> ({count})</span>
-				{hotkeyLabel && <kbd className="tag-pill-hotkey">{hotkeyLabel}</kbd>}
+				{hotkeyLabel && <KeyboardHint label={hotkeyLabel} variant="tagPill" />}
 			</button>
 
 			{isOpen && (

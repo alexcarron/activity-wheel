@@ -6,11 +6,11 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { DisplayNameEditor } from './DisplayNameEditor';
-import { LoadingSpinner } from './LoadingSpinner';
+import { DisplayNameEditor } from './reusable/DisplayNameEditor';
+import { LoadingSpinner } from './reusable/LoadingSpinner';
 import { hasSavedCloudWheels, migrateLocalDataToCloud } from '../services/cloud/migration-service';
 import { toErrorMessage } from '../utils/error-message';
-import { GoogleIcon } from './svg-icons/GoogleIcon';
+import { GoogleIcon } from './reusable/svg-icons/GoogleIcon';
 import './AuthButton.css';
 
 interface AuthButtonProps {

@@ -2,7 +2,7 @@
  * Single source of truth for every keyboard shortcut in the app.
  * - code: The code of the physical key that was pressed on a keyboard
  * - label: Human-readable string shown in the hint badge
- * Add new shortcuts here first, then wire them up with `useHotkey` and show them with `<KbdHint>`. 
+ * Add new shortcuts here first, then wire them up with `useHotkey` and show them with `<KeyboardHint>`.
  */
 
 export const HOTKEYS = {

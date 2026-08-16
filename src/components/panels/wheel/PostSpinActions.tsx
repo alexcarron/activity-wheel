@@ -11,11 +11,10 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
-import type { Activity, FeedbackAction, TagMetadata } from '../domain-logic/types';
-import { useHotkey } from '../hooks/useHotkey';
-import { useViewportBreakpoint } from '../hooks/useViewportBreakpoint';
-import { HOTKEYS } from '../constants/hotkeys';
-import { KbdHint } from './KbdHint';
+import type { Activity, FeedbackAction, TagMetadata } from '../../../domain-logic/types';
+import { useHotkey } from '../../../hooks/useHotkey';
+import { HOTKEYS } from '../../../constants/hotkeys';
+import { KeyboardHint } from '../../reusable/KeyboardHint';
 import './PostSpinActions.css';
 
 type ManualFeedbackAction = Exclude<FeedbackAction, 'undo'>;
@@ -60,20 +59,7 @@ const FEEDBACK_BUTTON_CONFIGS: Record<ManualFeedbackAction, FeedbackButtonConfig
 	},
 };
 
-const DESKTOP_FEEDBACK_BUTTON_ORDER: readonly ManualFeedbackAction[][] = [
-	['boost',
-	'accept',
-	'skip',
-	'reject',
-	'hate'],
-];
-const PHONE_FEEDBACK_BUTTON_ORDER: readonly ManualFeedbackAction[][] = [
-	['boost',
-	'accept'],
-	['reject',
-	'hate'],
-	['skip'],
-];
+const FEEDBACK_BUTTON_ORDER: readonly ManualFeedbackAction[] = ['boost', 'accept', 'skip', 'reject', 'hate'];
 
 interface Props {
 	readonly pickedActivity: Activity;
@@ -106,8 +92,6 @@ export function PostSpinActions(props: Props) {
 	} = props;
 	const canSpinAgain = remainingActivityCount > 0;
 	const hasNoTags = (pickedActivity.tagIds ?? []).length === 0;
-	const { isPhone } = useViewportBreakpoint();
-	const feedbackButtonOrder = isPhone ? PHONE_FEEDBACK_BUTTON_ORDER : DESKTOP_FEEDBACK_BUTTON_ORDER;
 
 	/* Quick inline tag input for the "Add a tag?" prompt */
 	const [tagPromptOpen, setTagPromptOpen] = useState(false);
@@ -277,26 +261,23 @@ export function PostSpinActions(props: Props) {
 			)}
 
 			<div className="post-spin-feedback">
-				{feedbackButtonOrder.map((actions) => 
-					<div className="post-spin-feedback-row"> 
-						{actions.map((action) => {
-							const config = FEEDBACK_BUTTON_CONFIGS[action];
-							return (
-								<button
-									key={action}
-									type="button"
-									className={config.className}
-									onClick={() => onChoose(action)}
-									disabled={busy}
-									title={config.title}
-								>
-									{config.label}
-									<KbdHint label={config.hotkeyLabel} />
-								</button>
-							);
-						})}
-					</div>
-				)}
+				{FEEDBACK_BUTTON_ORDER.map((action) => {
+					const config = FEEDBACK_BUTTON_CONFIGS[action];
+					return (
+						<button
+							key={action}
+							type="button"
+							className={config.className}
+							style={{ gridArea: action }}
+							onClick={() => onChoose(action)}
+							disabled={busy}
+							title={config.title}
+						>
+							{config.label}
+							<KeyboardHint label={config.hotkeyLabel} />
+						</button>
+					);
+				})}
 			</div>
 			<div className="post-spin-nav">
 				<button
@@ -307,7 +288,7 @@ export function PostSpinActions(props: Props) {
 					title={canSpinAgain ? `Spin again (${HOTKEYS.SPIN_WHEEL.label})` : undefined}
 				>
 					Spin again
-					{canSpinAgain && <KbdHint label={HOTKEYS.SPIN_WHEEL.label} />}
+					{canSpinAgain && <KeyboardHint label={HOTKEYS.SPIN_WHEEL.label} />}
 				</button>
 				<button type="button" className="btn btn-ghost" onClick={onResetSession} disabled={busy}>
 					Reset session

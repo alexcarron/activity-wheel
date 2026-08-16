@@ -1,5 +1,5 @@
 .icon-toggle-button {
-	height: calc(0.875rem * 1.45 + 14px);
+	height: var(--icon-toggle-button-size);
 	aspect-ratio: 1;
 	flex-shrink: 0;
 	display: inline-flex;

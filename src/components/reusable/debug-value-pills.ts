@@ -1,6 +1,6 @@
-import { formatConfidence, formatPercent, formatPreferenceScore, formatStandardDeviation, formatWeight } from '../utils/format';
-import { clamp } from '../utils/math-utils';
-import { INITIAL_PREFERENCE_SCORE_CONFIDENCE } from '../domain-logic/weight-logic/weight-constants';
+import { formatConfidence, formatPercent, formatPreferenceScore, formatStandardDeviation, formatWeight } from '../../utils/format';
+import { clamp } from '../../utils/math-utils';
+import { INITIAL_PREFERENCE_SCORE_CONFIDENCE } from '../../domain-logic/weight-logic/weight-constants';
 
 export type DebugValuePillKey =
 	| 'actualCurrentWeight'

@@ -11,9 +11,19 @@
 	align-items: center;
 }
 
+.activity-list-buttons {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--spacing-extra-large);
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
 .activity-list-toggle-group {
 	display: flex;
 	gap: var(--spacing-small);
+	flex: 0 0 auto;
 }
 
 .activity-list-controls.is-hidden {
@@ -22,8 +32,8 @@
 }
 
 .activity-list-search {
-	flex: 1;
-	min-width: 180px;
+	flex: 999 0 160px;
+	min-width: 160px;
 	padding: 8px 12px;
 	border-radius: var(--radius-sm);
 	border: none;
@@ -41,19 +51,28 @@
 	display: flex;
 	align-items: center;
 	gap: var(--spacing-medium);
+	flex: 1 1 auto;
+	min-width: 0;
 }
 
 .activity-list-sort-label {
 	font-size: 0.8125rem;
 	color: var(--soft-text-color);
+	flex-shrink: 0;
 }
 
 .activity-list-sort-select {
+	flex: 1 1 auto;
+	min-width: 0;
+	max-width: max-content;
 	padding: 7px 8px;
 	border-radius: var(--radius-sm);
 	border: none;
 	background: var(--background-color);
 	font-size: 0.875rem;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
 }
 
 .activity-list-empty {
@@ -73,6 +92,11 @@
 	max-height: 480px;
 	overflow-y: auto;
 	scroll-padding-block: var(--spacing-large);
+	scrollbar-width: none;
+}
+
+.activity-list-items::-webkit-scrollbar {
+	display: none;
 }
 
 .activity-list-items.is-compact {
@@ -113,5 +137,13 @@
 @media (max-width: 599px) {
 	.activity-list-items {
 		max-height: min(480px, 55vh);
+	}
+
+	.activity-list-sort-label {
+		display: none;
+	}
+
+	.activity-list-buttons {
+		gap: var(--spacing-medium);
 	}
 }

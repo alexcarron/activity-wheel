@@ -5,23 +5,23 @@ import type {
 	SortDirection,
 	SortKey,
 	TagMetadata,
-} from '../domain-logic/types';
-import { getPreferenceScoreStandardDeviation } from '../domain-logic/weight-logic/preference-to-weight-logic';
+} from '../../../domain-logic/types';
+import { getPreferenceScoreStandardDeviation } from '../../../domain-logic/weight-logic/preference-to-weight-logic';
 import {
 	estimateStableProbabilities,
 	estimateStableWeights,
-} from '../domain-logic/weight-logic/stable-probability-estimate-logic';
-import { getDecayedPreferenceScoreConfidence } from '../domain-logic/weight-logic/confidence-decay-logic';
-import { defaultRng } from '../utils/random-utils';
-import { useNow } from '../hooks/useNow';
+} from '../../../domain-logic/weight-logic/stable-probability-estimate-logic';
+import { getDecayedPreferenceScoreConfidence } from '../../../domain-logic/weight-logic/confidence-decay-logic';
+import { defaultRng } from '../../../utils/random-utils';
+import { useNow } from '../../../hooks/useNow';
 import { ActivityRow, AddTagCombobox } from './ActivityRow';
-import { DEBUG_VALUE_PILL_KEYS, type DebugValuePillKey, type DebugValuePillRange } from './debug-value-pills';
-import { LOCAL_STORAGE_KEYS, loadJSONFromLocalStorage, saveJSONToLocalStorage } from '../utils/local-storage';
-import { IconToggleButton } from './IconToggleButton';
-import { SortDirectionIcon } from './svg-icons/SortDirectionIcon';
-import { TagIcon } from './svg-icons/TagIcon';
-import { CalendarIcon } from './svg-icons/CalendarIcon';
-import { CompactModeIcon } from './svg-icons/CompactModeIcon';
+import { DEBUG_VALUE_PILL_KEYS, type DebugValuePillKey, type DebugValuePillRange } from '../../reusable/debug-value-pills';
+import { LOCAL_STORAGE_KEYS, loadJSONFromLocalStorage, saveJSONToLocalStorage } from '../../../utils/local-storage';
+import { IconToggleButton } from '../../reusable/IconToggleButton';
+import { SortDirectionIcon } from '../../reusable/svg-icons/SortDirectionIcon';
+import { TagIcon } from '../../reusable/svg-icons/TagIcon';
+import { CalendarIcon } from '../../reusable/svg-icons/CalendarIcon';
+import { CompactModeIcon } from '../../reusable/svg-icons/CompactModeIcon';
 import './ActivityList.css';
 
 interface ActivityListProps {
@@ -275,48 +275,50 @@ export function ActivityList(props: ActivityListProps) {
 						value={query}
 						onChange={(event) => setQuery(event.target.value)}
 					/>
-					<div className="activity-list-sort">
-						<label className="activity-list-sort-label">Sort:</label>
-						<select
-							className="activity-list-sort-select"
-							value={sortKey}
-							onChange={(event) => setSortKey(event.target.value as SortKey)}
-						>
-							{SORTS.map((sortOption) => (
-								<option key={sortOption.key} value={sortOption.key}>
-									{sortOption.label}
-								</option>
-							))}
-						</select>
-						<IconToggleButton
-							title={sortDirection === 'asc' ? 'Ascending' : 'Descending'}
-							onClick={toggleSortDirection}
-						>
-							<SortDirectionIcon sortDirection={sortDirection} />
-						</IconToggleButton>
-					</div>
-					<div className="activity-list-toggle-group">
-						<IconToggleButton
-							isActive={!isShowingTags}
-							title={isShowingTags ? 'Hide tags on activities' : 'Show tags on activities'}
-							onClick={() => setIsShowingTags((wasShowingTags) => !wasShowingTags)}
-						>
-							<TagIcon isCrossedOut={!isShowingTags} />
-						</IconToggleButton>
-						<IconToggleButton
-							isActive={!isShowingDateAdded}
-							title={isShowingDateAdded ? 'Hide date added on activities' : 'Show date added on activities'}
-							onClick={() => setIsShowingDateAdded((wasShowingDateAdded) => !wasShowingDateAdded)}
-						>
-							<CalendarIcon isCrossedOut={!isShowingDateAdded} />
-						</IconToggleButton>
-						<IconToggleButton
-							isActive={compactMode}
-							title={compactMode ? 'Switch to normal view' : 'Switch to compact view'}
-							onClick={() => setCompactMode((wasCompact) => !wasCompact)}
-						>
-							<CompactModeIcon isCompact={compactMode} />
-						</IconToggleButton>
+					<div className="activity-list-buttons">
+						<div className="activity-list-sort">
+							<label className="activity-list-sort-label">Sort:</label>
+							<select
+								className="activity-list-sort-select"
+								value={sortKey}
+								onChange={(event) => setSortKey(event.target.value as SortKey)}
+							>
+								{SORTS.map((sortOption) => (
+									<option key={sortOption.key} value={sortOption.key}>
+										{sortOption.label}
+									</option>
+								))}
+							</select>
+							<IconToggleButton
+								title={sortDirection === 'asc' ? 'Ascending' : 'Descending'}
+								onClick={toggleSortDirection}
+							>
+								<SortDirectionIcon sortDirection={sortDirection} />
+							</IconToggleButton>
+						</div>
+						<div className="activity-list-toggle-group">
+							<IconToggleButton
+								isActive={!isShowingTags}
+								title={isShowingTags ? 'Hide tags on activities' : 'Show tags on activities'}
+								onClick={() => setIsShowingTags((wasShowingTags) => !wasShowingTags)}
+							>
+								<TagIcon isCrossedOut={!isShowingTags} />
+							</IconToggleButton>
+							<IconToggleButton
+								isActive={!isShowingDateAdded}
+								title={isShowingDateAdded ? 'Hide date added on activities' : 'Show date added on activities'}
+								onClick={() => setIsShowingDateAdded((wasShowingDateAdded) => !wasShowingDateAdded)}
+							>
+								<CalendarIcon isCrossedOut={!isShowingDateAdded} />
+							</IconToggleButton>
+							<IconToggleButton
+								isActive={compactMode}
+								title={compactMode ? 'Switch to normal view' : 'Switch to compact view'}
+								onClick={() => setCompactMode((wasCompact) => !wasCompact)}
+							>
+								<CompactModeIcon isCompact={compactMode} />
+							</IconToggleButton>
+						</div>
 					</div>
 				</div>
 

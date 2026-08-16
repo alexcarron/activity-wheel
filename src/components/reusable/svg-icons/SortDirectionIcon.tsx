@@ -1,4 +1,4 @@
-import type { SortDirection } from '../../domain-logic/types';
+import type { SortDirection } from '../../../domain-logic/types';
 import { SVG_ICON_OUTLINE_STROKE_WIDTH } from './svg-icon-constants';
 
 export function SortDirectionIcon({ sortDirection }: { sortDirection: SortDirection }) {

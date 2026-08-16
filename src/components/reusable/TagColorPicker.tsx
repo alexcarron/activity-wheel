@@ -5,8 +5,8 @@
 import { createPortal } from 'react-dom';
 import { useState } from 'react';
 import type { KeyboardEvent, RefObject } from 'react';
-import { TAG_COLOR_PRESETS } from '../constants/tag-colors';
-import { toErrorMessage } from '../utils/error-message';
+import { TAG_COLOR_PRESETS } from '../../constants/tag-colors';
+import { toErrorMessage } from '../../utils/error-message';
 import { TrashIcon } from './svg-icons/TrashIcon';
 import './TagColorPicker.css';
 

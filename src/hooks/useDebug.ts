@@ -14,7 +14,7 @@ import {
 	createHiddenDebugValuePillKeyToIsVisible,
 	DEBUG_VALUE_PILL_KEYS,
 	type DebugValuePillKey,
-} from '../components/debug-value-pills';
+} from '../components/reusable/debug-value-pills';
 import { LOCAL_STORAGE_KEYS, loadJSONFromLocalStorage, saveJSONToLocalStorage } from '../utils/local-storage';
 
 export interface DebugState {

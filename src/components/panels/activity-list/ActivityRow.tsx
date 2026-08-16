@@ -1,15 +1,15 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties, KeyboardEvent } from 'react';
-import type { Activity, FeedbackAction, TagMetadata } from '../domain-logic/types';
-import { formatDate, formatCompactDate } from '../utils/format';
-import { DEBUG_VALUE_PILL_KEYS, type DebugValuePillKey, type DebugValuePillRange } from './debug-value-pills';
-import { DebugValuePills } from './DebugValuePills';
-import { clampToViewport } from '../utils/clamp-to-viewport';
-import { useTagColorPickerPopover } from '../hooks/useTagColorPickerPopover';
-import { TagColorPickerPopover } from './TagColorPicker';
-import { TrashIcon } from './svg-icons/TrashIcon';
-import { CheckIcon } from './svg-icons/CheckIcon';
+import type { Activity, FeedbackAction, TagMetadata } from '../../../domain-logic/types';
+import { formatDate, formatCompactDate } from '../../../utils/format';
+import { DEBUG_VALUE_PILL_KEYS, type DebugValuePillKey, type DebugValuePillRange } from '../../reusable/debug-value-pills';
+import { DebugValuePills } from '../../reusable/DebugValuePills';
+import { clampToViewport } from '../../../utils/clamp-to-viewport';
+import { useTagColorPickerPopover } from '../../../hooks/useTagColorPickerPopover';
+import { TagColorPickerPopover } from '../../reusable/TagColorPicker';
+import { TrashIcon } from '../../reusable/svg-icons/TrashIcon';
+import { CheckIcon } from '../../reusable/svg-icons/CheckIcon';
 import './ActivityRow.css';
 
 function DeleteButton({ onClick, disabled }: { onClick(): void; disabled: boolean }) {
@@ -505,36 +505,81 @@ function ActivityRowComponent({
 					<div className="activity-row-selector-circle">{isSelected && <CheckIcon />}</div>
 				</div>
 				<div className={`activity-row-body`}>
-					<div className={`activity-row-compact-fields${isEditingName ? ' is-editing' : ''}`}>
-						{isEditingName ? (
-							<input
-								ref={inputRef}
-								type="text"
-								className="activity-row-edit"
-								value={draft}
-								onChange={(event) => setDraft(event.target.value)}
-								onKeyDown={onKey}
-								onBlur={() => void commit()}
-								disabled={busy}
-								maxLength={120}
-							/>
-						) : (
+					<div className="activity-row-top">
+						<div className={`activity-row-compact-fields${isEditingName ? ' is-editing' : ''}`}>
+							{isEditingName ? (
+								<input
+									ref={inputRef}
+									type="text"
+									className="activity-row-edit"
+									value={draft}
+									onChange={(event) => setDraft(event.target.value)}
+									onKeyDown={onKey}
+									onBlur={() => void commit()}
+									disabled={busy}
+									maxLength={120}
+								/>
+							) : (
+								<button
+									type="button"
+									className="activity-row-name"
+									onClick={() => {
+										if (!isSelectMode) startEditing();
+									}}
+									title={isSelectMode ? undefined : 'Click to rename'}
+								>
+									{activity.name}
+								</button>
+							)}
+							{!isEditingName && isShowingDateAdded && (
+								<span className="activity-row-compact-date" title={`Added ${formatDate(activity.createdAt)}`}>
+									{formatCompactDate(activity.createdAt, now)}
+								</span>
+							)}
+						</div>
+						<div className="activity-row-feedback">
 							<button
 								type="button"
-								className="activity-row-name"
-								onClick={() => {
-									if (!isSelectMode) startEditing();
-								}}
-								title={isSelectMode ? undefined : 'Click to rename'}
+								className="icon-btn icon-btn-love-it"
+								onClick={() => void handleFeedback('boost')}
+								disabled={busy}
+								title="Love It! (big weight boost)"
+								aria-label="Love It!"
 							>
-								{activity.name}
+								★
 							</button>
-						)}
-						{!isEditingName && isShowingDateAdded && (
-							<span className="activity-row-compact-date" title={`Added ${formatDate(activity.createdAt)}`}>
-								{formatCompactDate(activity.createdAt, now)}
-							</span>
-						)}
+							<button
+								type="button"
+								className="icon-btn"
+								onClick={() => void handleFeedback('accept')}
+								disabled={busy}
+								title="Increase enjoyment"
+								aria-label="Increase enjoyment"
+							>
+								+
+							</button>
+							<button
+								type="button"
+								className="icon-btn"
+								onClick={() => void handleFeedback('reject')}
+								disabled={busy}
+								title="Decrease enjoyment"
+								aria-label="Decrease enjoyment"
+							>
+								−
+							</button>
+							<button
+								type="button"
+								className="icon-btn icon-btn-hate-it"
+								onClick={() => void handleFeedback('hate')}
+								disabled={busy}
+								title="Hate It! (big weight penalty)"
+								aria-label="Hate It!"
+							>
+								✕
+							</button>
+							<DeleteButton onClick={() => void handleDelete()} disabled={busy} />
+						</div>
 					</div>
 					{!isEditingName &&
 						(isShowingTags ? (
@@ -569,49 +614,6 @@ function ActivityRowComponent({
 							<DebugValuePills values={debugValues} ranges={debugRanges} visibility={debugValuePillKeyToIsVisible} />
 						</span>
 					)}
-					<div className="activity-row-feedback">
-						<button
-							type="button"
-							className="icon-btn icon-btn-love-it"
-							onClick={() => void handleFeedback('boost')}
-							disabled={busy}
-							title="Love It! (big weight boost)"
-							aria-label="Love It!"
-						>
-							★
-						</button>
-						<button
-							type="button"
-							className="icon-btn"
-							onClick={() => void handleFeedback('accept')}
-							disabled={busy}
-							title="Increase enjoyment"
-							aria-label="Increase enjoyment"
-						>
-							+
-						</button>
-						<button
-							type="button"
-							className="icon-btn"
-							onClick={() => void handleFeedback('reject')}
-							disabled={busy}
-							title="Decrease enjoyment"
-							aria-label="Decrease enjoyment"
-						>
-							−
-						</button>
-						<button
-							type="button"
-							className="icon-btn icon-btn-hate-it"
-							onClick={() => void handleFeedback('hate')}
-							disabled={busy}
-							title="Hate It! (big weight penalty)"
-							aria-label="Hate It!"
-						>
-							✕
-						</button>
-						<DeleteButton onClick={() => void handleDelete()} disabled={busy} />
-					</div>
 				</div>
 			</li>
 		);

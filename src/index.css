@@ -28,6 +28,7 @@
 
 	--radius: 10px;
 	--radius-sm: 6px;
+	--icon-toggle-button-size: calc(0.875rem * 1.45 + 14px);
 	--shadow: 0 6px 24px rgba(45, 52, 54, 0.08), 0 2px 6px rgba(45, 52, 54, 0.05);
 
 	--spacing-extra-small: 2px;

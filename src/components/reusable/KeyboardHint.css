@@ -1,4 +1,4 @@
-.kbd-hint {
+.keyboard-hint {
 	--_kbd-bg: rgba(0, 0, 0, 0.07);
 	--_kbd-border: rgba(0, 0, 0, 0.16);
 	--_kbd-color: var(--muted-text-color);
@@ -20,8 +20,19 @@
 	user-select: none;
 }
 
-@media (max-width: 599px) {
-	.kbd-hint {
+.keyboard-hint-tag-pill {
+	margin-left: 3px;
+	padding: 1px 4px;
+	border-radius: 3px;
+	border: 1px solid rgba(255, 255, 255, 0.35);
+	background: rgba(255, 255, 255, 0.15);
+	font-family: var(--mono);
+	font-size: 0.625rem;
+	line-height: 1.4;
+}
+
+@media (hover: none) {
+	.keyboard-hint {
 		display: none;
 	}
 }

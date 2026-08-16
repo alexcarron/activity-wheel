@@ -8,7 +8,7 @@ export function PinIcon({ isFilled }: { isFilled: boolean }) {
 			viewBox="0 0 24 24"
 			fill={isFilled ? 'currentColor' : 'none'}
 			stroke="currentColor"
-			strokeWidth={isFilled ? 0 : SVG_ICON_OUTLINE_STROKE_WIDTH}
+			strokeWidth={SVG_ICON_OUTLINE_STROKE_WIDTH}
 			strokeLinecap="round"
 			strokeLinejoin="round"
 			aria-hidden="true"

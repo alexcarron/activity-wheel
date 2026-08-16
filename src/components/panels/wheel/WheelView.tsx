@@ -3,19 +3,19 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { Activity, FeedbackAction, TagMetadata } from '../domain-logic/types';
-import { estimateStableProbabilities } from '../domain-logic/weight-logic/stable-probability-estimate-logic';
-import { getProbabilitiesFromActualCurrentWeights } from '../domain-logic/weight-logic/preference-to-weight-logic';
-import { defaultRng } from '../utils/random-utils';
-import { useNow } from '../hooks/useNow';
-import { useWheel } from '../hooks/wheel/useWheel';
-import { useHotkey } from '../hooks/useHotkey';
-import { HOTKEYS } from '../constants/hotkeys';
-import type { SessionApi } from '../hooks/useSession';
+import type { Activity, FeedbackAction, TagMetadata } from '../../../domain-logic/types';
+import { estimateStableProbabilities } from '../../../domain-logic/weight-logic/stable-probability-estimate-logic';
+import { getProbabilitiesFromActualCurrentWeights } from '../../../domain-logic/weight-logic/preference-to-weight-logic';
+import { defaultRng } from '../../../utils/random-utils';
+import { useNow } from '../../../hooks/useNow';
+import { useWheel } from '../../../hooks/wheel/useWheel';
+import { useHotkey } from '../../../hooks/useHotkey';
+import { HOTKEYS } from '../../../constants/hotkeys';
+import type { SessionApi } from '../../../hooks/useSession';
 import { Wheel } from './Wheel';
 import { PostSpinActions } from './PostSpinActions';
-import { KbdHint } from './KbdHint';
-import { PinIcon } from './svg-icons/PinIcon';
+import { KeyboardHint } from '../../reusable/KeyboardHint';
+import { PinIcon } from '../../reusable/svg-icons/PinIcon';
 import './WheelView.css';
 
 interface Props {
@@ -243,7 +243,7 @@ export function WheelView({
 							title={`Spin the wheel (${HOTKEYS.SPIN_WHEEL.label})`}
 						>
 							Spin the wheel
-							<KbdHint label={HOTKEYS.SPIN_WHEEL.label} />
+							<KeyboardHint label={HOTKEYS.SPIN_WHEEL.label} />
 						</button>
 					)}
 					{remainingActivities.length === 0 && activities.length > 0 && !tagFilterActive && (

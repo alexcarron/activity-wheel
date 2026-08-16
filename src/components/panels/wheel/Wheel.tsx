@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef, useState } from 'react';
-import type { Activity } from '../domain-logic/types';
-import { SPIN_TIMING } from '../hooks/wheel/useWheel';
+import type { Activity } from '../../../domain-logic/types';
+import { SPIN_TIMING } from '../../../hooks/wheel/useWheel';
 import './Wheel.css';
 
 interface WheelProps {

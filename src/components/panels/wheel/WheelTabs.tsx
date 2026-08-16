@@ -9,8 +9,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Wheel } from '../domain-logic/types';
-import { SharedWheelIcon } from './svg-icons/SharedWheelIcon';
+import type { Wheel } from '../../../domain-logic/types';
+import { SharedWheelIcon } from '../../reusable/svg-icons/SharedWheelIcon';
 import './WheelTabs.css';
 
 interface Props {
@@ -105,9 +105,6 @@ export function WheelTabs({
 		[wheels, onDelete],
 	);
 
-	// Sort tabs: keep insertion order but put active first? No. Keep stable order.
-	// Tabs are displayed in the order they appear in `wheels` (sorted by lastUsedAt
-	// desc in the service, but we use createdAt order for stable tab display).
 	const sortedWheels = [...wheels].sort((wheel1, wheel2) => wheel1.createdAt - wheel2.createdAt);
 
 	return (
@@ -152,8 +149,8 @@ export function WheelTabs({
 									{wheel.name}
 									{/* {isActive && wheels.length > 1 && (
                     <span className="wheel-tab-hotkeys" aria-hidden="true">
-                      <KbdHint label={HOTKEYS.PREV_WHEEL.label} />
-                      <KbdHint label={HOTKEYS.NEXT_WHEEL.label} />
+                      <KeyboardHint label={HOTKEYS.PREV_WHEEL.label} />
+                      <KeyboardHint label={HOTKEYS.NEXT_WHEEL.label} />
                     </span>
                   )} */}
 								</button>

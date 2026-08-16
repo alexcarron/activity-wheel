@@ -6,7 +6,7 @@ import { useCallback, useState } from 'react';
 import type { FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import './AddActivity.css';
-import { useViewportBreakpoint } from '../hooks/useViewportBreakpoint';
+import { useViewportBreakpoint } from '../../../hooks/useViewportBreakpoint';
 import { AddActivityButton } from './AddActivityButton';
 
 const ADD_ACTIVITY_FORM_ID = 'add-activity-form';

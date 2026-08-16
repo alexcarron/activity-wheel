@@ -3,14 +3,14 @@
  * Persisted to localStorage so it survives page reloads.
  */
 
-import type { UseDebugApi } from '../hooks/useDebug';
-import { DEBUG_VALUE_PILLS } from './debug-value-pills';
+import type { UseDebugApi } from '../../../hooks/useDebug';
+import { DEBUG_VALUE_PILLS } from '../../reusable/debug-value-pills';
 import {
 	MAXIMUM_SPREAD_FACTOR,
 	MAXIMUM_SPREAD_FACTOR_WHEN_EXTREME_ENABLED,
 	sliderPositionToSpreadFactor,
 	spreadFactorToSliderPosition,
-} from '../domain-logic/weight-logic/weight-spread-logic';
+} from '../../../domain-logic/weight-logic/weight-spread-logic';
 import './DebugPanel.css';
 
 interface Props {
