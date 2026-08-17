@@ -305,6 +305,30 @@
 	color: #fff;
 }
 
+.icon-btn-accept:hover:not(:disabled) {
+	background: color-mix(in srgb, var(--good-color) 22%, var(--elevated-background-color));
+	border-color: var(--good-color);
+	color: var(--strong-good-color);
+}
+
+.icon-btn-accept:active:not(:disabled) {
+	background: color-mix(in srgb, var(--good-color) 38%, var(--elevated-background-color));
+	border-color: var(--strong-good-color);
+	color: var(--strong-good-color);
+}
+
+.icon-btn-reject:hover:not(:disabled) {
+	background: color-mix(in srgb, var(--warning-color) 22%, var(--elevated-background-color));
+	border-color: var(--warning-color);
+	color: var(--strong-warning-color);
+}
+
+.icon-btn-reject:active:not(:disabled) {
+	background: color-mix(in srgb, var(--warning-color) 38%, var(--elevated-background-color));
+	border-color: var(--strong-warning-color);
+	color: var(--strong-warning-color);
+}
+
 .icon-btn-danger:hover:not(:disabled) {
 	background: var(--warning-color);
 	border-color: var(--warning-color);

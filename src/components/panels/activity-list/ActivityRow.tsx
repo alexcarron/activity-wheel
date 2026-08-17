@@ -10,6 +10,10 @@ import { useTagColorPickerPopover } from '../../../hooks/useTagColorPickerPopove
 import { TagColorPickerPopover } from '../../reusable/TagColorPicker';
 import { TrashIcon } from '../../svg-icons/TrashIcon';
 import { CheckIcon } from '../../svg-icons/CheckIcon';
+import { HeartIcon } from '../../svg-icons/HeartIcon';
+import { BrokenHeartIcon } from '../../svg-icons/BrokenHeartIcon';
+import { ThumbsUpIcon } from '../../svg-icons/ThumbsUpIcon';
+import { ThumbsDownIcon } from '../../svg-icons/ThumbsDownIcon';
 import './ActivityRow.css';
 
 function DeleteButton({ onClick, disabled }: { onClick(): void; disabled: boolean }) {
@@ -574,25 +578,25 @@ function ActivityRowComponent({
 								title="Love It! (big weight boost)"
 								aria-label="Love It!"
 							>
-								★
+								<HeartIcon />
 							</button>
 							<button
 								type="button"
-								className="icon-btn"
+								className="icon-btn icon-btn-accept"
 								onClick={() => handleFeedback('accept')}
 								title="Increase enjoyment"
 								aria-label="Increase enjoyment"
 							>
-								+
+								<ThumbsUpIcon />
 							</button>
 							<button
 								type="button"
-								className="icon-btn"
+								className="icon-btn icon-btn-reject"
 								onClick={() => handleFeedback('reject')}
 								title="Decrease enjoyment"
 								aria-label="Decrease enjoyment"
 							>
-								−
+								<ThumbsDownIcon />
 							</button>
 							<button
 								type="button"
@@ -601,7 +605,7 @@ function ActivityRowComponent({
 								title="Hate It! (big weight penalty)"
 								aria-label="Hate It!"
 							>
-								✕
+								<BrokenHeartIcon />
 							</button>
 							<DeleteButton onClick={() => void handleDelete()} disabled={busy} />
 						</div>
@@ -700,25 +704,25 @@ function ActivityRowComponent({
 							title="Love It! (big weight boost)"
 							aria-label="Love It! (big weight boost)"
 						>
-							★
+							<HeartIcon />
 						</button>
 						<button
 							type="button"
-							className="icon-btn"
+							className="icon-btn icon-btn-accept"
 							onClick={() => handleFeedback('accept')}
 							title="Increase enjoyment"
 							aria-label="Increase enjoyment"
 						>
-							+
+							<ThumbsUpIcon />
 						</button>
 						<button
 							type="button"
-							className="icon-btn"
+							className="icon-btn icon-btn-reject"
 							onClick={() => handleFeedback('reject')}
 							title="Decrease enjoyment"
 							aria-label="Decrease enjoyment"
 						>
-							−
+							<ThumbsDownIcon />
 						</button>
 						<button
 							type="button"
@@ -727,7 +731,7 @@ function ActivityRowComponent({
 							title="Hate It! (big weight penalty)"
 							aria-label="Hate It!"
 						>
-							✕
+							<BrokenHeartIcon />
 						</button>
 						<DeleteButton onClick={() => void handleDelete()} disabled={busy} />
 					</div>

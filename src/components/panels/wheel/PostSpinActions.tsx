@@ -10,17 +10,22 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { KeyboardEvent } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
 import type { Activity, FeedbackAction, TagMetadata } from '../../../domain-logic/types';
 import { useHotkey } from '../../../hooks/useHotkey';
 import { HOTKEYS } from '../../../constants/hotkeys';
 import { KeyboardHint } from '../../reusable/KeyboardHint';
+import { HeartIcon } from '../../svg-icons/HeartIcon';
+import { BrokenHeartIcon } from '../../svg-icons/BrokenHeartIcon';
+import { ThumbsUpIcon } from '../../svg-icons/ThumbsUpIcon';
+import { ThumbsDownIcon } from '../../svg-icons/ThumbsDownIcon';
 import './PostSpinActions.css';
 
 type ManualFeedbackAction = Exclude<FeedbackAction, 'undo'>;
 
 interface FeedbackButtonConfig {
 	readonly className: string;
+	readonly icon: ReactNode;
 	readonly label: string;
 	readonly hotkeyLabel: string;
 	readonly title: string;
@@ -29,31 +34,36 @@ interface FeedbackButtonConfig {
 const FEEDBACK_BUTTON_CONFIGS: Record<ManualFeedbackAction, FeedbackButtonConfig> = {
 	boost: {
 		className: 'btn btn-love-it',
-		label: '★ Love It!',
+		icon: <HeartIcon />,
+		label: 'Love It!',
 		hotkeyLabel: HOTKEYS.LOVE_IT.label,
 		title: `Love It! (big weight boost) [${HOTKEYS.LOVE_IT.label}]`,
 	},
 	accept: {
 		className: 'btn btn-accept',
+		icon: <ThumbsUpIcon />,
 		label: 'Accept',
 		hotkeyLabel: HOTKEYS.ACCEPT.label,
 		title: `Accept (${HOTKEYS.ACCEPT.label})`,
 	},
 	skip: {
 		className: 'btn btn-skip',
+		icon: null,
 		label: 'Skip',
 		hotkeyLabel: HOTKEYS.SKIP.label,
 		title: `Skip (${HOTKEYS.SKIP.label})`,
 	},
 	reject: {
 		className: 'btn btn-reject',
+		icon: <ThumbsDownIcon />,
 		label: 'Reject',
 		hotkeyLabel: HOTKEYS.REJECT.label,
 		title: `Reject (${HOTKEYS.REJECT.label})`,
 	},
 	hate: {
 		className: 'btn btn-hate-it',
-		label: '✕ Hate It!',
+		icon: <BrokenHeartIcon />,
+		label: 'Hate It!',
 		hotkeyLabel: HOTKEYS.HATE_IT.label,
 		title: `Hate It! (big weight penalty) [${HOTKEYS.HATE_IT.label}]`,
 	},
@@ -273,6 +283,7 @@ export function PostSpinActions(props: Props) {
 							disabled={busy}
 							title={config.title}
 						>
+							{config.icon}
 							{config.label}
 							<KeyboardHint label={config.hotkeyLabel} />
 						</button>
