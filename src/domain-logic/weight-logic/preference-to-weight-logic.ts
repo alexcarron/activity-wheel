@@ -27,6 +27,21 @@ export function getWeightOfPossiblePreferenceScore(possiblePreferenceScore: numb
 }
 
 /**
+ * Determines the expected weight of an activity based on only its preference score and decayed confidence.
+ */
+export function getStableWeightOfActivity({ activity, now }: { activity: Activity; now: number }): number {
+	const decayedPreferenceScoreConfidence = getDecayedPreferenceScoreConfidence({
+		preferenceScoreConfidence: activity.preferenceScoreConfidence,
+		lastFeedbackAt: activity.lastFeedbackAt,
+		now,
+	});
+	return Math.exp(
+		PREFERENCE_WEIGHT_STRENGTH * activity.preferenceScore +
+			(PREFERENCE_WEIGHT_STRENGTH ** 2) / (2 * decayedPreferenceScoreConfidence),
+	);
+}
+
+/**
  * A random weight for one activity for one specific spin. A fresh call gets a new random value, so callers that need this value to stay the same across renders must call it once and hold onto the result themselves. Use the estimated stable weight/probability for anything that should look steady.
  */
 export function getActualCurrentWeightOfActivity({ activity, now, rng }: { activity: Activity; now: number; rng: Rng }): number {

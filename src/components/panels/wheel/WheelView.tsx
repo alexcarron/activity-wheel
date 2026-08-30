@@ -6,7 +6,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Activity, FeedbackAction, TagMetadata } from '../../../domain-logic/types';
 import { estimateStableProbabilities } from '../../../domain-logic/weight-logic/stable-probability-estimate-logic';
 import { getProbabilitiesFromActualCurrentWeights } from '../../../domain-logic/weight-logic/preference-to-weight-logic';
-import { defaultRng } from '../../../utils/random-utils';
 import { useNow } from '../../../hooks/useNow';
 import { useWheel } from '../../../hooks/wheel/useWheel';
 import { useHotkey } from '../../../hooks/useHotkey';
@@ -64,7 +63,7 @@ export function WheelView({
 	const remainingActivities = session.remainingActivities;
 
 	const estimatedStableProbabilities = useMemo(
-		() => estimateStableProbabilities({ activities: remainingActivities, now, rng: defaultRng, spreadFactor }),
+		() => estimateStableProbabilities({ activities: remainingActivities, now, spreadFactor }),
 		[remainingActivities, now, spreadFactor],
 	);
 

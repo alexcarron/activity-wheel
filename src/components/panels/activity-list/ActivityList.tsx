@@ -12,7 +12,6 @@ import {
 	estimateStableWeights,
 } from '../../../domain-logic/weight-logic/stable-probability-estimate-logic';
 import { getDecayedPreferenceScoreConfidence } from '../../../domain-logic/weight-logic/confidence-decay-logic';
-import { defaultRng } from '../../../utils/random-utils';
 import { useNow } from '../../../hooks/useNow';
 import { ActivityRow, AddTagCombobox } from './ActivityRow';
 import { DEBUG_VALUE_PILL_KEYS, type DebugValuePillKey, type DebugValuePillRange } from '../../reusable/debug-value-pills';
@@ -143,8 +142,8 @@ export function ActivityList(props: ActivityListProps) {
 			return { debugValuesByActivityID: valuesByActivityID, debugRangesByKey: emptyRanges };
 		}
 
-		const estimatedStableWeights = estimateStableWeights({ activities, now, rng: defaultRng });
-		const estimatedStableProbabilities = estimateStableProbabilities({ activities, now, rng: defaultRng, spreadFactor });
+		const estimatedStableWeights = estimateStableWeights({ activities, now });
+		const estimatedStableProbabilities = estimateStableProbabilities({ activities, now, spreadFactor });
 
 		activities.forEach((activity, index) => {
 			const decayedPreferenceScoreConfidence = getDecayedPreferenceScoreConfidence({
