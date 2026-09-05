@@ -7,6 +7,7 @@ import type { FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import './AddActivity.css';
 import { useViewportBreakpoint } from '../../../hooks/useViewportBreakpoint';
+import { MAXIMUM_ACTIVITY_NAME_LENGTH } from '../../../domain-logic/types';
 import { AddActivityButton } from './AddActivityButton';
 
 const ADD_ACTIVITY_FORM_ID = 'add-activity-form';
@@ -50,7 +51,7 @@ export function AddActivity({ onAdd, mobileButtonContainer }: Props) {
 				placeholder="Add an activity (e.g. Play Minecraft)"
 				value={name}
 				onChange={(event) => setName(event.target.value)}
-				maxLength={120}
+				maxLength={MAXIMUM_ACTIVITY_NAME_LENGTH}
 				disabled={busy}
 			/>
 			{!isPhone && addActivityButton}

@@ -10,11 +10,17 @@ export const MINIMUM_SPREAD_FACTOR = 0;
 export const MAXIMUM_SPREAD_FACTOR = 3;
 export const MAXIMUM_SPREAD_FACTOR_WHEN_EXTREME_ENABLED = 1000;
 
+function sanitizeWeight(weight: number): number {
+	return Number.isFinite(weight) && weight > 0 ? weight : 0;
+}
+
 export function applySpreadToWeights(weights: readonly number[], spreadFactor: number): number[] {
 	if (weights.length === 0) return [];
-	const mean = weights.reduce((sum, weight) => sum + weight, 0) / weights.length;
-	return weights.map((weight) =>
-		Math.max(MINIMUM_WEIGHT_AFTER_SPREAD, mean + (weight - mean) * spreadFactor),
+	const sanitizedSpreadFactor = Number.isFinite(spreadFactor) ? spreadFactor : DEFAULT_SPREAD_FACTOR;
+	const sanitizedWeights = weights.map(sanitizeWeight);
+	const mean = sanitizedWeights.reduce((sum, weight) => sum + weight, 0) / sanitizedWeights.length;
+	return sanitizedWeights.map((weight) =>
+		Math.max(MINIMUM_WEIGHT_AFTER_SPREAD, mean + (weight - mean) * sanitizedSpreadFactor),
 	);
 }
 

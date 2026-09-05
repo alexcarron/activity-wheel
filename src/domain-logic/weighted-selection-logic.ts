@@ -12,6 +12,10 @@ export interface Weighted<T> {
 const SCALE = 10000;
 const BINARY_SEARCH_THRESHOLD = 32;
 
+function sanitizeWeightOfWeightedItem(weight: number): number {
+	return Number.isFinite(weight) && weight > 0 ? weight : 0;
+}
+
 /**
  * Pick exactly one item from the given weighted items using their weights. Returns undefined if there are no items or all weights are non-positive.
  */
@@ -21,7 +25,7 @@ export function pickFromWeightedItems<T>({ weightedItems, rng = defaultRng }: { 
 	const cumulativeWeights: number[] = new Array(weightedItems.length);
 	let total = 0;
 	for (let i = 0; i < weightedItems.length; i++) {
-		const weight = weightedItems[i].weight;
+		const weight = sanitizeWeightOfWeightedItem(weightedItems[i].weight);
 		if (weight > 0) total += Math.round(weight * SCALE);
 		cumulativeWeights[i] = total;
 	}
@@ -51,7 +55,7 @@ export function pickFromWeightedItems<T>({ weightedItems, rng = defaultRng }: { 
  */
 export function getProbabilitiesOfWeightedItems<T>(weightedItems: Weighted<T>[]): number[] {
 	let total = 0;
-	for (const entry of weightedItems) total += Math.max(0, entry.weight);
-	if (total === 0) return weightedItems.map(() => 0);
-	return weightedItems.map((entry) => Math.max(0, entry.weight) / total);
+	for (const entry of weightedItems) total += sanitizeWeightOfWeightedItem(entry.weight);
+	if (!Number.isFinite(total) || total === 0) return weightedItems.map(() => 0);
+	return weightedItems.map((entry) => sanitizeWeightOfWeightedItem(entry.weight) / total);
 }

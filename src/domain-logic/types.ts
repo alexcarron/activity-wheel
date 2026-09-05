@@ -11,6 +11,8 @@ export interface PreferenceEstimateSnapshot {
 	lastFeedbackAt: number;
 }
 
+export const MAXIMUM_ACTIVITY_NAME_LENGTH = 10000;
+
 export interface Activity {
 	id: string;
 	/** Which wheel this activity belongs to. Defaults to 'default' for migrated records */

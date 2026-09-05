@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties, KeyboardEvent } from 'react';
-import type { Activity, FeedbackAction, TagMetadata } from '../../../domain-logic/types';
+import { MAXIMUM_ACTIVITY_NAME_LENGTH, type Activity, type FeedbackAction, type TagMetadata } from '../../../domain-logic/types';
 import { formatDate, formatCompactDate } from '../../../utils/format';
 import { DEBUG_VALUE_PILL_KEYS, type DebugValuePillKey, type DebugValuePillRange } from '../../reusable/debug-value-pills';
 import { DebugValuePills } from '../../reusable/DebugValuePills';
@@ -516,7 +516,7 @@ function ActivityRowComponent({
 										onKeyDown={onKey}
 										onBlur={() => void commit()}
 										disabled={busy}
-										maxLength={120}
+										maxLength={MAXIMUM_ACTIVITY_NAME_LENGTH}
 									/>
 								) : (
 									<button
@@ -662,7 +662,7 @@ function ActivityRowComponent({
 								onKeyDown={onKey}
 								onBlur={() => void commit()}
 								disabled={busy}
-								maxLength={120}
+								maxLength={MAXIMUM_ACTIVITY_NAME_LENGTH}
 							/>
 						) : (
 							<button

@@ -11,7 +11,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
-import type { Activity, FeedbackAction, TagMetadata } from '../../../domain-logic/types';
+import { MAXIMUM_ACTIVITY_NAME_LENGTH, type Activity, type FeedbackAction, type TagMetadata } from '../../../domain-logic/types';
 import { useHotkey } from '../../../hooks/useHotkey';
 import { HOTKEYS } from '../../../constants/hotkeys';
 import { KeyboardHint } from '../../reusable/KeyboardHint';
@@ -196,7 +196,7 @@ export function PostSpinActions(props: Props) {
 						onChange={(event) => setDraft(event.target.value)}
 						onKeyDown={onKey}
 						onBlur={() => void commit()}
-						maxLength={120}
+						maxLength={MAXIMUM_ACTIVITY_NAME_LENGTH}
 					/>
 				) : (
 					<span

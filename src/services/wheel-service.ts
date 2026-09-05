@@ -1,12 +1,19 @@
 import type { TypedStore } from '../libraries/indexeddb/store';
-import type { Activity, TagMetadata, Wheel } from '../domain-logic/types';
+import { MAXIMUM_ACTIVITY_NAME_LENGTH, type Activity, type TagMetadata, type Wheel } from '../domain-logic/types';
 import { db } from './activity-service';
 import { TAG_METADATA_STORE, WHEELS_STORE } from './schema';
 import { newID } from '../utils/id';
+import { clamp } from '../utils/math-utils';
 import { LOCAL_STORAGE_KEYS, loadStringFromLocalStorage, saveStringToLocalStorage } from '../utils/local-storage';
 import { addActivity, bulkPut, clearWheelActivities, loadActivitiesOfWheel } from './activity-service';
 import { clearWheelTagMetadata, copyTagMetadata, listTagMetadata } from './tag-service';
 import { replayMigratedPreferenceEstimate } from '../domain-logic/weight-logic/migration-replay-logic';
+import {
+	INITIAL_PREFERENCE_SCORE_CONFIDENCE,
+	MAXIMUM_PREFERENCE_SCORE,
+	MAXIMUM_PREFERENCE_SCORE_CONFIDENCE,
+	MINIMUM_PREFERENCE_SCORE,
+} from '../domain-logic/weight-logic/weight-constants';
 
 const wheelStore = (): TypedStore<Wheel> => db.store<Wheel>(WHEELS_STORE.name);
 
@@ -232,8 +239,48 @@ export async function exportFullBackup(): Promise<string> {
 	);
 }
 
+function sanitizeImportedFiniteNumber(value: unknown, fallback: number): number {
+	return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function sanitizeImportedNonNegativeCount(value: unknown): number {
+	const sanitized = sanitizeImportedFiniteNumber(value, 0);
+	return sanitized >= 0 ? Math.trunc(sanitized) : 0;
+}
+
+function sanitizeImportedTagIds(value: unknown): string[] {
+	if (!Array.isArray(value)) return [];
+	return value.filter((tagID): tagID is string => typeof tagID === 'string');
+}
+
 /**
- * Import a full backup. Deletes ALL existing wheels and replaces them with the wheels in the file. Returns the ID of the first wheel in the backup so the caller can switch to it. 
+ * Coerces a raw imported activity from an untrusted backup file into a well-formed Activity, replacing any malformed field with a neutral default instead of trusting the file.
+ */
+function sanitizeImportedActivity(activity: Activity, importedAt: number): Activity {
+	const name = typeof activity.name === 'string' ? activity.name : '';
+	return {
+		...activity,
+		name: name.slice(0, MAXIMUM_ACTIVITY_NAME_LENGTH),
+		preferenceScore: clamp(
+			sanitizeImportedFiniteNumber(activity.preferenceScore, 0),
+			MINIMUM_PREFERENCE_SCORE,
+			MAXIMUM_PREFERENCE_SCORE,
+		),
+		preferenceScoreConfidence: clamp(
+			sanitizeImportedFiniteNumber(activity.preferenceScoreConfidence, INITIAL_PREFERENCE_SCORE_CONFIDENCE),
+			INITIAL_PREFERENCE_SCORE_CONFIDENCE,
+			MAXIMUM_PREFERENCE_SCORE_CONFIDENCE,
+		),
+		lastFeedbackAt: sanitizeImportedFiniteNumber(activity.lastFeedbackAt, importedAt),
+		createdAt: sanitizeImportedFiniteNumber(activity.createdAt, importedAt),
+		acceptCount: sanitizeImportedNonNegativeCount(activity.acceptCount),
+		rejectCount: sanitizeImportedNonNegativeCount(activity.rejectCount),
+		tagIds: sanitizeImportedTagIds(activity.tagIds),
+	};
+}
+
+/**
+ * Import a full backup. Deletes ALL existing wheels and replaces them with the wheels in the file. Returns the ID of the first wheel in the backup so the caller can switch to it.
  */
 export async function importFullBackup(json: string): Promise<string> {
 	const parsed: unknown = JSON.parse(json);
@@ -281,9 +328,10 @@ export async function importFullBackup(json: string): Promise<string> {
 
 	const wheelsStore = db.store<Wheel>(WHEELS_STORE.name);
 	const tagMetadataStore = db.store<TagMetadata>(TAG_METADATA_STORE.name);
+	const importedAt = Date.now();
 	for (const { wheel, activities, tags } of backup.wheels) {
 		await wheelsStore.put(wheel);
-		if (activities.length > 0) await bulkPut(activities);
+		if (activities.length > 0) await bulkPut(activities.map((activity) => sanitizeImportedActivity(activity, importedAt)));
 		for (const tag of tags) await tagMetadataStore.put(tag);
 	}
 

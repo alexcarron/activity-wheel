@@ -1,7 +1,13 @@
 import type { FeedbackAction } from '../types';
 
-/** Starting confidence of a new activity. Also the minimum confidence. */
+/** Initial preference score confidence of a new activity. Also the minimum confidence. */
 export const INITIAL_PREFERENCE_SCORE_CONFIDENCE = 2.0;
+
+export const MAXIMUM_PREFERENCE_SCORE_CONFIDENCE = 10000;
+
+export const MINIMUM_PREFERENCE_SCORE = -2;
+
+export const MAXIMUM_PREFERENCE_SCORE = 2;
 
 /** Confidence contributed by one reaction. */
 export const FEEDBACK_STRENGTH = 2.0;

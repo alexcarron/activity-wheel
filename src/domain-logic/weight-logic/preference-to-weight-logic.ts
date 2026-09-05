@@ -1,12 +1,24 @@
 import type { Activity } from '../types';
 import type { Rng } from '../../utils/random-utils';
 import { sampleStandardNormal } from '../../utils/random-utils';
+import { clamp } from '../../utils/math-utils';
 import { getDecayedPreferenceScoreConfidence } from './confidence-decay-logic';
 import { applySpreadToWeights } from './weight-spread-logic';
-import { PREFERENCE_WEIGHT_STRENGTH } from './weight-constants';
+import {
+	INITIAL_PREFERENCE_SCORE_CONFIDENCE,
+	MAXIMUM_PREFERENCE_SCORE,
+	MAXIMUM_PREFERENCE_SCORE_CONFIDENCE,
+	MINIMUM_PREFERENCE_SCORE,
+	PREFERENCE_WEIGHT_STRENGTH,
+} from './weight-constants';
 
 export function getPreferenceScoreStandardDeviation(decayedPreferenceScoreConfidence: number): number {
-	return 1 / Math.sqrt(decayedPreferenceScoreConfidence);
+	const sanitizedConfidence = clamp(
+		Number.isFinite(decayedPreferenceScoreConfidence) ? decayedPreferenceScoreConfidence : INITIAL_PREFERENCE_SCORE_CONFIDENCE,
+		INITIAL_PREFERENCE_SCORE_CONFIDENCE,
+		MAXIMUM_PREFERENCE_SCORE_CONFIDENCE,
+	);
+	return 1 / Math.sqrt(sanitizedConfidence);
 }
 
 /**
@@ -19,26 +31,17 @@ export function getPossiblePreferenceScore({ activity, now, rng }: { activity: A
 		now,
 	});
 	const standardDeviation = getPreferenceScoreStandardDeviation(decayedPreferenceScoreConfidence);
-	return activity.preferenceScore + sampleStandardNormal(rng) * standardDeviation;
+	const sanitizedPreferenceScore = clamp(
+		Number.isFinite(activity.preferenceScore) ? activity.preferenceScore : 0,
+		MINIMUM_PREFERENCE_SCORE,
+		MAXIMUM_PREFERENCE_SCORE,
+	);
+	return sanitizedPreferenceScore + sampleStandardNormal(rng) * standardDeviation;
 }
 
 export function getWeightOfPossiblePreferenceScore(possiblePreferenceScore: number): number {
-	return Math.exp(possiblePreferenceScore * PREFERENCE_WEIGHT_STRENGTH);
-}
-
-/**
- * Determines the expected weight of an activity based on only its preference score and decayed confidence.
- */
-export function getStableWeightOfActivity({ activity, now }: { activity: Activity; now: number }): number {
-	const decayedPreferenceScoreConfidence = getDecayedPreferenceScoreConfidence({
-		preferenceScoreConfidence: activity.preferenceScoreConfidence,
-		lastFeedbackAt: activity.lastFeedbackAt,
-		now,
-	});
-	return Math.exp(
-		PREFERENCE_WEIGHT_STRENGTH * activity.preferenceScore +
-			(PREFERENCE_WEIGHT_STRENGTH ** 2) / (2 * decayedPreferenceScoreConfidence),
-	);
+	const sanitizedPossiblePreferenceScore = Number.isFinite(possiblePreferenceScore) ? possiblePreferenceScore : 0;
+	return Math.exp(sanitizedPossiblePreferenceScore * PREFERENCE_WEIGHT_STRENGTH);
 }
 
 /**
@@ -55,7 +58,7 @@ export function getProbabilitiesFromActualCurrentWeights({ actualCurrentWeights,
 	if (actualCurrentWeights.length === 0) return [];
 	const spreadWeights = applySpreadToWeights(actualCurrentWeights, spreadFactor);
 	const totalWeight = spreadWeights.reduce((sum, weight) => sum + weight, 0);
-	if (totalWeight <= 0) return actualCurrentWeights.map(() => 0);
+	if (!Number.isFinite(totalWeight) || totalWeight <= 0) return actualCurrentWeights.map(() => 0);
 	return spreadWeights.map((weight) => weight / totalWeight);
 }
 

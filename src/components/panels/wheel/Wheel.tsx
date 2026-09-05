@@ -220,6 +220,7 @@ function WheelComponent(props: WheelProps) {
 		};
 		animationFrameID = requestAnimationFrame(frame);
 		return () => cancelAnimationFrame(animationFrameID);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [animating]);
 
 	return (
