@@ -158,7 +158,7 @@
 
 .activity-row.is-compact .activity-row-top {
 	display: flex;
-	align-items: flex-start;
+	align-items: center;
 	gap: 8px;
 	flex: 1 1 100%;
 	min-width: 0;
@@ -173,10 +173,6 @@
 	min-width: 0;
 }
 
-.activity-row.is-compact .activity-row-feedback {
-	align-self: flex-start;
-}
-
 .activity-row.is-compact .activity-row-pills {
 	flex-shrink: 1;
 }
@@ -184,8 +180,14 @@
 .activity-row.is-compact .activity-row-selector {
 	width: 28px;
 	min-width: 28px;
+	align-items: center;
+	padding-top: 0;
 	padding-left: 8px;
 	padding-right: 8px;
+}
+
+.activity-row.is-compact .activity-row-body {
+	justify-content: center;
 }
 
 .activity-row.is-compact .activity-row-name {
