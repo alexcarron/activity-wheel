@@ -44,6 +44,7 @@ interface ActivityListProps {
 	onAddTagByName(tagName: string, activityIDs: readonly string[]): Promise<void>;
 	/** Forwarded to every row; see ActivityRow's onEditingChange doc comment. */
 	onEditingChange?(activityID: string, isEditing: boolean): void;
+	onShowToast(message: string): void;
 }
 
 const SORTS: { key: SortKey; label: string }[] = [
@@ -74,6 +75,7 @@ export function ActivityList(props: ActivityListProps) {
 		onDeleteTag,
 		onAddTagByName,
 		onEditingChange,
+		onShowToast,
 	} = props;
 	const now = useNow();
 	const [query, setQuery] = useState('');
@@ -263,6 +265,20 @@ export function ActivityList(props: ActivityListProps) {
 
 	const toggleSortDirection = (): void => setSortDirection((currentDirection) => (currentDirection === 'asc' ? 'desc' : 'asc'));
 
+	const handleCopySelectedActivityNames = useCallback(async () => {
+		const selectedActivityNamesInListOrder = sortedActivities
+			.filter((activity) => selectedIDs.has(activity.id))
+			.map((activity) => activity.name);
+		try {
+			await navigator.clipboard.writeText(selectedActivityNamesInListOrder.join('\n'));
+			const activityCount = selectedActivityNamesInListOrder.length;
+			onShowToast(`Copied ${activityCount} activity name${activityCount === 1 ? '' : 's'}`);
+		}
+		catch {
+			onShowToast('Failed to copy activity names');
+		}
+	}, [sortedActivities, selectedIDs, onShowToast]);
+
 	return (
 		<section className="activity-list">
 			<div className="activity-list-header">
@@ -335,6 +351,13 @@ export function ActivityList(props: ActivityListProps) {
 							onAdd={(name) => void handleBatchAddTag(name)}
 							triggerLabel={`＋ Add tag${selectedIDs.size > 1 ? ` to ${selectedIDs.size}` : ''}`}
 						/>
+						<button
+							type="button"
+							className="btn btn-ghost btn-small"
+							onClick={() => void handleCopySelectedActivityNames()}
+						>
+							Copy names
+						</button>
 						<button
 							type="button"
 							className="btn btn-ghost btn-small batch-clear-btn"

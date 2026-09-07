@@ -357,6 +357,7 @@ function App() {
 								onDeleteTag={handleDeleteTag}
 								onAddTagByName={handleBatchAddTagByName}
 								onEditingChange={handleEditingChange}
+								onShowToast={setToastMessage}
 							/>
 						</section>
 

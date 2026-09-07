@@ -71,7 +71,7 @@ Each row supports:
 - Tags: add via the `+` combobox (autocompletes from every tag you've ever used, or lets you create a new one), remove with the `×` on hover, right-click a tag to open a small popover where you can rename it (rejecting a name that collides with another tag), change its color from a preset palette or a custom picker, or delete it entirely (with a confirmation prompt, since it strips the tag from every activity that has it).
 - Delete, with a confirmation prompt.
 
-Click-and-drag across the circular selector on the left of multiple rows to multi-select them, which opens a batch action bar for adding a tag to everything selected at once.
+Click-and-drag across the circular selector on the left of multiple rows to multi-select them, which opens a batch action bar for adding a tag to everything selected at once, or copying all their names to the clipboard (newline-separated, in the list's current sort order) as a quick way to paste an activity list elsewhere.
 
 The compact-view toggle (the dense-lines icon next to sort) collapses each row to a single line and removes the list's height cap, so it can fill the whole viewport. It's meant for scanning and acting on a large activity list quickly rather than admiring one row at a time.
 
