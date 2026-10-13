@@ -53,6 +53,8 @@ Definitions of the terms this project defines for itself, and the correct termin
 
 **Preference points awarded**: The amount added to the preference score of an activity from a single feedback reaction.
 
+**Neutral feedback**: A reaction, shown on the button as "Meh", that awards 0 preference points because the user neither liked nor disliked the activity. Unlike a skip, it still counts as a reaction and increases the preference score confidence.
+
 **Reaction count / Number of reactions**: The amount of reactions an activity has been given.
 
 **Preference change resistance**: How resistant a preference score is to changing in response to new feedback.

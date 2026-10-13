@@ -319,6 +319,18 @@
 	color: var(--strong-good-color);
 }
 
+.icon-btn-neutral:hover:not(:disabled) {
+	background: color-mix(in srgb, var(--neutral-color) 22%, var(--elevated-background-color));
+	border-color: var(--neutral-color);
+	color: var(--strong-neutral-color);
+}
+
+.icon-btn-neutral:active:not(:disabled) {
+	background: color-mix(in srgb, var(--neutral-color) 38%, var(--elevated-background-color));
+	border-color: var(--strong-neutral-color);
+	color: var(--strong-neutral-color);
+}
+
 .icon-btn-reject:hover:not(:disabled) {
 	background: color-mix(in srgb, var(--warning-color) 22%, var(--elevated-background-color));
 	border-color: var(--warning-color);

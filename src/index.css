@@ -24,7 +24,8 @@
 	--hate-color: #c92a2a;
 	--strong-hate-color: #a61e1e;
 	--hate-color-rgb: 201, 42, 42;
-	--neutral-color: #9aa6a6;
+	--neutral-color: #e0a800;
+	--strong-neutral-color: #c49200;
 
 	--radius: 10px;
 	--radius-small: 6px;
@@ -76,6 +77,8 @@
 		--hate-color: #D93A4F;
 		--strong-hate-color: #D93A4F;
 		--hate-color-rgb: 217, 58, 79;
+		--neutral-color: #c99a06;
+		--strong-neutral-color: #b08600;
 
 		--shadow: 0 6px 24px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.3);
 	}

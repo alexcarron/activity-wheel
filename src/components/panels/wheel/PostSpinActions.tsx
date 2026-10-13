@@ -1,14 +1,3 @@
-/**
- * Buttons shown after the wheel lands. The user can:
- * - Accept (boost weight + exclude from this session)
- * - Reject (drop weight + exclude from this session)
- * - Skip (no weight change, but still exclude. The user has seen this option)
- * - Spin again (uses the remaining activities this session)
- * - Reset session (makes every excluded activity available again)
- * "Spin again" only enables when there's still something to spin.
- * Keyboard shortcuts are active for as long as this component is mounted (i.e. while the wheel is in the "landed" phase) and are disabled while a write is in flight (`busy`). Space fires "spin again" when available, matching the idle-phase convention so the user's muscle memory stays the same throughout the session. 
- */
-
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import { MAXIMUM_ACTIVITY_NAME_LENGTH, type Activity, type FeedbackAction, type TagMetadata } from '../../../domain-logic/types';
@@ -18,6 +7,7 @@ import { KeyboardHint } from '../../reusable/KeyboardHint';
 import { HeartIcon } from '../../svg-icons/HeartIcon';
 import { BrokenHeartIcon } from '../../svg-icons/BrokenHeartIcon';
 import { ThumbsUpIcon } from '../../svg-icons/ThumbsUpIcon';
+import { NeutralFaceIcon } from '../../svg-icons/NeutralFaceIcon';
 import { ThumbsDownIcon } from '../../svg-icons/ThumbsDownIcon';
 import './PostSpinActions.css';
 
@@ -53,6 +43,13 @@ const FEEDBACK_BUTTON_CONFIGS: Record<ManualFeedbackAction, FeedbackButtonConfig
 		hotkeyLabel: HOTKEYS.SKIP.label,
 		title: `Skip (${HOTKEYS.SKIP.label})`,
 	},
+	neutral: {
+		className: 'btn btn-neutral',
+		icon: <NeutralFaceIcon />,
+		label: 'Meh',
+		hotkeyLabel: HOTKEYS.NEUTRAL.label,
+		title: `Meh (neither liked nor disliked) [${HOTKEYS.NEUTRAL.label}]`,
+	},
 	reject: {
 		className: 'btn btn-reject',
 		icon: <ThumbsDownIcon />,
@@ -69,12 +66,11 @@ const FEEDBACK_BUTTON_CONFIGS: Record<ManualFeedbackAction, FeedbackButtonConfig
 	},
 };
 
-const FEEDBACK_BUTTON_ORDER: readonly ManualFeedbackAction[] = ['boost', 'accept', 'skip', 'reject', 'hate'];
+const PREFERENCE_FEEDBACK_BUTTON_ORDER: readonly ManualFeedbackAction[] = ['boost', 'accept', 'neutral', 'reject', 'hate'];
 
 interface Props {
 	readonly pickedActivity: Activity;
 	readonly remainingActivityCount: number;
-	/** Triggered by accept/reject/skip. Caller persists feedback + excludes. */
 	onChoose(action: FeedbackAction): void;
 	onSpinAgain(): void;
 	onResetSession(): void;
@@ -172,15 +168,33 @@ export function PostSpinActions(props: Props) {
 		if (editing) inputRef.current?.select();
 	}, [editing]);
 
-	// Feedback shortcuts. Active whenever this component is visible and not busy.
 	useHotkey(HOTKEYS.LOVE_IT.code, () => onChoose('boost'), !busy && !editing);
 	useHotkey(HOTKEYS.ACCEPT.code, () => onChoose('accept'), !busy && !editing);
 	useHotkey(HOTKEYS.SKIP.code, () => onChoose('skip'), !busy && !editing);
+	useHotkey(HOTKEYS.NEUTRAL.code, () => onChoose('neutral'), !busy && !editing);
 	useHotkey(HOTKEYS.REJECT.code, () => onChoose('reject'), !busy && !editing);
 	useHotkey(HOTKEYS.HATE_IT.code, () => onChoose('hate'), !busy && !editing);
 
-	// Space = "spin again" while landed, mirroring the idle-phase Space = spin.
 	useHotkey(HOTKEYS.SPIN_WHEEL.code, onSpinAgain, !busy && !editing && canSpinAgain);
+
+	const renderFeedbackButton = (action: ManualFeedbackAction): ReactNode => {
+		const config = FEEDBACK_BUTTON_CONFIGS[action];
+		return (
+			<button
+				key={action}
+				type="button"
+				className={config.className}
+				style={{ gridArea: action }}
+				onClick={() => onChoose(action)}
+				disabled={busy}
+				title={config.title}
+			>
+				{config.icon}
+				{config.label}
+				<KeyboardHint label={config.hotkeyLabel} />
+			</button>
+		);
+	};
 
 	return (
 		<div className="post-spin">
@@ -271,39 +285,25 @@ export function PostSpinActions(props: Props) {
 			)}
 
 			<div className="post-spin-feedback">
-				{FEEDBACK_BUTTON_ORDER.map((action) => {
-					const config = FEEDBACK_BUTTON_CONFIGS[action];
-					return (
-						<button
-							key={action}
-							type="button"
-							className={config.className}
-							style={{ gridArea: action }}
-							onClick={() => onChoose(action)}
-							disabled={busy}
-							title={config.title}
-						>
-							{config.icon}
-							{config.label}
-							<KeyboardHint label={config.hotkeyLabel} />
-						</button>
-					);
-				})}
+				{PREFERENCE_FEEDBACK_BUTTON_ORDER.map(renderFeedbackButton)}
 			</div>
 			<div className="post-spin-nav">
-				<button
-					type="button"
-					className="btn btn-secondary"
-					onClick={onSpinAgain}
-					disabled={busy || !canSpinAgain}
-					title={canSpinAgain ? `Spin again (${HOTKEYS.SPIN_WHEEL.label})` : undefined}
-				>
-					Spin again
-					{canSpinAgain && <KeyboardHint label={HOTKEYS.SPIN_WHEEL.label} />}
-				</button>
-				<button type="button" className="btn btn-ghost" onClick={onResetSession} disabled={busy}>
-					Reset session
-				</button>
+				{renderFeedbackButton('skip')}
+				<div className="post-spin-spin-again-and-reset">
+					<button
+						type="button"
+						className="btn btn-secondary"
+						onClick={onSpinAgain}
+						disabled={busy || !canSpinAgain}
+						title={canSpinAgain ? `Spin again (${HOTKEYS.SPIN_WHEEL.label})` : undefined}
+					>
+						Spin again
+						{canSpinAgain && <KeyboardHint label={HOTKEYS.SPIN_WHEEL.label} />}
+					</button>
+					<button type="button" className="btn btn-ghost" onClick={onResetSession} disabled={busy}>
+						Reset session
+					</button>
+				</div>
 			</div>
 		</div>
 	);

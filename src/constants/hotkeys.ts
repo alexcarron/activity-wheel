@@ -22,6 +22,10 @@ export const HOTKEYS = {
 		code: 'KeyS',
 		label: 'S',
 	},
+	NEUTRAL: {
+		code: 'KeyM',
+		label: 'M',
+	},
 	REJECT: {
 		code: 'KeyN',
 		label: 'N',

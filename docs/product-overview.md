@@ -12,15 +12,19 @@ Pressing **Spin the wheel** (or `Space`) picks the activity immediately using a 
 
 Slices are rendered with the highest probability first starting at the top, sized by the estimated weight each activity has.
 
-Once it lands, you get four feedback buttons and two navigation buttons:
+Once it lands, you get five feedback buttons:
 
-- **★ Love It!** (`L`): awards +2 preference points.
-- **Accept** (`Y`): awards +1 preference point.
-- **Skip** (`S`): awards no points at all, but the activity is still removed from this session since you've seen it.
-- **✕ Hate It!** (`H`): takes 2 preference points away, mirroring Love It in the other direction.
-- **Reject** (`N`): takes 1 preference point away.
-- **Spin again** (`Space`): spins from whatever activities are left this session.
-- **Reset session**: makes every excluded activity available again.
+- **Love It!** (`L`): Awards +2 preference points.
+- **Accept** (`Y`): Awards +1 preference point.
+- **Meh** (`M`): Awards 0 preference points. 
+- **Reject** (`N`): Takes 1 preference point away.
+- **Hate It!** (`H`): Takes 2 preference points away
+
+Below them are Skip and the two navigation buttons:
+
+- **Skip** (`S`): Doesn't change the preference score or confidence at all, but the activity is removed from this session.
+- **Spin again** (`Space`): Spins from whatever activities are left this session.
+- **Reset session**: Makes every excluded activity available again.
 
 Whatever you spin is excluded from the rest of the session no matter which button you press, including Skip, so the next spin always shows you something new. Accepting doesn't auto-reset the session, so you're free to keep spinning or stop whenever you want.
 
@@ -67,7 +71,7 @@ The activity list below the wheel shows every activity (or the tag-filtered subs
 Each row supports:
 
 - Click the name to rename it inline.
-- The same four feedback buttons as the post-spin panel (★ / + / − / ✕), so you can nudge a preference without spinning for it.
+- The same five feedback buttons as the post-spin panel (Love It, Accept, Meh, Reject, Hate It), so you can nudge a preference without spinning for it.
 - Tags: add via the `+` combobox (autocompletes from every tag you've ever used, or lets you create a new one), remove with the `×` on hover, right-click a tag to open a small popover where you can rename it (rejecting a name that collides with another tag), change its color from a preset palette or a custom picker, or delete it entirely (with a confirmation prompt, since it strips the tag from every activity that has it).
 - Delete, with a confirmation prompt.
 

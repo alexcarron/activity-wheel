@@ -26,6 +26,7 @@ export const PREFERENCE_POINTS_AWARDED_BY_FEEDBACK_ACTION: Record<Exclude<Feedba
 	boost: 2,
 	accept: 1,
 	skip: 0,
+	neutral: 0,
 	reject: -1,
 	hate: -2,
 };

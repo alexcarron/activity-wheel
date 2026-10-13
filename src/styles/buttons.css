@@ -46,6 +46,7 @@
 .btn-primary .kbd-hint,
 .btn-accept .kbd-hint,
 .btn-reject .kbd-hint,
+.btn-neutral .kbd-hint,
 .btn-love-it .kbd-hint,
 .btn-hate-it .kbd-hint {
 	--_kbd-bg: rgba(255, 255, 255, 0.15);
@@ -86,6 +87,14 @@
 }
 .btn-accept:hover:not(:disabled) {
 	background: var(--strong-good-color);
+}
+
+.btn-neutral {
+	background: var(--neutral-color);
+	color: #fff;
+}
+.btn-neutral:hover:not(:disabled) {
+	background: var(--strong-neutral-color);
 }
 
 .btn-reject {

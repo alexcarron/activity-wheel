@@ -64,7 +64,7 @@
 .post-spin-feedback {
 	display: grid;
 	grid-template-columns: repeat(5, auto);
-	grid-template-areas: "boost accept skip reject hate";
+	grid-template-areas: "boost accept neutral reject hate";
 	justify-content: center;
 	justify-items: center;
 	gap: 8px;
@@ -75,26 +75,36 @@
 	white-space: nowrap;
 }
 
-@container (max-width: 640px) {
+@container (max-width: 700px) {
 	.post-spin-feedback {
-		grid-template-columns: repeat(4, 1fr);
+		grid-template-columns: repeat(5, 1fr);
 		justify-content: stretch;
 		justify-items: stretch;
-		grid-template-areas:
-			"boost accept reject hate"
-			"skip skip skip skip";
+		gap: 6px;
+	}
+
+	.post-spin-feedback .btn {
+		padding-left: 8px;
+		padding-right: 8px;
 	}
 }
 
-@container (max-width: 380px) {
+@container (max-width: 620px) {
 	.post-spin-feedback {
-		grid-template-columns: repeat(2, 1fr);
-		justify-content: stretch;
-		justify-items: stretch;
-		grid-template-areas:
-			"boost accept"
-			"reject hate"
-			"skip skip";
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+
+	.post-spin-feedback .btn {
+		flex: 1 1 0;
+		min-width: max-content;
+		padding-left: 17px;
+		padding-right: 17px;
+	}
+
+	.post-spin-feedback .btn-neutral {
+		flex-basis: 100%;
 	}
 }
 
@@ -104,6 +114,13 @@
 	flex-wrap: wrap;
 	justify-content: center;
 	width: 100%;
+}
+
+.post-spin-spin-again-and-reset {
+	display: flex;
+	gap: 10px;
+	flex-wrap: wrap;
+	justify-content: center;
 }
 
 .post-spin-tag-nudge {
@@ -152,7 +169,8 @@
 	.post-spin-nav {
 		width: 100%;
 	}
-	.post-spin-nav .btn {
-		flex: 1;
+	.post-spin-nav > *,
+	.post-spin-spin-again-and-reset .btn {
+		flex: 1 1 auto;
 	}
 }

@@ -1,6 +1,3 @@
-/**
- * Maps a feedback action to preference points awarded, saves the previous preference estimate into the preference estimate history, applies the preference estimate update, and supports undo by restoring that history.
- */
 import type { Activity, FeedbackAction, PreferenceEstimateSnapshot } from '../types';
 import { getDecayedPreferenceScoreConfidence } from './confidence-decay-logic';
 import { FEEDBACK_STRENGTH, PREFERENCE_POINTS_AWARDED_BY_FEEDBACK_ACTION } from './weight-constants';
@@ -29,7 +26,7 @@ export function applyFeedbackToActivity(activity: Activity, action: FeedbackActi
 	const preferenceEstimateHistory = getSnapshotOfPreferenceEstimate(activity);
 	const preferencePointsAwarded = PREFERENCE_POINTS_AWARDED_BY_FEEDBACK_ACTION[action];
 
-	if (preferencePointsAwarded === 0) {
+	if (action === 'skip') {
 		return { ...activity, lastFeedbackAt: now, preferenceEstimateHistory };
 	}
 
@@ -43,7 +40,8 @@ export function applyFeedbackToActivity(activity: Activity, action: FeedbackActi
 		(decayedPreferenceScoreConfidence * activity.preferenceScore + FEEDBACK_STRENGTH * preferencePointsAwarded) /
 		preferenceScoreConfidence;
 
-	const isPositive = action === 'accept' || action === 'boost';
+	const wasPositive = preferencePointsAwarded > 0;
+	const wasNegative = preferencePointsAwarded < 0;
 
 	return {
 		...activity,
@@ -51,7 +49,7 @@ export function applyFeedbackToActivity(activity: Activity, action: FeedbackActi
 		preferenceScoreConfidence,
 		lastFeedbackAt: now,
 		preferenceEstimateHistory,
-		acceptCount: isPositive ? activity.acceptCount + 1 : activity.acceptCount,
-		rejectCount: isPositive ? activity.rejectCount : activity.rejectCount + 1,
+		acceptCount: wasPositive ? activity.acceptCount + 1 : activity.acceptCount,
+		rejectCount: wasNegative ? activity.rejectCount + 1 : activity.rejectCount,
 	};
 }

@@ -13,6 +13,7 @@ import { CheckIcon } from '../../svg-icons/CheckIcon';
 import { HeartIcon } from '../../svg-icons/HeartIcon';
 import { BrokenHeartIcon } from '../../svg-icons/BrokenHeartIcon';
 import { ThumbsUpIcon } from '../../svg-icons/ThumbsUpIcon';
+import { NeutralFaceIcon } from '../../svg-icons/NeutralFaceIcon';
 import { ThumbsDownIcon } from '../../svg-icons/ThumbsDownIcon';
 import './ActivityRow.css';
 
@@ -591,6 +592,15 @@ function ActivityRowComponent({
 							</button>
 							<button
 								type="button"
+								className="icon-btn icon-btn-neutral"
+								onClick={() => handleFeedback('neutral')}
+								title="Meh (neither liked nor disliked)"
+								aria-label="Meh"
+							>
+								<NeutralFaceIcon />
+							</button>
+							<button
+								type="button"
 								className="icon-btn icon-btn-reject"
 								onClick={() => handleFeedback('reject')}
 								title="Decrease enjoyment"
@@ -714,6 +724,15 @@ function ActivityRowComponent({
 							aria-label="Increase enjoyment"
 						>
 							<ThumbsUpIcon />
+						</button>
+						<button
+							type="button"
+							className="icon-btn icon-btn-neutral"
+							onClick={() => handleFeedback('neutral')}
+							title="Meh (neither liked nor disliked)"
+							aria-label="Meh"
+						>
+							<NeutralFaceIcon />
 						</button>
 						<button
 							type="button"
