@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties, KeyboardEvent } from 'react';
 import { MAXIMUM_ACTIVITY_NAME_LENGTH, type Activity, type FeedbackAction, type TagMetadata } from '../../../domain-logic/types';
+import { FEEDBACK_ACTION_TO_BUTTON_LABEL, FEEDBACK_ACTION_TO_BUTTON_TOOLTIP } from '../../../constants/feedback-buttons';
 import { formatDate, formatCompactDate } from '../../../utils/format';
 import { DEBUG_VALUE_PILL_KEYS, type DebugValuePillKey, type DebugValuePillRange } from '../../reusable/debug-value-pills';
 import { DebugValuePills } from '../../reusable/DebugValuePills';
@@ -575,18 +576,18 @@ function ActivityRowComponent({
 							<button
 								type="button"
 								className="icon-btn icon-btn-love-it"
-								onClick={() => handleFeedback('boost')}
-								title="Love It! (big weight boost)"
-								aria-label="Love It!"
+								onClick={() => handleFeedback('love')}
+								title={FEEDBACK_ACTION_TO_BUTTON_TOOLTIP.love}
+								aria-label={FEEDBACK_ACTION_TO_BUTTON_LABEL.love}
 							>
 								<HeartIcon />
 							</button>
 							<button
 								type="button"
-								className="icon-btn icon-btn-accept"
-								onClick={() => handleFeedback('accept')}
-								title="Increase enjoyment"
-								aria-label="Increase enjoyment"
+								className="icon-btn icon-btn-like-it"
+								onClick={() => handleFeedback('like')}
+								title={FEEDBACK_ACTION_TO_BUTTON_TOOLTIP.like}
+								aria-label={FEEDBACK_ACTION_TO_BUTTON_LABEL.like}
 							>
 								<ThumbsUpIcon />
 							</button>
@@ -594,17 +595,17 @@ function ActivityRowComponent({
 								type="button"
 								className="icon-btn icon-btn-neutral"
 								onClick={() => handleFeedback('neutral')}
-								title="Meh (neither liked nor disliked)"
-								aria-label="Meh"
+								title={FEEDBACK_ACTION_TO_BUTTON_TOOLTIP.neutral}
+								aria-label={FEEDBACK_ACTION_TO_BUTTON_LABEL.neutral}
 							>
 								<NeutralFaceIcon />
 							</button>
 							<button
 								type="button"
-								className="icon-btn icon-btn-reject"
-								onClick={() => handleFeedback('reject')}
-								title="Decrease enjoyment"
-								aria-label="Decrease enjoyment"
+								className="icon-btn icon-btn-dislike-it"
+								onClick={() => handleFeedback('dislike')}
+								title={FEEDBACK_ACTION_TO_BUTTON_TOOLTIP.dislike}
+								aria-label={FEEDBACK_ACTION_TO_BUTTON_LABEL.dislike}
 							>
 								<ThumbsDownIcon />
 							</button>
@@ -612,8 +613,8 @@ function ActivityRowComponent({
 								type="button"
 								className="icon-btn icon-btn-hate-it"
 								onClick={() => handleFeedback('hate')}
-								title="Hate It! (big weight penalty)"
-								aria-label="Hate It!"
+								title={FEEDBACK_ACTION_TO_BUTTON_TOOLTIP.hate}
+								aria-label={FEEDBACK_ACTION_TO_BUTTON_LABEL.hate}
 							>
 								<BrokenHeartIcon />
 							</button>
@@ -710,18 +711,18 @@ function ActivityRowComponent({
 						<button
 							type="button"
 							className="icon-btn icon-btn-love-it"
-							onClick={() => handleFeedback('boost')}
-							title="Love It! (big weight boost)"
-							aria-label="Love It! (big weight boost)"
+							onClick={() => handleFeedback('love')}
+							title={FEEDBACK_ACTION_TO_BUTTON_TOOLTIP.love}
+							aria-label={FEEDBACK_ACTION_TO_BUTTON_LABEL.love}
 						>
 							<HeartIcon />
 						</button>
 						<button
 							type="button"
-							className="icon-btn icon-btn-accept"
-							onClick={() => handleFeedback('accept')}
-							title="Increase enjoyment"
-							aria-label="Increase enjoyment"
+							className="icon-btn icon-btn-like-it"
+							onClick={() => handleFeedback('like')}
+							title={FEEDBACK_ACTION_TO_BUTTON_TOOLTIP.like}
+							aria-label={FEEDBACK_ACTION_TO_BUTTON_LABEL.like}
 						>
 							<ThumbsUpIcon />
 						</button>
@@ -729,17 +730,17 @@ function ActivityRowComponent({
 							type="button"
 							className="icon-btn icon-btn-neutral"
 							onClick={() => handleFeedback('neutral')}
-							title="Meh (neither liked nor disliked)"
-							aria-label="Meh"
+							title={FEEDBACK_ACTION_TO_BUTTON_TOOLTIP.neutral}
+							aria-label={FEEDBACK_ACTION_TO_BUTTON_LABEL.neutral}
 						>
 							<NeutralFaceIcon />
 						</button>
 						<button
 							type="button"
-							className="icon-btn icon-btn-reject"
-							onClick={() => handleFeedback('reject')}
-							title="Decrease enjoyment"
-							aria-label="Decrease enjoyment"
+							className="icon-btn icon-btn-dislike-it"
+							onClick={() => handleFeedback('dislike')}
+							title={FEEDBACK_ACTION_TO_BUTTON_TOOLTIP.dislike}
+							aria-label={FEEDBACK_ACTION_TO_BUTTON_LABEL.dislike}
 						>
 							<ThumbsDownIcon />
 						</button>
@@ -747,8 +748,8 @@ function ActivityRowComponent({
 							type="button"
 							className="icon-btn icon-btn-hate-it"
 							onClick={() => handleFeedback('hate')}
-							title="Hate It! (big weight penalty)"
-							aria-label="Hate It!"
+							title={FEEDBACK_ACTION_TO_BUTTON_TOOLTIP.hate}
+							aria-label={FEEDBACK_ACTION_TO_BUTTON_LABEL.hate}
 						>
 							<BrokenHeartIcon />
 						</button>

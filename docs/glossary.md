@@ -51,9 +51,9 @@ Definitions of the terms this project defines for itself, and the correct termin
 
 **Possible preference score**: A preference score picked for an activity for a specific spin that is within the activity's preference score standard deviation of it's preference score.
 
-**Preference points awarded**: The amount added to the preference score of an activity from a single feedback reaction.
+**Preference points awarded**: The value a single rating pulls the preference score toward. It is a target, not an amount added, so a rating below the current preference score lowers it.
 
-**Neutral feedback**: A reaction, shown on the button as "Meh", that awards 0 preference points because the user neither liked nor disliked the activity. Unlike a skip, it still counts as a reaction and increases the preference score confidence.
+**Neutral feedback**: A reaction, shown on the button as "Meh", that awards 0 preference points because the user neither liked nor disliked the activity. Unlike spinning again without rating, it still counts as a reaction and increases the preference score confidence.
 
 **Reaction count / Number of reactions**: The amount of reactions an activity has been given.
 

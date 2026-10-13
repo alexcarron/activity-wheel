@@ -284,8 +284,8 @@
 }
 
 .icon-btn-love-it:active:not(:disabled) {
-	background: var(--strong-boost-color);
-	border-color: var(--strong-boost-color);
+	background: var(--strong-love-color);
+	border-color: var(--strong-love-color);
 	color: #fff;
 }
 
@@ -296,8 +296,8 @@
 }
 
 .icon-btn-love-it:hover:not(:disabled) {
-	background: var(--boost-color);
-	border-color: var(--strong-boost-color);
+	background: var(--love-color);
+	border-color: var(--strong-love-color);
 	color: #fff;
 }
 
@@ -307,13 +307,13 @@
 	color: #fff;
 }
 
-.icon-btn-accept:hover:not(:disabled) {
+.icon-btn-like-it:hover:not(:disabled) {
 	background: color-mix(in srgb, var(--good-color) 22%, var(--elevated-background-color));
 	border-color: var(--good-color);
 	color: var(--strong-good-color);
 }
 
-.icon-btn-accept:active:not(:disabled) {
+.icon-btn-like-it:active:not(:disabled) {
 	background: color-mix(in srgb, var(--good-color) 38%, var(--elevated-background-color));
 	border-color: var(--strong-good-color);
 	color: var(--strong-good-color);
@@ -331,13 +331,13 @@
 	color: var(--strong-neutral-color);
 }
 
-.icon-btn-reject:hover:not(:disabled) {
+.icon-btn-dislike-it:hover:not(:disabled) {
 	background: color-mix(in srgb, var(--warning-color) 22%, var(--elevated-background-color));
 	border-color: var(--warning-color);
 	color: var(--strong-warning-color);
 }
 
-.icon-btn-reject:active:not(:disabled) {
+.icon-btn-dislike-it:active:not(:disabled) {
 	background: color-mix(in srgb, var(--warning-color) 38%, var(--elevated-background-color));
 	border-color: var(--strong-warning-color);
 	color: var(--strong-warning-color);

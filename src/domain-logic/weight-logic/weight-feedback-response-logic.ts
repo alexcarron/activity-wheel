@@ -26,10 +26,6 @@ export function applyFeedbackToActivity(activity: Activity, action: FeedbackActi
 	const preferenceEstimateHistory = getSnapshotOfPreferenceEstimate(activity);
 	const preferencePointsAwarded = PREFERENCE_POINTS_AWARDED_BY_FEEDBACK_ACTION[action];
 
-	if (action === 'skip') {
-		return { ...activity, lastFeedbackAt: now, preferenceEstimateHistory };
-	}
-
 	const decayedPreferenceScoreConfidence = getDecayedPreferenceScoreConfidence({
 		preferenceScoreConfidence: activity.preferenceScoreConfidence,
 		lastFeedbackAt: activity.lastFeedbackAt,

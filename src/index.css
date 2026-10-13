@@ -19,8 +19,8 @@
 	--warning-color: #f08c00;
 	--strong-warning-color: #cc7400;
 	--warning-color-rgb: 240, 140, 0;
-	--boost-color: #ff6b6b;
-	--strong-boost-color: #fa5252;
+	--love-color: #ff6b6b;
+	--strong-love-color: #fa5252;
 	--hate-color: #c92a2a;
 	--strong-hate-color: #a61e1e;
 	--hate-color-rgb: 201, 42, 42;
@@ -67,8 +67,8 @@
 		--soft-accent-color: rgba(var(--accent-color-rgb), 0.18);
 		--accent-color-rgb: 9, 145, 165;
 
-		--boost-color: #06b354;
-		--strong-boost-color: #06b354;
+		--love-color: #06b354;
+		--strong-love-color: #06b354;
 		--good-color: #08944F;
 		--strong-good-color: #08944F;
 		--warning-color: #C83A3A;

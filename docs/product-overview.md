@@ -12,21 +12,22 @@ Pressing **Spin the wheel** (or `Space`) picks the activity immediately using a 
 
 Slices are rendered with the highest probability first starting at the top, sized by the estimated weight each activity has.
 
-Once it lands, you get five feedback buttons:
+Once it lands, you get five rating buttons, from best to worst:
 
-- **Love It!** (`L`): Awards +2 preference points.
-- **Accept** (`Y`): Awards +1 preference point.
-- **Meh** (`M`): Awards 0 preference points. 
-- **Reject** (`N`): Takes 1 preference point away.
-- **Hate It!** (`H`): Takes 2 preference points away
+- **Love It!** (`L`): Rates it 2 preference points.
+- **Like It** (`Y`): Rates it 1 preference point.
+- **Meh** (`M`): Rates it 0 preference points.
+- **Dislike It** (`N`): Rates it -1 preference point.
+- **Hate It!** (`H`): Rates it -2 preference points.
 
-Below them are Skip and the two navigation buttons:
+These are ratings, not increments. Each one pulls the preference score toward that rating, so pressing Like It on an activity you've loved many times actually lowers it a little.
 
-- **Skip** (`S`): Doesn't change the preference score or confidence at all, but the activity is removed from this session.
-- **Spin again** (`Space`): Spins from whatever activities are left this session.
+Below them are the navigation buttons:
+
+- **Spin again** (`Space`): Spins from whatever activities are left this session, without rating the current one. This is how you pass on something without saying anything about it.
 - **Reset session**: Makes every excluded activity available again.
 
-Whatever you spin is excluded from the rest of the session no matter which button you press, including Skip, so the next spin always shows you something new. Accepting doesn't auto-reset the session, so you're free to keep spinning or stop whenever you want.
+Whatever you spin is excluded from the rest of the session no matter which button you press, so the next spin always shows you something new. Rating an activity doesn't auto-reset the session, so you're free to keep spinning or stop whenever you want.
 
 If the activity you land on has no tags yet, a small "No tags yet. Add a tag?" prompt appears so you can tag it on the spot instead of hunting for it in the list later. You can also rename the winning activity directly from this panel by clicking its name.
 
@@ -34,7 +35,7 @@ If the activity you land on has no tags yet, a small "No tags yet. Add a tag?" p
 
 Every activity has a **preference score**, the app's guess at how much you like it, and a **confidence in preference score**, how sure it is about that guess. A new activity starts at a neutral preference score that the app is barely confident in.
 
-Your feedback awards **preference points**. Every reaction moves the preference score toward your feedback response and increases the confidence.
+Each rating is worth some **preference points**. Every rating moves the preference score part of the way toward those points and increases the confidence.
 
 How much a single reaction changes the preference score depends on how confident the app is in it. While it it is very unconfident, your first few reactions change the preference score a lot. Once you have given feedback on the same activity again and again, more feedback in the same direction barely changes it.
 
@@ -71,7 +72,7 @@ The activity list below the wheel shows every activity (or the tag-filtered subs
 Each row supports:
 
 - Click the name to rename it inline.
-- The same five feedback buttons as the post-spin panel (Love It, Accept, Meh, Reject, Hate It), so you can nudge a preference without spinning for it.
+- The same five rating buttons as the post-spin panel (Love It!, Like It, Meh, Dislike It, Hate It!), so you can rate an activity without spinning for it.
 - Tags: add via the `+` combobox (autocompletes from every tag you've ever used, or lets you create a new one), remove with the `×` on hover, right-click a tag to open a small popover where you can rename it (rejecting a name that collides with another tag), change its color from a preset palette or a custom picker, or delete it entirely (with a confirmation prompt, since it strips the tag from every activity that has it).
 - Delete, with a confirmation prompt.
 

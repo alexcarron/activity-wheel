@@ -14,19 +14,15 @@ export const HOTKEYS = {
 		code: 'KeyL',
 		label: 'L',
 	},
-	ACCEPT: {
+	LIKE_IT: {
 		code: 'KeyY',
 		label: 'Y',
-	},
-	SKIP: {
-		code: 'KeyS',
-		label: 'S',
 	},
 	NEUTRAL: {
 		code: 'KeyM',
 		label: 'M',
 	},
-	REJECT: {
+	DISLIKE_IT: {
 		code: 'KeyN',
 		label: 'N',
 	},

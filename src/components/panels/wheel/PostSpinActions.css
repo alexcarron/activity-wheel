@@ -64,7 +64,7 @@
 .post-spin-feedback {
 	display: grid;
 	grid-template-columns: repeat(5, auto);
-	grid-template-areas: "boost accept neutral reject hate";
+	grid-template-areas: "love like neutral dislike hate";
 	justify-content: center;
 	justify-items: center;
 	gap: 8px;

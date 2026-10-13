@@ -23,10 +23,9 @@ export const MIGRATION_PREVIOUS_FEEDBACK_STRENGTH = 1.0;
 
 /** Preference points each feedback action awards. */
 export const PREFERENCE_POINTS_AWARDED_BY_FEEDBACK_ACTION: Record<Exclude<FeedbackAction, 'undo'>, number> = {
-	boost: 2,
-	accept: 1,
-	skip: 0,
+	love: 2,
+	like: 1,
 	neutral: 0,
-	reject: -1,
+	dislike: -1,
 	hate: -2,
 };

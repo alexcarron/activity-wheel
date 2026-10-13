@@ -68,7 +68,7 @@ export interface Wheel {
 }
 
 /** Action the user takes after a spin */
-export type FeedbackAction = 'accept' | 'reject' | 'skip' | 'neutral' | 'boost' | 'hate' | 'undo';
+export type FeedbackAction = 'love' | 'like' | 'neutral' | 'dislike' | 'hate' | 'undo';
 
 /** Sort orders available in the activity list view. */
 export type SortKey = 'name' | 'createdAt' | 'preferenceScore' | 'decayedPreferenceScoreConfidence';

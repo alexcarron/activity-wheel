@@ -27,7 +27,7 @@ Everything lives in your browser via IndexedDB by default, with no backend and n
 1. Open https://alexcarron.github.io/activity-wheel/
 2. Add activities you might want to do next (games, movies, hobbies, anything you'd be happy doing)
 3. Spin the wheel
-4. If the suggestion sounds good, accept it. If not, reject it and spin again.
+4. Rate the suggestion from Love It! to Hate It!, or just spin again without rating it.
 5. Repeat until you get an activity you actually want
 6. Keep giving feedback as you use the app. Over time, the wheel will learn your preferences and becomes more likely to suggest activities you enjoy
 7. If you want to access your wheels and activities on another browser or device, click "Sign in with Google" and then "Import local wheels"
@@ -52,7 +52,7 @@ You can keep using the app fully signed out. The first time you sign in, an **Im
 
 ### Weight system
 
-Every activity has a preference weight that quietly shifts based on how you respond to it after a spin. Accepting an activity nudges its weight up a little, rejecting it nudges it down a little, and strong reactions like a big thumbs-up or thumbs-down move it by a lot more.
+Every activity has a preference score that quietly shifts based on how you rate it. Each rating (Love It!, Like It, Meh, Dislike It, Hate It!) pulls the score toward that rating, so the score ends up matching how you usually feel about the activity. Rating something you love as only Like It lowers it a bit, because a rating says how much you like it, not which way to move it.
 
 A few things shape how much a single piece of feedback actually moves the needle:
 
@@ -73,9 +73,9 @@ The winning activity is computed before the wheel animates. The animation just r
 
 A **session** is a single round of "spin until I find something".
 
-- Whatever activity you spin is excluded from the rest of the session, regardless of whether you accept, skip, or reject it, so the next spins always show different options
+- Whatever activity you spin is excluded from the rest of the session, whether you rate it or spin again without rating it, so the next spins always show different options
 - Reseting a session puts everything back (Reloading the page resets it too)
-- Accepting does not auto-reset the session, so you can still change your mind afterward or spin for your next activity
+- Rating an activity does not auto-reset the session, so you can still change your mind afterward or spin for your next activity
 
 ### Backup and Restore
 

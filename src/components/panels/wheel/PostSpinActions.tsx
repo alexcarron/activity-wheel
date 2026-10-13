@@ -3,6 +3,7 @@ import type { KeyboardEvent, ReactNode } from 'react';
 import { MAXIMUM_ACTIVITY_NAME_LENGTH, type Activity, type FeedbackAction, type TagMetadata } from '../../../domain-logic/types';
 import { useHotkey } from '../../../hooks/useHotkey';
 import { HOTKEYS } from '../../../constants/hotkeys';
+import { FEEDBACK_ACTION_TO_BUTTON_LABEL, FEEDBACK_ACTION_TO_BUTTON_TOOLTIP } from '../../../constants/feedback-buttons';
 import { KeyboardHint } from '../../reusable/KeyboardHint';
 import { HeartIcon } from '../../svg-icons/HeartIcon';
 import { BrokenHeartIcon } from '../../svg-icons/BrokenHeartIcon';
@@ -22,51 +23,44 @@ interface FeedbackButtonConfig {
 }
 
 const FEEDBACK_BUTTON_CONFIGS: Record<ManualFeedbackAction, FeedbackButtonConfig> = {
-	boost: {
+	love: {
 		className: 'btn btn-love-it',
 		icon: <HeartIcon />,
-		label: 'Love It!',
+		label: FEEDBACK_ACTION_TO_BUTTON_LABEL.love,
 		hotkeyLabel: HOTKEYS.LOVE_IT.label,
-		title: `Love It! (big weight boost) [${HOTKEYS.LOVE_IT.label}]`,
+		title: `${FEEDBACK_ACTION_TO_BUTTON_TOOLTIP.love} [${HOTKEYS.LOVE_IT.label}]`,
 	},
-	accept: {
-		className: 'btn btn-accept',
+	like: {
+		className: 'btn btn-like-it',
 		icon: <ThumbsUpIcon />,
-		label: 'Accept',
-		hotkeyLabel: HOTKEYS.ACCEPT.label,
-		title: `Accept (${HOTKEYS.ACCEPT.label})`,
-	},
-	skip: {
-		className: 'btn btn-skip',
-		icon: null,
-		label: 'Skip',
-		hotkeyLabel: HOTKEYS.SKIP.label,
-		title: `Skip (${HOTKEYS.SKIP.label})`,
+		label: FEEDBACK_ACTION_TO_BUTTON_LABEL.like,
+		hotkeyLabel: HOTKEYS.LIKE_IT.label,
+		title: `${FEEDBACK_ACTION_TO_BUTTON_TOOLTIP.like} [${HOTKEYS.LIKE_IT.label}]`,
 	},
 	neutral: {
 		className: 'btn btn-neutral',
 		icon: <NeutralFaceIcon />,
-		label: 'Meh',
+		label: FEEDBACK_ACTION_TO_BUTTON_LABEL.neutral,
 		hotkeyLabel: HOTKEYS.NEUTRAL.label,
-		title: `Meh (neither liked nor disliked) [${HOTKEYS.NEUTRAL.label}]`,
+		title: `${FEEDBACK_ACTION_TO_BUTTON_TOOLTIP.neutral} [${HOTKEYS.NEUTRAL.label}]`,
 	},
-	reject: {
-		className: 'btn btn-reject',
+	dislike: {
+		className: 'btn btn-dislike-it',
 		icon: <ThumbsDownIcon />,
-		label: 'Reject',
-		hotkeyLabel: HOTKEYS.REJECT.label,
-		title: `Reject (${HOTKEYS.REJECT.label})`,
+		label: FEEDBACK_ACTION_TO_BUTTON_LABEL.dislike,
+		hotkeyLabel: HOTKEYS.DISLIKE_IT.label,
+		title: `${FEEDBACK_ACTION_TO_BUTTON_TOOLTIP.dislike} [${HOTKEYS.DISLIKE_IT.label}]`,
 	},
 	hate: {
 		className: 'btn btn-hate-it',
 		icon: <BrokenHeartIcon />,
-		label: 'Hate It!',
+		label: FEEDBACK_ACTION_TO_BUTTON_LABEL.hate,
 		hotkeyLabel: HOTKEYS.HATE_IT.label,
-		title: `Hate It! (big weight penalty) [${HOTKEYS.HATE_IT.label}]`,
+		title: `${FEEDBACK_ACTION_TO_BUTTON_TOOLTIP.hate} [${HOTKEYS.HATE_IT.label}]`,
 	},
 };
 
-const PREFERENCE_FEEDBACK_BUTTON_ORDER: readonly ManualFeedbackAction[] = ['boost', 'accept', 'neutral', 'reject', 'hate'];
+const PREFERENCE_FEEDBACK_BUTTON_ORDER: readonly ManualFeedbackAction[] = ['love', 'like', 'neutral', 'dislike', 'hate'];
 
 interface Props {
 	readonly pickedActivity: Activity;
@@ -168,11 +162,10 @@ export function PostSpinActions(props: Props) {
 		if (editing) inputRef.current?.select();
 	}, [editing]);
 
-	useHotkey(HOTKEYS.LOVE_IT.code, () => onChoose('boost'), !busy && !editing);
-	useHotkey(HOTKEYS.ACCEPT.code, () => onChoose('accept'), !busy && !editing);
-	useHotkey(HOTKEYS.SKIP.code, () => onChoose('skip'), !busy && !editing);
+	useHotkey(HOTKEYS.LOVE_IT.code, () => onChoose('love'), !busy && !editing);
+	useHotkey(HOTKEYS.LIKE_IT.code, () => onChoose('like'), !busy && !editing);
 	useHotkey(HOTKEYS.NEUTRAL.code, () => onChoose('neutral'), !busy && !editing);
-	useHotkey(HOTKEYS.REJECT.code, () => onChoose('reject'), !busy && !editing);
+	useHotkey(HOTKEYS.DISLIKE_IT.code, () => onChoose('dislike'), !busy && !editing);
 	useHotkey(HOTKEYS.HATE_IT.code, () => onChoose('hate'), !busy && !editing);
 
 	useHotkey(HOTKEYS.SPIN_WHEEL.code, onSpinAgain, !busy && !editing && canSpinAgain);
@@ -288,14 +281,13 @@ export function PostSpinActions(props: Props) {
 				{PREFERENCE_FEEDBACK_BUTTON_ORDER.map(renderFeedbackButton)}
 			</div>
 			<div className="post-spin-nav">
-				{renderFeedbackButton('skip')}
 				<div className="post-spin-spin-again-and-reset">
 					<button
 						type="button"
 						className="btn btn-secondary"
 						onClick={onSpinAgain}
 						disabled={busy || !canSpinAgain}
-						title={canSpinAgain ? `Spin again (${HOTKEYS.SPIN_WHEEL.label})` : undefined}
+						title={canSpinAgain ? `Spin again without rating this one (${HOTKEYS.SPIN_WHEEL.label})` : undefined}
 					>
 						Spin again
 						{canSpinAgain && <KeyboardHint label={HOTKEYS.SPIN_WHEEL.label} />}

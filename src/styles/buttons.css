@@ -44,8 +44,8 @@
 
 /* Dark-background buttons need a white-on-translucent variant. */
 .btn-primary .kbd-hint,
-.btn-accept .kbd-hint,
-.btn-reject .kbd-hint,
+.btn-like-it .kbd-hint,
+.btn-dislike-it .kbd-hint,
 .btn-neutral .kbd-hint,
 .btn-love-it .kbd-hint,
 .btn-hate-it .kbd-hint {
@@ -74,18 +74,18 @@
 }
 
 .btn-love-it {
-	background: var(--boost-color);
+	background: var(--love-color);
 	color: #fff;
 }
 .btn-love-it:hover:not(:disabled) {
-	background: var(--strong-boost-color);
+	background: var(--strong-love-color);
 }
 
-.btn-accept {
+.btn-like-it {
 	background: var(--good-color);
 	color: #fff;
 }
-.btn-accept:hover:not(:disabled) {
+.btn-like-it:hover:not(:disabled) {
 	background: var(--strong-good-color);
 }
 
@@ -97,11 +97,11 @@
 	background: var(--strong-neutral-color);
 }
 
-.btn-reject {
+.btn-dislike-it {
 	background: var(--warning-color);
 	color: #fff;
 }
-.btn-reject:hover:not(:disabled) {
+.btn-dislike-it:hover:not(:disabled) {
 	background: var(--strong-warning-color);
 }
 
@@ -111,11 +111,6 @@
 }
 .btn-hate-it:hover:not(:disabled) {
 	background: var(--strong-hate-color);
-}
-
-.btn-skip {
-	background: var(--soft-background-color);
-	border-color: var(--border-color);
 }
 
 .btn-danger {
