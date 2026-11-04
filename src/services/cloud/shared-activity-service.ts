@@ -3,7 +3,7 @@
 import { requireSupabase } from '../supabase-client';
 import { applyFeedbackToActivity } from '../../domain-logic/weight-logic/weight-feedback-response-logic';
 import { newActivity } from '../../domain-logic/activity-logic/activity-factory';
-import type { Activity, FeedbackAction, PreferenceEstimateSnapshot } from '../../domain-logic/types';
+import type { Activity, FeedbackAction, PreferenceEstimateSnapshot, RatingFeedbackAction } from '../../domain-logic/types';
 import { newID } from '../../utils/id';
 import type { CloudActivityService } from './activity-service';
 
@@ -14,6 +14,8 @@ export interface SharedActivityRow {
 	preference_score: number;
 	preference_score_confidence: number;
 	last_feedback_at: string;
+	last_feedback_action: RatingFeedbackAction | null;
+	unexpected_rating_streak: number;
 	created_at: string;
 	accept_count: number;
 	reject_count: number;
@@ -29,6 +31,7 @@ export function rowToSharedActivity(sharedActivityRow: SharedActivityRow): Activ
 		preferenceScore: sharedActivityRow.preference_score,
 		preferenceScoreConfidence: sharedActivityRow.preference_score_confidence,
 		lastFeedbackAt: new Date(sharedActivityRow.last_feedback_at).getTime(),
+		unexpectedRatingStreak: sharedActivityRow.unexpected_rating_streak ?? 0,
 		createdAt: new Date(sharedActivityRow.created_at).getTime(),
 		acceptCount: sharedActivityRow.accept_count,
 		rejectCount: sharedActivityRow.reject_count,
@@ -36,6 +39,7 @@ export function rowToSharedActivity(sharedActivityRow: SharedActivityRow): Activ
 	};
 	if (sharedActivityRow.preference_estimate_history !== null) 
 		activity.preferenceEstimateHistory = sharedActivityRow.preference_estimate_history;
+	if (sharedActivityRow.last_feedback_action) activity.lastFeedbackAction = sharedActivityRow.last_feedback_action;
 	return activity;
 }
 
@@ -75,6 +79,8 @@ export function createSharedActivityService(): CloudActivityService {
 				preference_score: activity.preferenceScore,
 				preference_score_confidence: activity.preferenceScoreConfidence,
 				last_feedback_at: new Date(activity.lastFeedbackAt).toISOString(),
+				last_feedback_action: activity.lastFeedbackAction ?? null,
+				unexpected_rating_streak: activity.unexpectedRatingStreak,
 				created_at: new Date(activity.createdAt).toISOString(),
 				accept_count: activity.acceptCount,
 				reject_count: activity.rejectCount,
@@ -128,6 +134,8 @@ export function createSharedActivityService(): CloudActivityService {
 					preference_score: nextActivity.preferenceScore,
 					preference_score_confidence: nextActivity.preferenceScoreConfidence,
 					last_feedback_at: new Date(nextActivity.lastFeedbackAt).toISOString(),
+					last_feedback_action: nextActivity.lastFeedbackAction ?? null,
+					unexpected_rating_streak: nextActivity.unexpectedRatingStreak,
 					accept_count: nextActivity.acceptCount,
 					reject_count: nextActivity.rejectCount,
 					preference_estimate_history: nextActivity.preferenceEstimateHistory ?? null,
@@ -153,6 +161,8 @@ export function createSharedActivityService(): CloudActivityService {
 					preference_score: activity.preferenceScore,
 					preference_score_confidence: activity.preferenceScoreConfidence,
 					last_feedback_at: new Date(activity.lastFeedbackAt).toISOString(),
+					last_feedback_action: activity.lastFeedbackAction ?? null,
+					unexpected_rating_streak: activity.unexpectedRatingStreak,
 					created_at: new Date(activity.createdAt).toISOString(),
 					accept_count: activity.acceptCount,
 					reject_count: activity.rejectCount,

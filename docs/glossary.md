@@ -22,7 +22,13 @@ Definitions of the terms this project defines for itself, and the correct termin
 
 **Spin**: One turn of the wheel to get a random activity.
 
-**Picked activity**: The activity the spin selected.
+**Landed-on activity**: The activity the wheel landed on after a spin. The user has not decided anything about it yet.
+
+**Chosen activity**: An activity the user decided to do after the wheel landed on it, and has not yet rated or dismissed.
+
+**Go with this**: The landing button that makes the landed-on activity a chosen activity. It is the opposite of Spin again.
+
+**How was it? list**: The list near the wheel of the user's chosen activities, waiting to be rated or dismissed. Each user has their own.
 
 **Session**: A set of back-to-back spins done before resetting or reloading the browser.
 
@@ -58,6 +64,14 @@ Definitions of the terms this project defines for itself, and the correct termin
 **Reaction count / Number of reactions**: The amount of reactions an activity has been given.
 
 **Preference change resistance**: How resistant a preference score is to changing in response to new feedback.
+
+**Rating**: A reaction saying how much the user enjoyed really doing an activity, from Love It! to Hate It!. Wanting or not wanting to do an activity right now is never a rating.
+
+**Unexpected rating**: A rating that lands far from an activity's current preference score.
+
+**Unexpected rating streak**: How many unexpected ratings in a row an activity has received on the same side of its preference score.
+
+**Changed enjoyment rule**: The rule that lowers preference score confidence when an activity gets enough unexpected ratings in a row, so new ratings count more.
 
 
 ## Tuning Values

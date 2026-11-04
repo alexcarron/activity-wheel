@@ -9,6 +9,10 @@ export interface PreferenceEstimateSnapshot {
 	preferenceScore: number;
 	preferenceScoreConfidence: number;
 	lastFeedbackAt: number;
+	acceptCount?: number;
+	rejectCount?: number;
+	lastFeedbackAction?: RatingFeedbackAction;
+	unexpectedRatingStreak?: number;
 }
 
 export const MAXIMUM_ACTIVITY_NAME_LENGTH = 10000;
@@ -25,6 +29,9 @@ export interface Activity {
 	preferenceScoreConfidence: number;
 	/** Unix ms of the most recent feedback */
 	lastFeedbackAt: number;
+	lastFeedbackAction?: RatingFeedbackAction;
+	/** Positive counts unexpected ratings above the score in a row, negative counts those below it */
+	unexpectedRatingStreak: number;
 	/** Unix ms when the activity was first added */
 	createdAt: number;
 	/** Total accept/love it presses ever */
@@ -69,6 +76,15 @@ export interface Wheel {
 
 /** Action the user takes after a spin */
 export type FeedbackAction = 'love' | 'like' | 'neutral' | 'dislike' | 'hate' | 'undo';
+
+export type RatingFeedbackAction = Exclude<FeedbackAction, 'undo'>;
+
+/** An activity one user decided to do after the wheel landed on it, waiting to be rated or dismissed. */
+export interface ChosenActivity {
+	activityID: string;
+	wheelID: string;
+	chosenAt: number;
+}
 
 /** Sort orders available in the activity list view. */
 export type SortKey = 'name' | 'createdAt' | 'preferenceScore' | 'decayedPreferenceScoreConfidence';

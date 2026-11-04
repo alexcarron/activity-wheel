@@ -1,8 +1,7 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties, KeyboardEvent } from 'react';
-import { MAXIMUM_ACTIVITY_NAME_LENGTH, type Activity, type FeedbackAction, type TagMetadata } from '../../../domain-logic/types';
-import { FEEDBACK_ACTION_TO_BUTTON_LABEL, FEEDBACK_ACTION_TO_BUTTON_TOOLTIP } from '../../../constants/feedback-buttons';
+import { MAXIMUM_ACTIVITY_NAME_LENGTH, type Activity, type RatingFeedbackAction, type TagMetadata } from '../../../domain-logic/types';
 import { formatDate, formatCompactDate } from '../../../utils/format';
 import { DEBUG_VALUE_PILL_KEYS, type DebugValuePillKey, type DebugValuePillRange } from '../../reusable/debug-value-pills';
 import { DebugValuePills } from '../../reusable/DebugValuePills';
@@ -11,11 +10,7 @@ import { useTagColorPickerPopover } from '../../../hooks/useTagColorPickerPopove
 import { TagColorPickerPopover } from '../../reusable/TagColorPicker';
 import { TrashIcon } from '../../svg-icons/TrashIcon';
 import { CheckIcon } from '../../svg-icons/CheckIcon';
-import { HeartIcon } from '../../svg-icons/HeartIcon';
-import { BrokenHeartIcon } from '../../svg-icons/BrokenHeartIcon';
-import { ThumbsUpIcon } from '../../svg-icons/ThumbsUpIcon';
-import { NeutralFaceIcon } from '../../svg-icons/NeutralFaceIcon';
-import { ThumbsDownIcon } from '../../svg-icons/ThumbsDownIcon';
+import { RatingIconButtons } from '../../reusable/RatingIconButtons';
 import './ActivityRow.css';
 
 function DeleteButton({ onClick, disabled }: { onClick(): void; disabled: boolean }) {
@@ -311,7 +306,7 @@ interface Props {
 	readonly isSelected: boolean;
 	readonly isSelectMode: boolean;
 	onRename(id: string, name: string): Promise<void>;
-	onFeedback(id: string, action: FeedbackAction): Promise<void>;
+	onFeedback(id: string, action: RatingFeedbackAction): Promise<void>;
 	onDelete(id: string): Promise<void>;
 	onUpdateTags(id: string, tagIds: string[]): Promise<void>;
 	onAddTag(id: string, tagName: string): Promise<void>;
@@ -412,7 +407,7 @@ function ActivityRowComponent({
 	);
 
 	const handleFeedback = useCallback(
-		(action: FeedbackAction): void => {
+		(action: RatingFeedbackAction): void => {
 			void onFeedback(activity.id, action);
 		},
 		[activity.id, onFeedback],
@@ -573,51 +568,7 @@ function ActivityRowComponent({
 							)}
 						</div>
 						<div className="activity-row-feedback">
-							<button
-								type="button"
-								className="icon-btn icon-btn-love-it"
-								onClick={() => handleFeedback('love')}
-								title={FEEDBACK_ACTION_TO_BUTTON_TOOLTIP.love}
-								aria-label={FEEDBACK_ACTION_TO_BUTTON_LABEL.love}
-							>
-								<HeartIcon />
-							</button>
-							<button
-								type="button"
-								className="icon-btn icon-btn-like-it"
-								onClick={() => handleFeedback('like')}
-								title={FEEDBACK_ACTION_TO_BUTTON_TOOLTIP.like}
-								aria-label={FEEDBACK_ACTION_TO_BUTTON_LABEL.like}
-							>
-								<ThumbsUpIcon />
-							</button>
-							<button
-								type="button"
-								className="icon-btn icon-btn-neutral"
-								onClick={() => handleFeedback('neutral')}
-								title={FEEDBACK_ACTION_TO_BUTTON_TOOLTIP.neutral}
-								aria-label={FEEDBACK_ACTION_TO_BUTTON_LABEL.neutral}
-							>
-								<NeutralFaceIcon />
-							</button>
-							<button
-								type="button"
-								className="icon-btn icon-btn-dislike-it"
-								onClick={() => handleFeedback('dislike')}
-								title={FEEDBACK_ACTION_TO_BUTTON_TOOLTIP.dislike}
-								aria-label={FEEDBACK_ACTION_TO_BUTTON_LABEL.dislike}
-							>
-								<ThumbsDownIcon />
-							</button>
-							<button
-								type="button"
-								className="icon-btn icon-btn-hate-it"
-								onClick={() => handleFeedback('hate')}
-								title={FEEDBACK_ACTION_TO_BUTTON_TOOLTIP.hate}
-								aria-label={FEEDBACK_ACTION_TO_BUTTON_LABEL.hate}
-							>
-								<BrokenHeartIcon />
-							</button>
+							<RatingIconButtons lastRatingAction={activity.lastFeedbackAction} onRate={handleFeedback} />
 							<DeleteButton onClick={() => void handleDelete()} disabled={busy} />
 						</div>
 					</div>
@@ -708,51 +659,7 @@ function ActivityRowComponent({
 					)}
 
 					<div className="activity-row-feedback">
-						<button
-							type="button"
-							className="icon-btn icon-btn-love-it"
-							onClick={() => handleFeedback('love')}
-							title={FEEDBACK_ACTION_TO_BUTTON_TOOLTIP.love}
-							aria-label={FEEDBACK_ACTION_TO_BUTTON_LABEL.love}
-						>
-							<HeartIcon />
-						</button>
-						<button
-							type="button"
-							className="icon-btn icon-btn-like-it"
-							onClick={() => handleFeedback('like')}
-							title={FEEDBACK_ACTION_TO_BUTTON_TOOLTIP.like}
-							aria-label={FEEDBACK_ACTION_TO_BUTTON_LABEL.like}
-						>
-							<ThumbsUpIcon />
-						</button>
-						<button
-							type="button"
-							className="icon-btn icon-btn-neutral"
-							onClick={() => handleFeedback('neutral')}
-							title={FEEDBACK_ACTION_TO_BUTTON_TOOLTIP.neutral}
-							aria-label={FEEDBACK_ACTION_TO_BUTTON_LABEL.neutral}
-						>
-							<NeutralFaceIcon />
-						</button>
-						<button
-							type="button"
-							className="icon-btn icon-btn-dislike-it"
-							onClick={() => handleFeedback('dislike')}
-							title={FEEDBACK_ACTION_TO_BUTTON_TOOLTIP.dislike}
-							aria-label={FEEDBACK_ACTION_TO_BUTTON_LABEL.dislike}
-						>
-							<ThumbsDownIcon />
-						</button>
-						<button
-							type="button"
-							className="icon-btn icon-btn-hate-it"
-							onClick={() => handleFeedback('hate')}
-							title={FEEDBACK_ACTION_TO_BUTTON_TOOLTIP.hate}
-							aria-label={FEEDBACK_ACTION_TO_BUTTON_LABEL.hate}
-						>
-							<BrokenHeartIcon />
-						</button>
+						<RatingIconButtons lastRatingAction={activity.lastFeedbackAction} onRate={handleFeedback} />
 						<DeleteButton onClick={() => void handleDelete()} disabled={busy} />
 					</div>
 				</div>

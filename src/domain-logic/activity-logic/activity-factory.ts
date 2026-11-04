@@ -19,6 +19,7 @@ export function newActivity(id: string, name: string, now: number, wheelId: stri
 		preferenceScore: 0,
 		preferenceScoreConfidence: INITIAL_PREFERENCE_SCORE_CONFIDENCE,
 		lastFeedbackAt: now,
+		unexpectedRatingStreak: 0,
 		createdAt: now,
 		acceptCount: 0,
 		rejectCount: 0,

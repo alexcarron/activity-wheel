@@ -2,13 +2,15 @@ import { Database } from '../libraries/indexeddb/database';
 import type { TypedStore } from '../libraries/indexeddb/store';
 import { applyFeedbackToActivity } from '../domain-logic/weight-logic/weight-feedback-response-logic';
 import { newActivity } from '../domain-logic/activity-logic/activity-factory';
-import type { Activity, FeedbackAction } from '../domain-logic/types';
+import type { Activity, ChosenActivity, FeedbackAction } from '../domain-logic/types';
 import { newID } from '../utils/id';
-import { ACTIVITIES_STORE, dbConfig } from './schema';
+import { ACTIVITIES_STORE, CHOSEN_ACTIVITIES_STORE, dbConfig } from './schema';
 
 const db = new Database(dbConfig);
 
 const store = (): TypedStore<Activity> => db.store<Activity>(ACTIVITIES_STORE.name);
+
+const chosenActivityStore = (): TypedStore<ChosenActivity> => db.store<ChosenActivity>(CHOSEN_ACTIVITIES_STORE.name);
 
 /**
  * Load all activities belonging to a specific wheel, normalizing legacy wheels without a wheelId to have an id of 'default' on load. 
@@ -28,6 +30,9 @@ function normalizeLegacyActivity(activity: Activity): Activity {
 	}
 	if (!(activity as { wheelId?: unknown }).wheelId) {
 		normalizedActivity = { ...normalizedActivity, wheelId: 'default' };
+	}
+	if (typeof (activity as { unexpectedRatingStreak?: unknown }).unexpectedRatingStreak !== 'number') {
+		normalizedActivity = { ...normalizedActivity, unexpectedRatingStreak: 0 };
 	}
 	return normalizedActivity;
 }
@@ -56,6 +61,7 @@ export async function renameActivity(activityID: string, name: string): Promise<
 
 export async function deleteActivity(activityID: string): Promise<void> {
 	await store().delete(activityID);
+	await chosenActivityStore().delete(activityID);
 }
 
 export async function updateActivityTagIDs(activityID: string, tagIDs: string[]): Promise<Activity> {
@@ -86,7 +92,7 @@ export async function bulkPut(activities: readonly Activity[]): Promise<void> {
 export async function clearWheelActivities(wheelID: string): Promise<void> {
 	const allActivities = await store().getAllByIndex('wheelId', wheelID);
 	for (const activity of allActivities) {
-		await store().delete(activity.id);
+		await deleteActivity(activity.id);
 	}
 }
 

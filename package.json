@@ -13,7 +13,8 @@
     "typecheck": "tsc -b --noEmit",
     "simulate:inspect": "node scripts/weight-simulation/cli.ts inspect",
     "simulate:sweep": "node scripts/weight-simulation/cli.ts sweep",
-    "simulate:grid": "node scripts/weight-simulation/cli.ts grid"
+    "simulate:grid": "node scripts/weight-simulation/cli.ts grid",
+    "simulate:rediscovery": "node scripts/weight-simulation/cli.ts rediscovery"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.2",

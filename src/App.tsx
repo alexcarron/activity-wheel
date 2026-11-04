@@ -3,9 +3,10 @@
  */
 
 import './App.css';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWheels } from './hooks/useWheels';
 import { useActivities } from './hooks/useActivities';
+import { useChosenActivities } from './hooks/useChosenActivities';
 import { useAuth } from './hooks/useAuth';
 import { useSession } from './hooks/useSession';
 import { useDebug } from './hooks/useDebug';
@@ -13,13 +14,16 @@ import { useLockedActualWeights } from './hooks/useLockedActualWeights';
 import { useTagFilter } from './hooks/useTagFilter';
 import { useSharedWheelAccess } from './hooks/useSharedWheelAccess';
 import type { SharedActivityChange } from './hooks/shared-wheel-realtime';
+import type { RatingFeedbackAction } from './domain-logic/types';
 import { filterActivitiesByTags, isFilterActive } from './domain-logic/tag-filter-logic';
+import { FEEDBACK_ACTION_TO_BUTTON_LABEL } from './constants/feedback-buttons';
 import { AuthButton } from './components/AuthButton';
 import { LoadingSpinner } from './components/reusable/LoadingSpinner';
 import { SharedWheelPasswordGate } from './components/SharedWheelPasswordGate';
 import { Toast } from './components/reusable/Toast';
 import { WheelTabs } from './components/panels/wheel/WheelTabs';
 import { WheelView } from './components/panels/wheel/WheelView';
+import { HowWasItList } from './components/panels/how-was-it/HowWasItList';
 import { ActivityList } from './components/panels/activity-list/ActivityList';
 import { AddActivity } from './components/panels/activity-list/AddActivity';
 import { DebugPanel } from './components/panels/debug/DebugPanel';
@@ -35,6 +39,8 @@ import { exportSharedWheelBackup } from './services/cloud/shared-wheel-service';
 import { getSharedWheelIDFromUrl, removeSharedWheelIDFromUrl } from './utils/url-params';
 import { useViewportBreakpoint } from './hooks/useViewportBreakpoint';
 
+const UNDO_TOAST_DURATION_MILLISECONDS = 7000;
+
 function App() {
 	const auth = useAuth();
 	const userID = auth.user?.id ?? null;
@@ -45,9 +51,15 @@ function App() {
 	const sharedAccess = useSharedWheelAccess(sharedWheelIDFromUrl);
 	const [activeSharedWheelID, setActiveSharedWheelID] = useState<string | null>(null);
 
-	const [landedActivityID, setLandedActivityID] = useState<string | null>(null);
+	const [landedOnActivityID, setLandedOnActivityID] = useState<string | null>(null);
 	const [activeEditActivityID, setActiveEditActivityID] = useState<string | null>(null);
-	const [toastMessage, setToastMessage] = useState<string | null>(null);
+	const [toast, setToast] = useState<{ key: number; message: string; undo?: () => void } | null>(null);
+	const nextToastKeyRef = useRef(0);
+	const showToast = useCallback((message: string, undo?: () => void): void => {
+		nextToastKeyRef.current += 1;
+		setToast({ key: nextToastKeyRef.current, message, undo });
+	}, []);
+	const dismissToast = useCallback((): void => setToast(null), []);
 	
 	const { isPhone } = useViewportBreakpoint();
 	const [addActivityButtonContainer, setAddActivityButtonContainer] = useState<HTMLDivElement | null>(null);
@@ -75,10 +87,9 @@ function App() {
 	useEffect(() => {
 		if (sharedAccess.wasSharedWheelNotFound) {
 			removeSharedWheelIDFromUrl();
-			// eslint-disable-next-line react-hooks/set-state-in-effect
-			setToastMessage('No shared wheel exists with that link.');
+			showToast('No shared wheel exists with that link.');
 		}
-	}, [sharedAccess.wasSharedWheelNotFound]);
+	}, [sharedAccess.wasSharedWheelNotFound, showToast]);
 
 	const combinedWheelID = activeSharedWheelID ?? resolvedWheelID;
 
@@ -92,14 +103,20 @@ function App() {
 	const handleRemoteActivityChange = useCallback(
 		(change: SharedActivityChange): void => {
 			const changedActivityID = change.type === 'delete' ? change.activityID : change.activity.id;
-			if (changedActivityID === landedActivityID || changedActivityID === activeEditActivityID) {
-				setToastMessage('Wheel updated by another user.');
+			if (changedActivityID === landedOnActivityID || changedActivityID === activeEditActivityID) {
+				showToast('Wheel updated by another user.');
 			}
 		},
-		[landedActivityID, activeEditActivityID],
+		[landedOnActivityID, activeEditActivityID, showToast],
 	);
 
 	const activityState = useActivities(combinedWheelID, userID, activeSharedWheelID, handleRemoteActivityChange);
+	const chosenActivities = useChosenActivities({
+		wheelID: combinedWheelID,
+		userID,
+		sharedWheelID: activeSharedWheelID,
+		activities: activityState.activities,
+	});
 	const debug = useDebug();
 	const tagFilter = useTagFilter(combinedWheelID, userID, activeSharedWheelID);
 	const lockedActualWeights = useLockedActualWeights({ activities: activityState.activities, spreadFactor: debug.spreadFactor });
@@ -145,6 +162,32 @@ function App() {
 	const session = useSession(filteredActivities);
 
 	const filterOn = isFilterActive(tagFilter.activeTagIDs, tagFilter.untaggedOnly);
+
+	const handleRateLater = (activityID: string): void => {
+		const activity = activityState.activities.find((candidate) => candidate.id === activityID);
+		if (!activity) return;
+		chosenActivities.choose(activityID);
+		showToast(`${activity.name} is waiting in How was it?`);
+	};
+
+	const handleRate = async (activityID: string, action: RatingFeedbackAction): Promise<void> => {
+		const activity = activityState.activities.find((candidate) => candidate.id === activityID);
+		if (!activity) return;
+		const wasRated = await activityState.applyFeedback(activityID, action);
+		if (!wasRated) return;
+		const chosenActivityBeforeRating = chosenActivities.findChosenActivity(activityID);
+		chosenActivities.remove(activityID);
+		lockedActualWeights.reroll();
+		showToast(`${activity.name}: ${FEEDBACK_ACTION_TO_BUTTON_LABEL[action]}`, () => {
+			dismissToast();
+			void (async () => {
+				const wasUndone = await activityState.applyFeedback(activityID, 'undo');
+				if (!wasUndone) return;
+				if (chosenActivityBeforeRating) chosenActivities.restore(chosenActivityBeforeRating);
+				lockedActualWeights.reroll();
+			})();
+		});
+	};
 
 	const handleAddTagToActivity = async (activityID: string, tagName: string): Promise<void> => {
 		const activity = activityState.activities.find((candidate) => candidate.id === activityID);
@@ -265,9 +308,9 @@ function App() {
 							</div>
 						)}
 
-						{(wheels.errorMessage || activityState.errorMessage) && (
+						{(wheels.errorMessage || activityState.errorMessage || chosenActivities.errorMessage) && (
 							<div className="app-error" role="alert">
-								{wheels.errorMessage ?? activityState.errorMessage}
+								{wheels.errorMessage ?? activityState.errorMessage ?? chosenActivities.errorMessage}
 							</div>
 						)}
 
@@ -291,23 +334,24 @@ function App() {
 								rngSeed={debug.rngSeed}
 								spreadFactor={debug.spreadFactor}
 								tagFilterActive={filterOn}
-								allTagMetadata={tagFilter.tagMetadata}
 								isWheelPinned={wheelPinned}
 								activityIDToLockedActualWeight={lockedActualWeights.lockedActualWeightByActivityID}
 								shouldSizeWheelByActualCurrentWeights={debug.sizeWheelByActualCurrentWeights}
 								onSpun={lockedActualWeights.reroll}
 								onToggleWheelPinned={() => setWheelPinned((wasPinned) => !wasPinned)}
 								onClearTagFilter={tagFilter.clearFilter}
-								onFeedback={async (id, action) => {
-									await activityState.applyFeedback(id, action);
-									session.excludeActivity(id);
-									lockedActualWeights.reroll();
-								}}
+								onFeedback={handleRate}
+								onRateLater={handleRateLater}
 								onRename={activityState.rename}
-								onAddTagToActivity={handleAddTagToActivity}
-								onLandedActivityIDChange={setLandedActivityID}
+								onLandedOnActivityIDChange={setLandedOnActivityID}
 							/>
 						</section>
+
+						<HowWasItList
+							chosenActivitiesNewestFirst={chosenActivities.chosenActivitiesNewestFirst}
+							onRate={(activityID, action) => void handleRate(activityID, action)}
+							onDismiss={chosenActivities.remove}
+						/>
 
 						<TagFilterBar
 							allActivities={activityState.activities}
@@ -345,10 +389,7 @@ function App() {
 								lockedActualWeightByActivityID={lockedActualWeights.lockedActualWeightByActivityID}
 								lockedActualProbabilityByActivityID={lockedActualWeights.lockedActualProbabilityByActivityID}
 								onRename={activityState.rename}
-								onFeedback={async (id, action) => {
-									await activityState.applyFeedback(id, action);
-									lockedActualWeights.reroll();
-								}}
+								onFeedback={handleRate}
 								onDelete={handleDelete}
 								onUpdateTags={handleUpdateTags}
 								onAddTag={handleAddTagToActivity}
@@ -357,7 +398,7 @@ function App() {
 								onDeleteTag={handleDeleteTag}
 								onAddTagByName={handleBatchAddTagByName}
 								onEditingChange={handleEditingChange}
-								onShowToast={setToastMessage}
+								onShowToast={showToast}
 							/>
 						</section>
 
@@ -403,8 +444,14 @@ function App() {
 							</p>
 						</footer>
 
-						{toastMessage && (
-							<Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />
+						{toast && (
+							<Toast
+								key={toast.key}
+								message={toast.message}
+								onDismiss={dismissToast}
+								durationMs={toast.undo ? UNDO_TOAST_DURATION_MILLISECONDS : undefined}
+								action={toast.undo ? { label: 'Undo', onClick: toast.undo } : undefined}
+							/>
 						)}
 					</>
 				)}

@@ -1,6 +1,6 @@
 /**
  * `useWheel`. Coordinates a spin from start to finish.
- * Flow: the user clicks Spin, we compute the picked activity immediately using the seeded selection algorithm, we compute the target rotation that lands the picked slice under the pointer (plus a few full revolutions for feel), and the wheel component animates to that rotation and calls `onComplete()` when done, flipping us into the post-spin state.
+ * Flow: the user clicks Spin, we compute the landed-on activity immediately using the seeded selection algorithm, we compute the target rotation that lands its slice under the pointer (plus a few full revolutions for feel), and the wheel component animates to that rotation and calls `onComplete()` when done, flipping us into the post-spin state.
  * The animation is only a presentation of the already-known answer. This keeps selection unbiased (no slot-machine near-miss corrections) and animation predictable (no surprise about how it landed).
  */
 
@@ -18,9 +18,9 @@ import { getNextSpinTiming } from './spin-duration-logic';
 export type WheelPhase = 'idle' | 'spinning' | 'landed';
 
 interface SpinResult {
-	pickedSliceIndex: number;
-	pickedActivity: Activity;
-	/** Final rotation in degrees that lands the picked slice under the pointer. */
+	landedOnSliceIndex: number;
+	landedOnActivity: Activity;
+	/** Final rotation in degrees that lands the landed-on activity's slice under the pointer. */
 	targetRotationDegrees: number;
 	/** Activities in the exact order rendered on the wheel for this spin. Frozen so the wheel doesn't reshuffle mid-animation or right after landing. */
 	orderedDisplayedActivities: readonly Activity[];
@@ -44,7 +44,7 @@ export interface UseWheelApi {
 	}): boolean;
 	/** Called by the wheel component when the animation completes. */
 	finish(): void;
-	/** Resets to idle without consuming the result; used after accepting/rejecting/skipping. */
+	/** Resets to idle without consuming the result; used after going with or rating the landed-on activity. */
 	resetWheel(): void;
 	/** Resets both wheel and spinCount; used when explicitly resetting the session. */
 	resetWheelAndSession(): void;
@@ -80,11 +80,11 @@ export function useWheel(): UseWheelApi {
 				item: activity,
 				weight: spreadWeights[index],
 			}));
-			const pickedActivity = pickFromWeightedItems({ weightedItems: weightedActivities, rng });
-			if (!pickedActivity) return false;
+			const landedOnActivity = pickFromWeightedItems({ weightedItems: weightedActivities, rng });
+			if (!landedOnActivity) return false;
 
-			const pickedActivityIndex = activities.indexOf(pickedActivity);
-			if (pickedActivityIndex < 0) return false;
+			const landedOnActivityIndex = activities.indexOf(landedOnActivity);
+			if (landedOnActivityIndex < 0) return false;
 
 			const totalDisplayProbability =
 				displaySliceProbabilities.length === activities.length
@@ -95,11 +95,11 @@ export function useWheel(): UseWheelApi {
 				totalDisplayProbability > 0 ? displaySliceProbabilities[index] / totalDisplayProbability : 1 / activities.length,
 			);
 
-			let arcBeforePickedActivity = 0;
-			for (let precedingIndex = 0; precedingIndex < pickedActivityIndex; precedingIndex++) {
-				arcBeforePickedActivity += displayArcSizes[precedingIndex];
+			let arcBeforeLandedOnActivity = 0;
+			for (let precedingIndex = 0; precedingIndex < landedOnActivityIndex; precedingIndex++) {
+				arcBeforeLandedOnActivity += displayArcSizes[precedingIndex];
 			}
-			const sliceCenterFromTop = (arcBeforePickedActivity + displayArcSizes[pickedActivityIndex] / 2) * 360;
+			const sliceCenterFromTop = (arcBeforeLandedOnActivity + displayArcSizes[landedOnActivityIndex] / 2) * 360;
 
 			const baseAlignment = (360 - sliceCenterFromTop) % 360;
 			const currentRotation = rotationRef.current;
@@ -116,8 +116,8 @@ export function useWheel(): UseWheelApi {
 			const targetRotationDeg = currentRotation + spinTiming.fullRotations * 360 + rotationDelta;
 
 			setResult({
-				pickedSliceIndex: pickedActivityIndex,
-				pickedActivity,
+				landedOnSliceIndex: landedOnActivityIndex,
+				landedOnActivity,
 				targetRotationDegrees: targetRotationDeg,
 				orderedDisplayedActivities: activities,
 				displaySliceProbabilities,

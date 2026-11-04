@@ -4,7 +4,9 @@ This is the deeper companion to the [README](../README.md). The README tells you
 
 ## What it's for
 
-You've got a list of things you could do and no idea which one you're in the mood for. You spin the wheel, it picks something, and you say whether that was a good idea or not. Over time the wheel gets better at guessing, without you ever typing in a number.
+You've got a list of things you could do and no idea which one you're in the mood for. You spin the wheel until it lands on something you want to do, you go do it, and afterward you say how much you enjoyed it. Over time the wheel gets better at suggesting what you'll enjoy, without you ever typing in a number.
+
+Wanting to do something and enjoying it are separate on purpose. See [`enjoyment-rating-plan.md`](./enjoyment-rating-plan.md) for the reasoning and evidence.
 
 ## Spinning and selection
 
@@ -12,7 +14,19 @@ Pressing **Spin the wheel** (or `Space`) picks the activity immediately using a 
 
 Slices are rendered with the highest probability first starting at the top, sized by the estimated weight each activity has.
 
-Once it lands, you get five rating buttons, from best to worst:
+Once it lands, you answer one question: do you want to do this right now?
+
+- **Go with this** (`Enter`): You'll do it. The rating buttons appear in its place under "How was the activity?" so you can rate it, and once you do the wheel is ready to spin again. "Rate it later" puts it in your How was it? list instead.
+- **Spin again** (`Space`): Not this one. Spins from whatever activities are left this session.
+- **Reset session**: Makes every excluded activity available again.
+
+Neither Go with this nor Spin again changes an activity's chance of coming up later. Only ratings do, so a bad mood can never bury something you'd enjoy.
+
+Whatever you spin is excluded from the rest of the session no matter which button you press, so the next spin always shows you something new.
+
+## Rating
+
+A rating means how much you enjoyed really doing an activity, from best to worst:
 
 - **Love It!** (`L`): Rates it 2 preference points.
 - **Like It** (`Y`): Rates it 1 preference point.
@@ -22,14 +36,15 @@ Once it lands, you get five rating buttons, from best to worst:
 
 These are ratings, not increments. Each one pulls the preference score toward that rating, so pressing Like It on an activity you've loved many times actually lowers it a little.
 
-Below them are the navigation buttons:
+You can rate in three places:
 
-- **Spin again** (`Space`): Spins from whatever activities are left this session, without rating the current one. This is how you pass on something without saying anything about it.
-- **Reset session**: Makes every excluded activity available again.
+- **How was it? list**: Appears near the wheel when you've gone with something. Activities wait there until you rate them or remove them with the `×`, with no timers, so a meal and a month-long game both work. It never blocks anything, an activity in it can still come up on the wheel, and going with it again doesn't add a duplicate. Rating an activity anywhere clears it from the list.
+- **Landing panel**: The rating buttons and their keys only work after you click Go with this, so a habit press can't rate something you haven't done yet.
+- **Activity list**: Every row has the same rating buttons.
 
-Whatever you spin is excluded from the rest of the session no matter which button you press, so the next spin always shows you something new. Rating an activity doesn't auto-reset the session, so you're free to keep spinning or stop whenever you want.
+After each rating, a brief message offers **Undo**, and the activity's row highlights your last rating. A second rating on the same activity within a second of the last one is ignored as an accidental double click.
 
-If the activity you land on has no tags yet, a small "No tags yet. Add a tag?" prompt appears so you can tag it on the spot instead of hunting for it in the list later. You can also rename the winning activity directly from this panel by clicking its name.
+You can rename the winning activity directly from this panel by clicking its name.
 
 ## The preference system
 
@@ -39,9 +54,13 @@ Each rating is worth some **preference points**. Every rating moves the preferen
 
 How much a single reaction changes the preference score depends on how confident the app is in it. While it it is very unconfident, your first few reactions change the preference score a lot. Once you have given feedback on the same activity again and again, more feedback in the same direction barely changes it.
 
+If your enjoyment really changes, the app catches up quickly. When two ratings in a row land far from the preference score on the same side, it lowers its confidence first, so new ratings count more. One rating alone never triggers this, so one bad day doesn't undo a favorite.
+
 Picking an activity is not based on just the preference score. For each spin, every activity comes up with a **possible preference score**, its preference score plus an uncertainty of its score. An activity with high preference score confidence comes up with a possible score close to its real preference score. An activity with low preference score confidence comes up with possible scores all over the place, so ocassionally it's score is high giving it a higher opportunity to be picked. Those possible preference scores are what determine the real activity weights/probabilities. How much a higher preference score leads to a higher weight on the actual wheel is the **preference weight strength**.
 
 If you had activities from before this system existed, their old accept/reject history was replayed into a starting preference score and confidence, weighted less. This automatically ran once the first time you opened the app after the update.
+
+When ratings changed to mean enjoyment, every negative preference score was shrunk once and its confidence reset, because those ratings mostly meant "not right now" rather than "I don't enjoy this". Positive scores stayed as they were. Importing a backup made before this change applies the same fix.
 
 ## Wheels
 
@@ -72,7 +91,7 @@ The activity list below the wheel shows every activity (or the tag-filtered subs
 Each row supports:
 
 - Click the name to rename it inline.
-- The same five rating buttons as the post-spin panel (Love It!, Like It, Meh, Dislike It, Hate It!), so you can rate an activity without spinning for it.
+- The same five rating buttons as the landing panel (Love It!, Like It, Meh, Dislike It, Hate It!), so you can rate an activity without spinning for it. Your last rating is highlighted.
 - Tags: add via the `+` combobox (autocompletes from every tag you've ever used, or lets you create a new one), remove with the `×` on hover, right-click a tag to open a small popover where you can rename it (rejecting a name that collides with another tag), change its color from a preset palette or a custom picker, or delete it entirely (with a confirmation prompt, since it strips the tag from every activity that has it).
 - Delete, with a confirmation prompt.
 
@@ -101,6 +120,8 @@ Visiting the app with `?sharedWheelId=[ID-HERE]` (with the id of test wheel) in 
 If `?sharedWheelId=` names a wheel that doesn't exist, you're never shown the password screen. Instead the app loads normally, the bad link is cleaned out of the address bar, and a brief message lets you know no shared wheel exists with that link.
 
 Once unlocked, the shared wheel shows up as an extra tab next to your own wheels, marked with a small multi-user icon. It can't be renamed or deleted from that tab, since it isn't yours to rename or delete.
+
+Everyone on a shared wheel has their own How was it? list, so nobody gets asked about what someone else chose. Ratings from everyone still feed the one shared preference score.
 
 Because other people can be spinning, adding, or editing activities on the same shared wheel at the same time, changes show up live without needing to refresh. If someone else's change lands on the exact activity you're mid-edit-name on, or the activity you just spun and are looking at the result for, you'll see a brief "Wheel updated by another user" notice so the sudden change doesn't look like a bug. Any other change to the wheel just updates quietly. If two people change the same thing at the same time, whichever write reaches the database last wins.
 
@@ -155,10 +176,11 @@ The app is designed to work well on anything from a small phone to an ultrawide 
 1. Auth control (sign in / account name), top-right of the wheel header.
 2. Wheel tabs, for switching between wheels.
 3. The wheel canvas itself, with the pin button.
-4. Post-spin panel, once you've landed on something.
-5. Tag filter bar.
-6. Activities panel: add-activity field, search/sort/compact controls, the list itself.
-7. Debug panel (collapsed by default).
-8. Backup and Restore (collapsed by default).
+4. Landing panel, once you've landed on something.
+5. How was it? list, when you have chosen activities waiting.
+6. Tag filter bar.
+7. Activities panel: add-activity field, search/sort/compact controls, the list itself.
+8. Debug panel (collapsed by default).
+9. Backup and Restore (collapsed by default).
 
 Styling is plain CSS, no framework, with theme variables in `src/index.css`, full dark-mode support via `prefers-color-scheme`, and each component's styling co-located in its own `.css` file next to it in `src/components/`.

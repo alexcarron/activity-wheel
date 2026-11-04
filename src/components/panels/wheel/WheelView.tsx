@@ -3,7 +3,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { Activity, FeedbackAction, TagMetadata } from '../../../domain-logic/types';
+import type { Activity, RatingFeedbackAction } from '../../../domain-logic/types';
 import { estimateStableProbabilities } from '../../../domain-logic/weight-logic/stable-probability-estimate-logic';
 import { getProbabilitiesFromActualCurrentWeights } from '../../../domain-logic/weight-logic/preference-to-weight-logic';
 import { useNow } from '../../../hooks/useNow';
@@ -23,7 +23,6 @@ interface Props {
 	readonly rngSeed: string;
 	readonly spreadFactor: number;
 	readonly tagFilterActive: boolean;
-	readonly allTagMetadata: readonly TagMetadata[];
 	readonly isWheelPinned: boolean;
 	readonly activityIDToLockedActualWeight: Map<string, number>;
 	readonly shouldSizeWheelByActualCurrentWeights: boolean;
@@ -31,11 +30,11 @@ interface Props {
 	onSpun(): void;
 	onToggleWheelPinned(): void;
 	onClearTagFilter(): void;
-	onFeedback(id: string, action: FeedbackAction): Promise<void>;
+	onRateLater(id: string): void;
+	onFeedback(id: string, action: RatingFeedbackAction): Promise<void>;
 	onRename(id: string, name: string): Promise<void>;
-	onAddTagToActivity(activityID: string, tagName: string): Promise<void>;
-	/** Called whenever the currently-landed-on activity id changes. Used to detect confusing remote changes to a shared wheel's in-progress spin. */
-	onLandedActivityIDChange?(id: string | null): void;
+	/** Called whenever the landed-on activity id changes. Used to detect confusing remote changes to a shared wheel's in-progress spin. */
+	onLandedOnActivityIDChange?(id: string | null): void;
 }
 
 export function WheelView({
@@ -44,7 +43,6 @@ export function WheelView({
 	rngSeed,
 	spreadFactor,
 	tagFilterActive,
-	allTagMetadata,
 	isWheelPinned: wheelPinned,
 	activityIDToLockedActualWeight: lockedActualWeightByActivityID,
 	shouldSizeWheelByActualCurrentWeights: sizeWheelByActualCurrentWeights,
@@ -52,9 +50,9 @@ export function WheelView({
 	onToggleWheelPinned,
 	onClearTagFilter,
 	onFeedback,
+	onRateLater,
 	onRename,
-	onAddTagToActivity,
-	onLandedActivityIDChange,
+	onLandedOnActivityIDChange,
 }: Props) {
 	const wheel = useWheel();
 	const [busy, setBusy] = useState(false);
@@ -89,11 +87,11 @@ export function WheelView({
 		};
 	}, [remainingActivities, estimatedStableProbabilities, actualCurrentProbabilities, sizeWheelByActualCurrentWeights]);
 
-	const pickedActivity = useMemo(() => {
+	const landedOnActivity = useMemo(() => {
 		if (!wheel.result) return null;
 		return (
-			activities.find((activity) => activity.id === wheel.result!.pickedActivity.id) ??
-			wheel.result.pickedActivity
+			activities.find((activity) => activity.id === wheel.result!.landedOnActivity.id) ??
+			wheel.result.landedOnActivity
 		);
 	}, [activities, wheel.result]);
 
@@ -123,34 +121,41 @@ export function WheelView({
 	}, [wheel]);
 
 	const handleFeedback = useCallback(
-		async (action: FeedbackAction): Promise<void> => {
-			if (!pickedActivity) return;
+		async (action: RatingFeedbackAction): Promise<void> => {
+			if (!landedOnActivity) return;
 			setBusy(true);
 			try {
-				await onFeedback(pickedActivity.id, action);
+				await onFeedback(landedOnActivity.id, action);
 			}
 			finally {
-				session.excludeActivity(pickedActivity.id);
+				session.excludeActivity(landedOnActivity.id);
 				setBusy(false);
 				wheel.resetWheel();
 			}
 		},
-		[onFeedback, wheel, session, pickedActivity],
+		[onFeedback, wheel, session, landedOnActivity],
 	);
 
+	const handleRateLater = useCallback(() => {
+		if (!landedOnActivity) return;
+		onRateLater(landedOnActivity.id);
+		session.excludeActivity(landedOnActivity.id);
+		wheel.resetWheel();
+	}, [landedOnActivity, onRateLater, session, wheel]);
+
 	const handleSpinAgain = useCallback(() => {
-		if (pickedActivity)
-			session.excludeActivity(pickedActivity.id);
+		if (landedOnActivity)
+			session.excludeActivity(landedOnActivity.id);
 
 		const nextCandidateIndices = sortedActivities
 			.map((activity, index) => ({ activity, index }))
-			.filter((pair) => pair.activity.id !== pickedActivity?.id);
+			.filter((pair) => pair.activity.id !== landedOnActivity?.id);
 
 		spinActivities(
 			nextCandidateIndices.map((pair) => pair.activity),
 			nextCandidateIndices.map((pair) => sliceProbabilities[pair.index]),
 		);
-	}, [spinActivities, sortedActivities, sliceProbabilities, pickedActivity, session]);
+	}, [spinActivities, sortedActivities, sliceProbabilities, landedOnActivity, session]);
 
 	const handleResetSession = useCallback(() => {
 		session.resetExcludedActivities();
@@ -158,7 +163,7 @@ export function WheelView({
 	}, [session, wheel]);
 
 	useEffect(() => {
-		if (wheel.result && !activities.find((activity) => activity.id === wheel.result?.pickedActivity.id)) {
+		if (wheel.result && !activities.find((activity) => activity.id === wheel.result?.landedOnActivity.id)) {
 			wheel.resetWheel();
 		}
 	}, [activities, wheel]);
@@ -168,8 +173,8 @@ export function WheelView({
 	const isLanded = wheel.phase === 'landed';
 
 	useEffect(() => {
-		onLandedActivityIDChange?.(isLanded && pickedActivity ? pickedActivity.id : null);
-	}, [isLanded, pickedActivity, onLandedActivityIDChange]);
+		onLandedOnActivityIDChange?.(isLanded && landedOnActivity ? landedOnActivity.id : null);
+	}, [isLanded, landedOnActivity, onLandedOnActivityIDChange]);
 
 	useHotkey(HOTKEYS.SPIN_WHEEL.code, handleSpin, isIdle && remainingActivities.length > 0);
 
@@ -259,19 +264,18 @@ export function WheelView({
 				</div>
 			)}
 
-			{isLanded && pickedActivity && (
+			{isLanded && landedOnActivity && (
 				<PostSpinActions
-					pickedActivity={pickedActivity}
+					landedOnActivity={landedOnActivity}
 					remainingActivityCount={
-						session.remainingActivities.filter((activity) => activity.id !== pickedActivity.id).length
+						session.remainingActivities.filter((activity) => activity.id !== landedOnActivity.id).length
 					}
-					onChoose={(action) => void handleFeedback(action)}
+					onRateLater={handleRateLater}
+					onRate={(action) => void handleFeedback(action)}
 					onSpinAgain={handleSpinAgain}
 					onResetSession={handleResetSession}
 					busy={busy}
 					onRename={onRename}
-					allTagMetadata={allTagMetadata}
-					onAddTag={onAddTagToActivity}
 				/>
 			)}
 		</section>

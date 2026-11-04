@@ -4,7 +4,7 @@ import { createCloudActivityService, type CloudActivityService } from '../servic
 import { createSharedActivityService } from '../services/cloud/shared-activity-service';
 import { createBackgroundSaveQueue } from '../services/background-save-queue';
 import { useSharedWheelRealtimeSync, type SharedActivityChange } from './shared-wheel-realtime';
-import { applyFeedbackToActivity } from '../domain-logic/weight-logic/weight-feedback-response-logic';
+import { applyFeedbackToActivity, isRepeatRatingTooSoon } from '../domain-logic/weight-logic/weight-feedback-response-logic';
 import { newActivity } from '../domain-logic/activity-logic/activity-factory';
 import type { Activity, FeedbackAction } from '../domain-logic/types';
 import { newID } from '../utils/id';
@@ -17,7 +17,8 @@ interface UseActivitiesApi {
 	add(name: string): Promise<void>;
 	rename(id: string, name: string): Promise<void>;
 	remove(id: string): Promise<void>;
-	applyFeedback(id: string, action: FeedbackAction): Promise<void>;
+	/** Returns whether the feedback was applied. */
+	applyFeedback(id: string, action: FeedbackAction): Promise<boolean>;
 	updateTags(id: string, tagIds: string[]): Promise<void>;
 	reload(): Promise<void>;
 	clearEverything(): Promise<void>;
@@ -187,14 +188,17 @@ export function useActivities(
 	);
 
 	const applyFeedback = useCallback(
-		async (id: string, action: FeedbackAction): Promise<void> => {
+		async (id: string, action: FeedbackAction): Promise<boolean> => {
 			const current = latestActivitiesRef.current.find((activity) => activity.id === id);
-			if (!current) return;
-			const nextActivity = applyFeedbackToActivity(current, action, Date.now());
+			if (!current) return false;
+			const now = Date.now();
+			if (action !== 'undo' && isRepeatRatingTooSoon({ lastFeedbackAt: current.lastFeedbackAt, now })) return false;
+			const nextActivity = applyFeedbackToActivity(current, action, now);
 			const nextActivities = latestActivitiesRef.current.map((activity) => (activity.id === id ? nextActivity : activity));
 			latestActivitiesRef.current = nextActivities;
 			setActivities(nextActivities);
 			saveInBackground(id, () => activityService.bulkPut([nextActivity]));
+			return true;
 		},
 		[activityService, saveInBackground],
 	);

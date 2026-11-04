@@ -14,8 +14,6 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 
 export function useHotkey(code: string, handler: () => void, enabled: boolean = true): void {
 	const handlerRef = useRef(handler);
-	// Keep the ref in sync inside a layout-effect so we never mutate it
-	// during render (which violates react-hooks/refs).
 	useLayoutEffect(() => {
 		handlerRef.current = handler;
 	});
@@ -25,6 +23,7 @@ export function useHotkey(code: string, handler: () => void, enabled: boolean = 
 
 		const onKeyDown = (event: KeyboardEvent): void => {
 			if (event.code !== code || event.repeat) return;
+			if (event.ctrlKey || event.metaKey || event.altKey) return;
 			const tagName = (event.target as HTMLElement).tagName.toLowerCase();
 			if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') return;
 			event.preventDefault();

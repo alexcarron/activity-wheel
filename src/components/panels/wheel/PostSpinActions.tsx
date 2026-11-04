@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
-import { MAXIMUM_ACTIVITY_NAME_LENGTH, type Activity, type FeedbackAction, type TagMetadata } from '../../../domain-logic/types';
+import { MAXIMUM_ACTIVITY_NAME_LENGTH, type Activity, type RatingFeedbackAction } from '../../../domain-logic/types';
 import { useHotkey } from '../../../hooks/useHotkey';
 import { HOTKEYS } from '../../../constants/hotkeys';
-import { FEEDBACK_ACTION_TO_BUTTON_LABEL, FEEDBACK_ACTION_TO_BUTTON_TOOLTIP } from '../../../constants/feedback-buttons';
+import {
+	FEEDBACK_ACTION_TO_BUTTON_LABEL,
+	FEEDBACK_ACTION_TO_BUTTON_TOOLTIP,
+	RATING_FEEDBACK_ACTIONS_BEST_TO_WORST,
+} from '../../../constants/feedback-buttons';
 import { KeyboardHint } from '../../reusable/KeyboardHint';
 import { HeartIcon } from '../../svg-icons/HeartIcon';
 import { BrokenHeartIcon } from '../../svg-icons/BrokenHeartIcon';
@@ -11,8 +15,6 @@ import { ThumbsUpIcon } from '../../svg-icons/ThumbsUpIcon';
 import { NeutralFaceIcon } from '../../svg-icons/NeutralFaceIcon';
 import { ThumbsDownIcon } from '../../svg-icons/ThumbsDownIcon';
 import './PostSpinActions.css';
-
-type ManualFeedbackAction = Exclude<FeedbackAction, 'undo'>;
 
 interface FeedbackButtonConfig {
 	readonly className: string;
@@ -22,7 +24,7 @@ interface FeedbackButtonConfig {
 	readonly title: string;
 }
 
-const FEEDBACK_BUTTON_CONFIGS: Record<ManualFeedbackAction, FeedbackButtonConfig> = {
+const FEEDBACK_BUTTON_CONFIGS: Record<RatingFeedbackAction, FeedbackButtonConfig> = {
 	love: {
 		className: 'btn btn-love-it',
 		icon: <HeartIcon />,
@@ -60,95 +62,50 @@ const FEEDBACK_BUTTON_CONFIGS: Record<ManualFeedbackAction, FeedbackButtonConfig
 	},
 };
 
-const PREFERENCE_FEEDBACK_BUTTON_ORDER: readonly ManualFeedbackAction[] = ['love', 'like', 'neutral', 'dislike', 'hate'];
-
 interface Props {
-	readonly pickedActivity: Activity;
+	readonly landedOnActivity: Activity;
 	readonly remainingActivityCount: number;
-	onChoose(action: FeedbackAction): void;
+	onRate(action: RatingFeedbackAction): void;
+	onRateLater(): void;
 	onSpinAgain(): void;
 	onResetSession(): void;
 	/** Disabled while a write is in flight, to avoid double-clicks. */
 	readonly busy: boolean;
-	/** Optional: allows renaming the pickedActivity's activity name inline. */
+	/** Optional: allows renaming the landed-on activity inline. */
 	onRename?(id: string, name: string): Promise<void>;
-	/** All known tag metadata. Needed for the "Add a tag?" combobox. */
-	readonly allTagMetadata: readonly TagMetadata[];
-	/** Called when the user adds a tag from the post-spin prompt. */
-	onAddTag?(activityID: string, tagName: string): Promise<void>;
 }
 
 export function PostSpinActions(props: Props) {
 	const {
-		pickedActivity,
+		landedOnActivity,
 		remainingActivityCount,
-		onChoose,
+		onRate,
+		onRateLater,
 		onSpinAgain,
 		onResetSession,
 		busy,
 		onRename,
-		allTagMetadata,
-		onAddTag,
 	} = props;
 	const canSpinAgain = remainingActivityCount > 0;
-	const hasNoTags = (pickedActivity.tagIds ?? []).length === 0;
-
-	/* Quick inline tag input for the "Add a tag?" prompt */
-	const [tagPromptOpen, setTagPromptOpen] = useState(false);
-	const [tagDraft, setTagDraft] = useState('');
-	const tagInputRef = useRef<HTMLInputElement>(null);
-
-	useEffect(() => {
-		if (tagPromptOpen) {
-			setTimeout(() => tagInputRef.current?.focus(), 0);
-		}
-	}, [tagPromptOpen]);
-
-	const commitTag = useCallback(async () => {
-		const trimmed = tagDraft.trim();
-		if (!trimmed || !onAddTag) return;
-		await onAddTag(pickedActivity.id, trimmed);
-		setTagDraft('');
-		setTagPromptOpen(false);
-	}, [tagDraft, onAddTag, pickedActivity.id]);
-
-	const onTagKey = useCallback(
-		(event: KeyboardEvent<HTMLInputElement>) => {
-			if (event.key === 'Enter') void commitTag();
-			if (event.key === 'Escape') {
-				setTagPromptOpen(false);
-				setTagDraft('');
-			}
-		},
-		[commitTag],
-	);
-
-	const tagSuggestions = (() => {
-		const queryText = tagDraft.trim().toLowerCase();
-		return allTagMetadata
-			.filter((tag) => !(pickedActivity.tagIds ?? []).includes(tag.id))
-			.map((tag) => tag.name)
-			.filter((tagName) => !queryText || tagName.toLowerCase().includes(queryText))
-			.slice(0, 6);
-	})();
+	const [hasGoneWithThis, setHasGoneWithThis] = useState(false);
 
 	const [editing, setEditing] = useState(false);
-	// draft is only populated when entering edit mode. The displayed name when not editing always comes from pickedActivity.name directly (the live prop).
+	// draft is only populated when entering edit mode. The displayed name when not editing always comes from landedOnActivity.name directly (the live prop).
 	const [draft, setDraft] = useState('');
 	const inputRef = useRef<HTMLInputElement>(null);
 
 	const startEditing = useCallback(() => {
 		if (!onRename || busy) return;
-		setDraft(pickedActivity.name);
+		setDraft(landedOnActivity.name);
 		setEditing(true);
-	}, [onRename, busy, pickedActivity.name]);
+	}, [onRename, busy, landedOnActivity.name]);
 
 	const commit = useCallback(async () => {
 		const trimmed = draft.trim();
 		setEditing(false);
-		if (!trimmed || trimmed === pickedActivity.name || !onRename) return;
-		await onRename(pickedActivity.id, trimmed);
-	}, [draft, pickedActivity.id, pickedActivity.name, onRename]);
+		if (!trimmed || trimmed === landedOnActivity.name || !onRename) return;
+		await onRename(landedOnActivity.id, trimmed);
+	}, [draft, landedOnActivity.id, landedOnActivity.name, onRename]);
 
 	const onKey = useCallback(
 		(event: KeyboardEvent<HTMLInputElement>) => {
@@ -162,15 +119,19 @@ export function PostSpinActions(props: Props) {
 		if (editing) inputRef.current?.select();
 	}, [editing]);
 
-	useHotkey(HOTKEYS.LOVE_IT.code, () => onChoose('love'), !busy && !editing);
-	useHotkey(HOTKEYS.LIKE_IT.code, () => onChoose('like'), !busy && !editing);
-	useHotkey(HOTKEYS.NEUTRAL.code, () => onChoose('neutral'), !busy && !editing);
-	useHotkey(HOTKEYS.DISLIKE_IT.code, () => onChoose('dislike'), !busy && !editing);
-	useHotkey(HOTKEYS.HATE_IT.code, () => onChoose('hate'), !busy && !editing);
+	const canUseHotkeys = !busy && !editing;
+	const canUseRatingHotkeys = canUseHotkeys && hasGoneWithThis;
+	const goWithThis = useCallback(() => setHasGoneWithThis(true), []);
+	useHotkey(HOTKEYS.LOVE_IT.code, () => onRate('love'), canUseRatingHotkeys);
+	useHotkey(HOTKEYS.LIKE_IT.code, () => onRate('like'), canUseRatingHotkeys);
+	useHotkey(HOTKEYS.NEUTRAL.code, () => onRate('neutral'), canUseRatingHotkeys);
+	useHotkey(HOTKEYS.DISLIKE_IT.code, () => onRate('dislike'), canUseRatingHotkeys);
+	useHotkey(HOTKEYS.HATE_IT.code, () => onRate('hate'), canUseRatingHotkeys);
 
-	useHotkey(HOTKEYS.SPIN_WHEEL.code, onSpinAgain, !busy && !editing && canSpinAgain);
+	useHotkey(HOTKEYS.GO_WITH_THIS.code, goWithThis, canUseHotkeys && !hasGoneWithThis);
+	useHotkey(HOTKEYS.SPIN_WHEEL.code, onSpinAgain, canUseHotkeys && canSpinAgain && !hasGoneWithThis);
 
-	const renderFeedbackButton = (action: ManualFeedbackAction): ReactNode => {
+	const renderFeedbackButton = (action: RatingFeedbackAction): ReactNode => {
 		const config = FEEDBACK_BUTTON_CONFIGS[action];
 		return (
 			<button
@@ -178,7 +139,7 @@ export function PostSpinActions(props: Props) {
 				type="button"
 				className={config.className}
 				style={{ gridArea: action }}
-				onClick={() => onChoose(action)}
+				onClick={() => onRate(action)}
 				disabled={busy}
 				title={config.title}
 			>
@@ -220,82 +181,57 @@ export function PostSpinActions(props: Props) {
 								: undefined
 						}
 					>
-						{pickedActivity.name}
+						{landedOnActivity.name}
 					</span>
 				)}
 			</div>
-			{hasNoTags && onAddTag && !tagPromptOpen && (
-				<div className="post-spin-tag-nudge">
-					<span className="post-spin-tag-nudge-text">No tags yet.</span>
+			{hasGoneWithThis ? (
+				<>
+					<div className="post-spin-feedback-header">
+						<span className="post-spin-feedback-question">How was the activity?</span>
+						<button
+							type="button"
+							className="btn btn-ghost btn-small"
+							onClick={onRateLater}
+							disabled={busy}
+							title="Rate it later from the How was it? list"
+						>
+							Rate it later
+						</button>
+					</div>
+					<div className="post-spin-feedback">
+						{RATING_FEEDBACK_ACTIONS_BEST_TO_WORST.map(renderFeedbackButton)}
+					</div>
+				</>
+			) : (
+				<div className="post-spin-decision">
 					<button
 						type="button"
-						className="btn btn-ghost btn-small"
-						onClick={() => setTagPromptOpen(true)}
+						className="btn btn-primary btn-large"
+						onClick={goWithThis}
+						disabled={busy}
+						title={`Do this one, then rate it (${HOTKEYS.GO_WITH_THIS.label})`}
 					>
-						Add a tag? ＋
-					</button>
-				</div>
-			)}
-
-			{tagPromptOpen && onAddTag && (
-				<div className="post-spin-tag-input-row">
-					<input
-						ref={tagInputRef}
-						type="text"
-						className="post-spin-tag-input"
-						placeholder="Tag name…"
-						value={tagDraft}
-						onChange={(event) => setTagDraft(event.target.value)}
-						onKeyDown={onTagKey}
-						maxLength={60}
-						list="post-spin-tag-suggestions"
-						autoComplete="off"
-					/>
-					<datalist id="post-spin-tag-suggestions">
-						{tagSuggestions.map((name) => (
-							<option key={name} value={name} />
-						))}
-					</datalist>
-					<button
-						type="button"
-						className="btn btn-primary btn-small"
-						onClick={() => void commitTag()}
-						disabled={!tagDraft.trim()}
-					>
-						Add
+						Go with this
+						<KeyboardHint label={HOTKEYS.GO_WITH_THIS.label} />
 					</button>
 					<button
 						type="button"
-						className="btn btn-ghost btn-small"
-						onClick={() => {
-							setTagPromptOpen(false);
-							setTagDraft('');
-						}}
-					>
-						Cancel
-					</button>
-				</div>
-			)}
-
-			<div className="post-spin-feedback">
-				{PREFERENCE_FEEDBACK_BUTTON_ORDER.map(renderFeedbackButton)}
-			</div>
-			<div className="post-spin-nav">
-				<div className="post-spin-spin-again-and-reset">
-					<button
-						type="button"
-						className="btn btn-secondary"
+						className="btn btn-secondary btn-large"
 						onClick={onSpinAgain}
 						disabled={busy || !canSpinAgain}
-						title={canSpinAgain ? `Spin again without rating this one (${HOTKEYS.SPIN_WHEEL.label})` : undefined}
+						title={canSpinAgain ? `Not this one, get another (${HOTKEYS.SPIN_WHEEL.label})` : undefined}
 					>
 						Spin again
 						{canSpinAgain && <KeyboardHint label={HOTKEYS.SPIN_WHEEL.label} />}
 					</button>
-					<button type="button" className="btn btn-ghost" onClick={onResetSession} disabled={busy}>
-						Reset session
-					</button>
 				</div>
+			)}
+
+			<div className="post-spin-nav">
+				<button type="button" className="btn btn-ghost" onClick={onResetSession} disabled={busy}>
+					Reset session
+				</button>
 			</div>
 		</div>
 	);

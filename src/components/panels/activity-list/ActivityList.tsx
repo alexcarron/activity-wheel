@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
 	Activity,
-	FeedbackAction,
+	RatingFeedbackAction,
 	SortDirection,
 	SortKey,
 	TagMetadata,
@@ -34,7 +34,7 @@ interface ActivityListProps {
 	/** The locked-in actual current probability for each activity, derived from the same weight above. */
 	readonly lockedActualProbabilityByActivityID: Map<string, number>;
 	onRename(id: string, name: string): Promise<void>;
-	onFeedback(id: string, action: FeedbackAction): Promise<void>;
+	onFeedback(id: string, action: RatingFeedbackAction): Promise<void>;
 	onDelete(id: string): Promise<void>;
 	onUpdateTags(id: string, tagIds: string[]): Promise<void>;
 	onAddTag(id: string, tagName: string): Promise<void>;

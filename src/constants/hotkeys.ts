@@ -10,6 +10,10 @@ export const HOTKEYS = {
 		code: 'Space',
 		label: 'Space',
 	},
+	GO_WITH_THIS: {
+		code: 'Enter',
+		label: 'Enter',
+	},
 	LOVE_IT: {
 		code: 'KeyL',
 		label: 'L',

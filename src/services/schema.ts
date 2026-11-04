@@ -6,6 +6,7 @@
 import type { DBConfig, Migration, StoreSchema } from '../libraries/indexeddb/types';
 import { newID } from '../utils/id';
 import { replayMigratedPreferenceEstimate } from '../domain-logic/weight-logic/migration-replay-logic';
+import { shrinkNegativePreferenceEstimate } from '../domain-logic/weight-logic/negative-score-shrink-logic';
 
 export const ACTIVITIES_STORE: StoreSchema = {
 	name: 'activities',
@@ -27,6 +28,12 @@ export const WHEELS_STORE: StoreSchema = {
 	name: 'wheels',
 	keyPath: 'id',
 	indexes: [{ name: 'lastUsedAt', keyPath: 'lastUsedAt' }],
+};
+
+export const CHOSEN_ACTIVITIES_STORE: StoreSchema = {
+	name: 'chosen-activities',
+	keyPath: 'activityID',
+	indexes: [{ name: 'wheelID', keyPath: 'wheelID' }],
 };
 
 const v1Initial: Migration = {
@@ -200,9 +207,55 @@ const v5PreferenceBasedWeighting: Migration = {
 	},
 };
 
+const v6EnjoymentRatings: Migration = {
+	toVersion: 6,
+	apply: ({ db, transaction }) => {
+		const chosenActivitiesStore = db.createObjectStore(CHOSEN_ACTIVITIES_STORE.name, {
+			keyPath: CHOSEN_ACTIVITIES_STORE.keyPath,
+		});
+		chosenActivitiesStore.createIndex('wheelID', 'wheelID');
+
+		const migratedAt = Date.now();
+		const activitiesCursor = transaction.objectStore(ACTIVITIES_STORE.name).openCursor();
+		activitiesCursor.onsuccess = (event) => {
+			const cursor = (event.target as IDBRequest<IDBCursorWithValue | null>).result;
+			if (!cursor) return;
+			const row = cursor.value as Record<string, unknown> & {
+				acceptCount?: unknown;
+				rejectCount?: unknown;
+				preferenceScore?: unknown;
+				preferenceScoreConfidence?: unknown;
+				lastFeedbackAt?: unknown;
+			};
+			// A browser upgrading from before v5 runs v5's cursor in the same transaction, in lockstep with this one. This cursor reads each row before v5's write lands and writes after it, so it must produce the full v5 result itself.
+			const isMissingPreferenceEstimate = typeof row.preferenceScore !== 'number';
+			const preferenceEstimate = isMissingPreferenceEstimate
+				? replayMigratedPreferenceEstimate(
+					typeof row.acceptCount === 'number' ? row.acceptCount : 0,
+					typeof row.rejectCount === 'number' ? row.rejectCount : 0,
+				)
+				: {
+					preferenceScore: row.preferenceScore as number,
+					preferenceScoreConfidence: row.preferenceScoreConfidence as number,
+				};
+			const { weight, streak, lastAcceptDelta, ...withoutOldWeightFields } = row;
+			void weight;
+			void streak;
+			void lastAcceptDelta;
+			cursor.update({
+				...withoutOldWeightFields,
+				...shrinkNegativePreferenceEstimate(preferenceEstimate),
+				lastFeedbackAt: typeof row.lastFeedbackAt === 'number' ? row.lastFeedbackAt : migratedAt,
+				unexpectedRatingStreak: 0,
+			});
+			cursor.continue();
+		};
+	},
+};
+
 export const dbConfig: DBConfig = {
 	name: 'activity-wheel',
-	version: 5,
-	migrations: [v1Initial, v2AddTagMetadata, v3MultiWheel, v4TagIDs, v5PreferenceBasedWeighting],
-	expectedStores: [ACTIVITIES_STORE, TAG_METADATA_STORE, WHEELS_STORE],
+	version: 6,
+	migrations: [v1Initial, v2AddTagMetadata, v3MultiWheel, v4TagIDs, v5PreferenceBasedWeighting, v6EnjoymentRatings],
+	expectedStores: [ACTIVITIES_STORE, TAG_METADATA_STORE, WHEELS_STORE, CHOSEN_ACTIVITIES_STORE],
 };

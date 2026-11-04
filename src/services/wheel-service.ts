@@ -1,6 +1,7 @@
 import type { TypedStore } from '../libraries/indexeddb/store';
-import { MAXIMUM_ACTIVITY_NAME_LENGTH, type Activity, type TagMetadata, type Wheel } from '../domain-logic/types';
+import { MAXIMUM_ACTIVITY_NAME_LENGTH, type Activity, type ChosenActivity, type RatingFeedbackAction, type TagMetadata, type Wheel } from '../domain-logic/types';
 import { db } from './activity-service';
+import { listChosenActivitiesOfWheel, saveChosenActivity } from './chosen-activity-service';
 import { TAG_METADATA_STORE, WHEELS_STORE } from './schema';
 import { newID } from '../utils/id';
 import { clamp } from '../utils/math-utils';
@@ -8,6 +9,8 @@ import { LOCAL_STORAGE_KEYS, loadStringFromLocalStorage, saveStringToLocalStorag
 import { addActivity, bulkPut, clearWheelActivities, loadActivitiesOfWheel } from './activity-service';
 import { clearWheelTagMetadata, copyTagMetadata, listTagMetadata } from './tag-service';
 import { replayMigratedPreferenceEstimate } from '../domain-logic/weight-logic/migration-replay-logic';
+import { shrinkNegativePreferenceEstimate } from '../domain-logic/weight-logic/negative-score-shrink-logic';
+import { RATING_FEEDBACK_ACTIONS_BEST_TO_WORST } from '../constants/feedback-buttons';
 import {
 	INITIAL_PREFERENCE_SCORE_CONFIDENCE,
 	MAXIMUM_PREFERENCE_SCORE,
@@ -89,6 +92,7 @@ export interface FullBackupEntry {
 	wheel: Wheel;
 	activities: Activity[];
 	tags: TagMetadata[];
+	chosenActivities?: ChosenActivity[];
 }
 
 /**
@@ -123,6 +127,7 @@ function migrateWeightBasedActivityToPreferenceBased(
 		preferenceScore,
 		preferenceScoreConfidence,
 		lastFeedbackAt: migratedAt,
+		unexpectedRatingStreak: 0,
 		createdAt: legacyActivity.createdAt,
 		acceptCount: legacyActivity.acceptCount,
 		rejectCount: legacyActivity.rejectCount,
@@ -130,12 +135,26 @@ function migrateWeightBasedActivityToPreferenceBased(
 	};
 }
 
-export const CURRENT_FULL_BACKUP_FORMAT = 'full-backup-v4';
+export const CURRENT_FULL_BACKUP_FORMAT = 'full-backup-v5';
 
 export interface FullBackup {
 	format: typeof CURRENT_FULL_BACKUP_FORMAT;
 	exportedAt: number;
 	wheels: FullBackupEntry[];
+}
+
+/** The preference-based shape backups were exported in before the one-time fix of negative scores. */
+interface LegacyFullBackupV4 {
+	format: 'full-backup-v4';
+	exportedAt: number;
+	wheels: FullBackupEntry[];
+}
+
+function convertLegacyBackupEntryV4(entry: FullBackupEntry): FullBackupEntry {
+	return {
+		...entry,
+		activities: entry.activities.map(shrinkNegativePreferenceEstimate),
+	};
 }
 
 /** The weight-based, tagIds-based shape backups were exported in before preference-based weighting. */
@@ -164,12 +183,12 @@ export interface LegacyFullBackupV3 {
 	wheels: LegacyFullBackupEntryV3[];
 }
 
-export function convertLegacyBackupEntryV3(entry: LegacyFullBackupEntryV3): FullBackupEntry {
+function convertLegacyBackupEntryV3(entry: LegacyFullBackupEntryV3): FullBackupEntry {
 	const migratedAt = Date.now();
 	const activities = entry.activities.map((legacyActivity) =>
 		migrateWeightBasedActivityToPreferenceBased(legacyActivity, migratedAt),
 	);
-	return { wheel: entry.wheel, activities, tags: entry.tags };
+	return convertLegacyBackupEntryV4({ wheel: entry.wheel, activities, tags: entry.tags });
 }
 
 /** The weight-based, tag-name-based (pre-tagIds) shape backups were exported in. */
@@ -205,7 +224,7 @@ export interface LegacyFullBackup {
 	wheels: LegacyFullBackupEntry[];
 }
 
-export function convertLegacyBackupEntry(entry: LegacyFullBackupEntry): FullBackupEntry {
+function convertLegacyBackupEntry(entry: LegacyFullBackupEntry): FullBackupEntry {
 	const migratedAt = Date.now();
 	const tags: TagMetadata[] = entry.tags.map((legacyTag) => {
 		const tag: TagMetadata = { id: newID(), wheelId: legacyTag.wheelId, name: legacyTag.name };
@@ -219,7 +238,21 @@ export function convertLegacyBackupEntry(entry: LegacyFullBackupEntry): FullBack
 			.filter((id): id is string => !!id);
 		return migrateWeightBasedActivityToPreferenceBased({ ...legacyActivity, tagIds }, migratedAt);
 	});
-	return { wheel: entry.wheel, activities, tags };
+	return convertLegacyBackupEntryV4({ wheel: entry.wheel, activities, tags });
+}
+
+/** Parses a current or older full backup into the current shape, or returns null for anything else. */
+export function parseFullBackup(parsed: unknown): FullBackup | null {
+	if (isFullBackup(parsed)) return parsed;
+	const toCurrentFormat = (wheels: FullBackupEntry[], exportedAt: number): FullBackup => ({
+		format: CURRENT_FULL_BACKUP_FORMAT,
+		exportedAt,
+		wheels,
+	});
+	if (isLegacyFullBackupV4(parsed)) return toCurrentFormat(parsed.wheels.map(convertLegacyBackupEntryV4), parsed.exportedAt);
+	if (isLegacyFullBackupV3(parsed)) return toCurrentFormat(parsed.wheels.map(convertLegacyBackupEntryV3), parsed.exportedAt);
+	if (isLegacyFullBackupV2(parsed)) return toCurrentFormat(parsed.wheels.map(convertLegacyBackupEntry), parsed.exportedAt);
+	return null;
 }
 
 /** Export all wheels, their activities, and tag metadata as a portable JSON snapshot. */
@@ -230,6 +263,7 @@ export async function exportFullBackup(): Promise<string> {
 			wheel,
 			activities: await loadActivitiesOfWheel(wheel.id),
 			tags: await listTagMetadata(wheel.id),
+			chosenActivities: await listChosenActivitiesOfWheel(wheel.id),
 		})),
 	);
 	return JSON.stringify(
@@ -253,6 +287,21 @@ function sanitizeImportedTagIds(value: unknown): string[] {
 	return value.filter((tagID): tagID is string => typeof tagID === 'string');
 }
 
+function sanitizeImportedLastFeedbackAction(value: unknown): RatingFeedbackAction | undefined {
+	return RATING_FEEDBACK_ACTIONS_BEST_TO_WORST.find((action) => action === value);
+}
+
+/** Keeps only well-formed chosen activities that point at an activity in the same backup entry. */
+export function sanitizeImportedChosenActivities(entry: FullBackupEntry): ChosenActivity[] {
+	if (!Array.isArray(entry.chosenActivities)) return [];
+	const importedActivityIDs = new Set(entry.activities.map((activity) => activity.id));
+	return entry.chosenActivities.flatMap((chosenActivity) => {
+		const isValid = importedActivityIDs.has(chosenActivity?.activityID) && Number.isFinite(chosenActivity?.chosenAt);
+		if (!isValid) return [];
+		return [{ activityID: chosenActivity.activityID, wheelID: entry.wheel.id, chosenAt: chosenActivity.chosenAt }];
+	});
+}
+
 /**
  * Coerces a raw imported activity from an untrusted backup file into a well-formed Activity, replacing any malformed field with a neutral default instead of trusting the file.
  */
@@ -272,6 +321,8 @@ function sanitizeImportedActivity(activity: Activity, importedAt: number): Activ
 			MAXIMUM_PREFERENCE_SCORE_CONFIDENCE,
 		),
 		lastFeedbackAt: sanitizeImportedFiniteNumber(activity.lastFeedbackAt, importedAt),
+		lastFeedbackAction: sanitizeImportedLastFeedbackAction(activity.lastFeedbackAction),
+		unexpectedRatingStreak: Math.trunc(sanitizeImportedFiniteNumber(activity.unexpectedRatingStreak, 0)),
 		createdAt: sanitizeImportedFiniteNumber(activity.createdAt, importedAt),
 		acceptCount: sanitizeImportedNonNegativeCount(activity.acceptCount),
 		rejectCount: sanitizeImportedNonNegativeCount(activity.rejectCount),
@@ -292,25 +343,8 @@ export async function importFullBackup(json: string): Promise<string> {
 		return wheels[0]?.id ?? 'default';
 	}
 
-	let backup: FullBackup;
-	if (isFullBackup(parsed)) {
-		backup = parsed;
-	}
-	else if (isLegacyFullBackupV3(parsed)) {
-		backup = {
-			format: CURRENT_FULL_BACKUP_FORMAT,
-			exportedAt: parsed.exportedAt,
-			wheels: parsed.wheels.map(convertLegacyBackupEntryV3),
-		};
-	}
-	else if (isLegacyFullBackupV2(parsed)) {
-		backup = {
-			format: CURRENT_FULL_BACKUP_FORMAT,
-			exportedAt: parsed.exportedAt,
-			wheels: parsed.wheels.map(convertLegacyBackupEntry),
-		};
-	}
-	else {
+	const backup = parseFullBackup(parsed);
+	if (!backup) {
 		const asObj =
 			typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : null;
 		if (asObj?.format === 'wheel-backup-v1') {
@@ -329,10 +363,12 @@ export async function importFullBackup(json: string): Promise<string> {
 	const wheelsStore = db.store<Wheel>(WHEELS_STORE.name);
 	const tagMetadataStore = db.store<TagMetadata>(TAG_METADATA_STORE.name);
 	const importedAt = Date.now();
-	for (const { wheel, activities, tags } of backup.wheels) {
+	for (const entry of backup.wheels) {
+		const { wheel, activities, tags } = entry;
 		await wheelsStore.put(wheel);
 		if (activities.length > 0) await bulkPut(activities.map((activity) => sanitizeImportedActivity(activity, importedAt)));
 		for (const tag of tags) await tagMetadataStore.put(tag);
+		for (const chosenActivity of sanitizeImportedChosenActivities(entry)) await saveChosenActivity(chosenActivity);
 	}
 
 	if (backup.wheels.length === 0) {
@@ -357,13 +393,19 @@ function isFullBackup(value: unknown): value is FullBackup {
 	return obj.format === CURRENT_FULL_BACKUP_FORMAT && Array.isArray(obj.wheels);
 }
 
-export function isLegacyFullBackupV3(value: unknown): value is LegacyFullBackupV3 {
+function isLegacyFullBackupV4(value: unknown): value is LegacyFullBackupV4 {
+	if (typeof value !== 'object' || value === null) return false;
+	const obj = value as Record<string, unknown>;
+	return obj.format === 'full-backup-v4' && Array.isArray(obj.wheels);
+}
+
+function isLegacyFullBackupV3(value: unknown): value is LegacyFullBackupV3 {
 	if (typeof value !== 'object' || value === null) return false;
 	const obj = value as Record<string, unknown>;
 	return obj.format === 'full-backup-v3' && Array.isArray(obj.wheels);
 }
 
-export function isLegacyFullBackupV2(value: unknown): value is LegacyFullBackup {
+function isLegacyFullBackupV2(value: unknown): value is LegacyFullBackup {
 	if (typeof value !== 'object' || value === null) return false;
 	const obj = value as Record<string, unknown>;
 	return obj.format === 'full-backup-v2' && Array.isArray(obj.wheels);
@@ -406,6 +448,8 @@ export async function copyWheel(
 						preferenceScore: source.preferenceScore,
 						preferenceScoreConfidence: source.preferenceScoreConfidence,
 						lastFeedbackAt: source.lastFeedbackAt,
+						lastFeedbackAction: source.lastFeedbackAction,
+						unexpectedRatingStreak: source.unexpectedRatingStreak,
 						acceptCount: source.acceptCount,
 						rejectCount: source.rejectCount,
 						tagIds,
