@@ -59,7 +59,7 @@
 	border-color: var(--border-color);
 }
 .btn-secondary:hover:not(:disabled) {
-	background: var(--elevated-background-color);
+	background: var(--soft-accent-color);
 	border-color: var(--strong-border-color);
 }
 

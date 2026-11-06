@@ -16,7 +16,7 @@ Slices are rendered with the highest probability first starting at the top, size
 
 Once it lands, you answer one question: do you want to do this right now?
 
-- **Go with this** (`Enter`): You'll do it. The rating buttons appear in its place under "How was the activity?" so you can rate it, and once you do the wheel is ready to spin again. "Rate it later" puts it in your How was it? list instead.
+- **Go with this** (`Enter`): You'll do it. The rating buttons appear in its place under "How was the activity?" so you can rate it, and once you do the wheel is ready to spin again. "I'll rate it later", below the rating buttons, puts it in your How was it? list instead.
 - **Spin again** (`Space`): Not this one. Spins from whatever activities are left this session.
 - **Reset wheel**: Makes every excluded activity available again.
 

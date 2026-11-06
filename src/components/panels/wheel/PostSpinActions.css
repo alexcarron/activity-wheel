@@ -78,17 +78,11 @@
 	}
 }
 
-.post-spin-feedback-header {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	justify-content: center;
-	gap: 8px;
-}
-
 .post-spin-feedback-question {
-	font-size: 0.9375rem;
-	color: var(--muted-text-color);
+	font-size: 1.0625rem;
+	font-weight: 600;
+	text-align: center;
+	color: var(--text-color);
 }
 
 .post-spin-feedback {
@@ -116,6 +110,10 @@
 	.post-spin-feedback .btn {
 		padding-left: 8px;
 		padding-right: 8px;
+	}
+
+	.post-spin-rate-later {
+		width: 100%;
 	}
 }
 

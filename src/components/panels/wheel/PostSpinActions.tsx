@@ -155,7 +155,6 @@ export function PostSpinActions(props: Props) {
 			<div className="post-spin-result">
 				<span className="post-spin-label">Landed on</span>
 				{editing ? (
-					/* name edit input */
 					<input
 						ref={inputRef}
 						type="text"
@@ -187,21 +186,19 @@ export function PostSpinActions(props: Props) {
 			</div>
 			{hasGoneWithThis ? (
 				<>
-					<div className="post-spin-feedback-header">
-						<span className="post-spin-feedback-question">How was the activity?</span>
-						<button
-							type="button"
-							className="btn btn-ghost btn-small"
-							onClick={onRateLater}
-							disabled={busy}
-							title="Rate it later from the How was it? list"
-						>
-							Rate it later
-						</button>
-					</div>
+					<span className="post-spin-feedback-question">How was the activity?</span>
 					<div className="post-spin-feedback">
 						{RATING_FEEDBACK_ACTIONS_BEST_TO_WORST.map(renderFeedbackButton)}
 					</div>
+					<button
+						type="button"
+						className="btn btn-secondary post-spin-rate-later"
+						onClick={onRateLater}
+						disabled={busy}
+						title="Rate it later from the How was it? list"
+					>
+						I'll rate it later
+					</button>
 				</>
 			) : (
 				<div className="post-spin-decision">
