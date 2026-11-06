@@ -1,4 +1,4 @@
-import type { Activity, FeedbackAction, PreferenceEstimateSnapshot } from '../types';
+import type { Activity, FeedbackAction, PreferenceEstimateSnapshot, RatingFeedbackAction } from '../types';
 import { getConfidenceAfterChangedEnjoymentRule, getUnexpectedRatingStreakAfterRating } from './changed-enjoyment-rule-logic';
 import { getDecayedPreferenceScoreConfidence } from './confidence-decay-logic';
 import {
@@ -22,6 +22,12 @@ function getSnapshotOfPreferenceEstimate(activity: Activity): PreferenceEstimate
 export function isRepeatRatingTooSoon({ lastFeedbackAt, now }: { lastFeedbackAt: number; now: number }): boolean {
 	const millisecondsSinceLastFeedback = now - lastFeedbackAt;
 	return millisecondsSinceLastFeedback >= 0 && millisecondsSinceLastFeedback < MINIMUM_MILLISECONDS_BETWEEN_RATINGS_OF_SAME_ACTIVITY;
+}
+
+export function getUndoableRatingAction({ activity, pageLoadedAt }: { activity: Activity; pageLoadedAt: number }): RatingFeedbackAction | undefined {
+	const isRatedSincePageLoaded = activity.lastFeedbackAt >= pageLoadedAt;
+	if (!activity.preferenceEstimateHistory || !isRatedSincePageLoaded) return undefined;
+	return activity.lastFeedbackAction;
 }
 
 export function applyFeedbackToActivity(activity: Activity, action: FeedbackAction, now: number): Activity {

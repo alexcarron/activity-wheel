@@ -1,33 +1,17 @@
-/** Small auto-dismissing banner, e.g. for "Wheel updated by another user." notices. */
-
 import { useEffect } from 'react';
 import './Toast.css';
 
-interface ToastProps {
-	message: string;
-	onDismiss(): void;
-	/** Milliseconds before auto-dismiss. */
-	durationMs?: number;
-	action?: {
-		label: string;
-		onClick(): void;
-	};
-}
+const TOAST_DURATION_MILLISECONDS = 4000;
 
-export function Toast({ message, onDismiss, durationMs = 4000, action }: ToastProps) {
+export function Toast({ message, onDismiss }: { message: string; onDismiss(): void }) {
 	useEffect(() => {
-		const timer = setTimeout(onDismiss, durationMs);
+		const timer = setTimeout(onDismiss, TOAST_DURATION_MILLISECONDS);
 		return () => clearTimeout(timer);
-	}, [onDismiss, durationMs]);
+	}, [onDismiss]);
 
 	return (
 		<div className="toast" role="status">
 			<span className="toast-message">{message}</span>
-			{action && (
-				<button type="button" className="toast-action" onClick={action.onClick}>
-					{action.label}
-				</button>
-			)}
 		</div>
 	);
 }

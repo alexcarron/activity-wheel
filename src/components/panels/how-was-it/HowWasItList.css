@@ -1,5 +1,28 @@
+.how-was-it-collapser {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	grid-template-rows: 1fr;
+	transition:
+		grid-template-rows var(--how-was-it-fade-out-duration) ease,
+		margin-bottom var(--how-was-it-fade-out-duration) ease,
+		opacity var(--how-was-it-fade-out-duration) ease;
+}
+
+.how-was-it-collapser.is-collapsing {
+	grid-template-rows: 0fr;
+	margin-bottom: calc(-1 * var(--app-section-gap));
+	opacity: 0;
+}
+
 .how-was-it {
 	gap: 10px;
+	min-height: 0;
+	transition: padding var(--how-was-it-fade-out-duration) ease;
+}
+
+.how-was-it-collapser.is-collapsing .how-was-it {
+	overflow: hidden;
+	padding-block: 0;
 }
 
 .how-was-it-items {
@@ -13,14 +36,37 @@
 	overflow-y: auto;
 }
 
+.how-was-it-entry {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	grid-template-rows: 1fr;
+	transition:
+		grid-template-rows var(--how-was-it-fade-out-duration) ease,
+		margin-bottom var(--how-was-it-fade-out-duration) ease,
+		opacity var(--how-was-it-fade-out-duration) ease;
+}
+
+.how-was-it-entry.is-fading-out {
+	grid-template-rows: 0fr;
+	margin-bottom: -4px;
+	opacity: 0;
+}
+
 .how-was-it-item {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	gap: 10px;
+	min-height: 0;
 	padding: 4px 8px;
 	background: var(--background-color);
 	border-radius: var(--radius-small);
+	transition: padding var(--how-was-it-fade-out-duration) ease;
+}
+
+.how-was-it-entry.is-fading-out .how-was-it-item {
+	overflow: hidden;
+	padding-block: 0;
 }
 
 .how-was-it-name {
@@ -44,8 +90,86 @@
 	color: var(--muted-text-color);
 }
 
+.how-was-it-cleared-actions {
+	display: flex;
+	align-items: stretch;
+	gap: 4px;
+	flex-shrink: 0;
+}
+
+.how-was-it-cleared-message {
+	position: relative;
+	isolation: isolate;
+	overflow: hidden;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 0 10px;
+	background: var(--elevated-background-color);
+	border-radius: var(--radius-small);
+	color: var(--how-was-it-cleared-text-color);
+	font-size: 0.8125rem;
+	font-weight: 500;
+	white-space: nowrap;
+}
+
+.how-was-it-cleared-message::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	background: color-mix(in srgb, var(--how-was-it-cleared-color) 22%, var(--elevated-background-color));
+	transform-origin: left;
+	animation: how-was-it-countdown-drain var(--how-was-it-countdown-duration) linear forwards;
+}
+
+.how-was-it-cleared-message.is-countdown-paused::before {
+	animation-play-state: paused;
+}
+
+@keyframes how-was-it-countdown-drain {
+	from {
+		transform: scaleX(1);
+	}
+
+	to {
+		transform: scaleX(0);
+	}
+}
+
+.how-was-it-cleared-message.is-cleared-by-love {
+	--how-was-it-cleared-color: var(--love-color);
+	--how-was-it-cleared-text-color: var(--strong-love-color);
+}
+
+.how-was-it-cleared-message.is-cleared-by-like {
+	--how-was-it-cleared-color: var(--good-color);
+	--how-was-it-cleared-text-color: var(--strong-good-color);
+}
+
+.how-was-it-cleared-message.is-cleared-by-neutral {
+	--how-was-it-cleared-color: var(--neutral-color);
+	--how-was-it-cleared-text-color: var(--strong-neutral-color);
+}
+
+.how-was-it-cleared-message.is-cleared-by-dislike {
+	--how-was-it-cleared-color: var(--warning-color);
+	--how-was-it-cleared-text-color: var(--strong-warning-color);
+}
+
+.how-was-it-cleared-message.is-cleared-by-hate {
+	--how-was-it-cleared-color: var(--hate-color);
+	--how-was-it-cleared-text-color: var(--strong-hate-color);
+}
+
+.how-was-it-cleared-message.is-cleared-by-dismissal {
+	--how-was-it-cleared-color: var(--muted-text-color);
+	--how-was-it-cleared-text-color: var(--muted-text-color);
+}
+
 @media (pointer: coarse) {
-	.how-was-it-actions .icon-btn {
+	.how-was-it-actions .icon-btn,
+	.how-was-it-cleared-actions .icon-btn {
 		min-width: 44px;
 		min-height: 44px;
 	}
@@ -66,5 +190,14 @@
 
 	.how-was-it-actions {
 		flex-wrap: wrap;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.how-was-it-collapser,
+	.how-was-it,
+	.how-was-it-entry,
+	.how-was-it-item {
+		transition: none;
 	}
 }

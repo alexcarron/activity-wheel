@@ -26,6 +26,8 @@ Definitions of the terms this project defines for itself, and the correct termin
 
 **Chosen activity**: An activity the user decided to do after the wheel landed on it, and has not yet rated or dismissed.
 
+**Cleared chosen activity**: A chosen activity that was just rated or dismissed. It stays in the How was it? list for a moment to say what happened and offer an undo, then fades out.
+
 **Go with this**: The landing button that makes the landed-on activity a chosen activity. It is the opposite of Spin again.
 
 **How was it? list**: The list near the wheel of the user's chosen activities, waiting to be rated or dismissed. Each user has their own.
@@ -66,6 +68,8 @@ Definitions of the terms this project defines for itself, and the correct termin
 **Preference change resistance**: How resistant a preference score is to changing in response to new feedback.
 
 **Rating**: A reaction saying how much the user enjoyed really doing an activity, from Love It! to Hate It!. Wanting or not wanting to do an activity right now is never a rating.
+
+**Undoable rating**: The latest rating on an activity, made since the page loaded and not yet undone. Its button is highlighted on the activity's row, next to an undo button.
 
 **Unexpected rating**: A rating that lands far from an activity's current preference score.
 

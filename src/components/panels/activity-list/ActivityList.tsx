@@ -35,6 +35,7 @@ interface ActivityListProps {
 	readonly lockedActualProbabilityByActivityID: Map<string, number>;
 	onRename(id: string, name: string): Promise<void>;
 	onFeedback(id: string, action: RatingFeedbackAction): Promise<void>;
+	onUndoRating(id: string): Promise<void>;
 	onDelete(id: string): Promise<void>;
 	onUpdateTags(id: string, tagIds: string[]): Promise<void>;
 	onAddTag(id: string, tagName: string): Promise<void>;
@@ -67,6 +68,7 @@ export function ActivityList(props: ActivityListProps) {
 		lockedActualProbabilityByActivityID,
 		onRename,
 		onFeedback,
+		onUndoRating,
 		onDelete,
 		onUpdateTags,
 		onAddTag,
@@ -395,6 +397,7 @@ export function ActivityList(props: ActivityListProps) {
 							isSelectMode={isSelectMode}
 							onRename={onRename}
 							onFeedback={onFeedback}
+							onUndoRating={onUndoRating}
 							onDelete={onDelete}
 							onUpdateTags={onUpdateTags}
 							onAddTag={onAddTag}

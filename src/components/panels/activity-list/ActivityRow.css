@@ -619,6 +619,14 @@
 		flex-wrap: wrap;
 	}
 
+	.activity-row-feedback .icon-btn-undo-rating {
+		order: 1;
+	}
+
+	.activity-row-feedback .icon-btn-delete {
+		order: 2;
+	}
+
 	.icon-btn {
 		width: var(--icon-toggle-button-size);
 		height: var(--icon-toggle-button-size);

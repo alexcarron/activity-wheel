@@ -1,24 +1,24 @@
-.icon-btn-love-it.is-last-rating:not(:hover) {
+.icon-btn-love-it.is-undoable-rating:not(:hover) {
 	background: color-mix(in srgb, var(--love-color) 22%, var(--elevated-background-color));
 	color: var(--strong-love-color);
 }
 
-.icon-btn-like-it.is-last-rating:not(:hover) {
+.icon-btn-like-it.is-undoable-rating:not(:hover) {
 	background: color-mix(in srgb, var(--good-color) 22%, var(--elevated-background-color));
 	color: var(--strong-good-color);
 }
 
-.icon-btn-neutral.is-last-rating:not(:hover) {
+.icon-btn-neutral.is-undoable-rating:not(:hover) {
 	background: color-mix(in srgb, var(--neutral-color) 22%, var(--elevated-background-color));
 	color: var(--strong-neutral-color);
 }
 
-.icon-btn-dislike-it.is-last-rating:not(:hover) {
+.icon-btn-dislike-it.is-undoable-rating:not(:hover) {
 	background: color-mix(in srgb, var(--warning-color) 22%, var(--elevated-background-color));
 	color: var(--strong-warning-color);
 }
 
-.icon-btn-hate-it.is-last-rating:not(:hover) {
+.icon-btn-hate-it.is-undoable-rating:not(:hover) {
 	background: color-mix(in srgb, var(--hate-color) 22%, var(--elevated-background-color));
 	color: var(--strong-hate-color);
 }

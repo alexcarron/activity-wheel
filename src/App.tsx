@@ -14,9 +14,8 @@ import { useLockedActualWeights } from './hooks/useLockedActualWeights';
 import { useTagFilter } from './hooks/useTagFilter';
 import { useSharedWheelAccess } from './hooks/useSharedWheelAccess';
 import type { SharedActivityChange } from './hooks/shared-wheel-realtime';
-import type { RatingFeedbackAction } from './domain-logic/types';
+import type { ChosenActivity, RatingFeedbackAction } from './domain-logic/types';
 import { filterActivitiesByTags, isFilterActive } from './domain-logic/tag-filter-logic';
-import { FEEDBACK_ACTION_TO_BUTTON_LABEL } from './constants/feedback-buttons';
 import { AuthButton } from './components/AuthButton';
 import { LoadingSpinner } from './components/reusable/LoadingSpinner';
 import { SharedWheelPasswordGate } from './components/SharedWheelPasswordGate';
@@ -39,8 +38,6 @@ import { exportSharedWheelBackup } from './services/cloud/shared-wheel-service';
 import { getSharedWheelIDFromUrl, removeSharedWheelIDFromUrl } from './utils/url-params';
 import { useViewportBreakpoint } from './hooks/useViewportBreakpoint';
 
-const UNDO_TOAST_DURATION_MILLISECONDS = 7000;
-
 function App() {
 	const auth = useAuth();
 	const userID = auth.user?.id ?? null;
@@ -53,11 +50,11 @@ function App() {
 
 	const [landedOnActivityID, setLandedOnActivityID] = useState<string | null>(null);
 	const [activeEditActivityID, setActiveEditActivityID] = useState<string | null>(null);
-	const [toast, setToast] = useState<{ key: number; message: string; undo?: () => void } | null>(null);
+	const [toast, setToast] = useState<{ key: number; message: string } | null>(null);
 	const nextToastKeyRef = useRef(0);
-	const showToast = useCallback((message: string, undo?: () => void): void => {
+	const showToast = useCallback((message: string): void => {
 		nextToastKeyRef.current += 1;
-		setToast({ key: nextToastKeyRef.current, message, undo });
+		setToast({ key: nextToastKeyRef.current, message });
 	}, []);
 	const dismissToast = useCallback((): void => setToast(null), []);
 	
@@ -160,6 +157,7 @@ function App() {
 	);
 
 	const session = useSession(filteredActivities);
+	const activityIDToChosenActivityBeforeRatingRef = useRef(new Map<string, ChosenActivity>());
 
 	const filterOn = isFilterActive(tagFilter.activeTagIDs, tagFilter.untaggedOnly);
 
@@ -167,26 +165,43 @@ function App() {
 		const activity = activityState.activities.find((candidate) => candidate.id === activityID);
 		if (!activity) return;
 		chosenActivities.choose(activityID);
-		showToast(`${activity.name} is waiting in How was it?`);
 	};
 
 	const handleRate = async (activityID: string, action: RatingFeedbackAction): Promise<void> => {
-		const activity = activityState.activities.find((candidate) => candidate.id === activityID);
-		if (!activity) return;
 		const wasRated = await activityState.applyFeedback(activityID, action);
 		if (!wasRated) return;
 		const chosenActivityBeforeRating = chosenActivities.findChosenActivity(activityID);
-		chosenActivities.remove(activityID);
-		lockedActualWeights.reroll();
-		showToast(`${activity.name}: ${FEEDBACK_ACTION_TO_BUTTON_LABEL[action]}`, () => {
-			dismissToast();
-			void (async () => {
-				const wasUndone = await activityState.applyFeedback(activityID, 'undo');
-				if (!wasUndone) return;
-				if (chosenActivityBeforeRating) chosenActivities.restore(chosenActivityBeforeRating);
-				lockedActualWeights.reroll();
-			})();
+		if (chosenActivityBeforeRating) {
+			activityIDToChosenActivityBeforeRatingRef.current.set(activityID, chosenActivityBeforeRating);
+		}
+		else {
+			activityIDToChosenActivityBeforeRatingRef.current.delete(activityID);
+			chosenActivities.forgetClearedChosenActivity(activityID);
+		}
+		chosenActivities.clear({
+			activityID,
+			clearedBy: action,
 		});
+		lockedActualWeights.reroll();
+	};
+
+	const handleDismissChosenActivity = (activityID: string): void => {
+		activityIDToChosenActivityBeforeRatingRef.current.delete(activityID);
+		chosenActivities.clear({
+			activityID,
+			clearedBy: 'dismissal',
+		});
+	};
+
+	const handleUndoRating = async (activityID: string): Promise<void> => {
+		const wasUndone = await activityState.applyFeedback(activityID, 'undo');
+		if (!wasUndone) return;
+		const chosenActivityBeforeRating = activityIDToChosenActivityBeforeRatingRef.current.get(activityID);
+		if (chosenActivityBeforeRating) {
+			chosenActivities.restore(chosenActivityBeforeRating);
+			activityIDToChosenActivityBeforeRatingRef.current.delete(activityID);
+		}
+		lockedActualWeights.reroll();
 	};
 
 	const handleAddTagToActivity = async (activityID: string, tagName: string): Promise<void> => {
@@ -350,7 +365,11 @@ function App() {
 						<HowWasItList
 							chosenActivitiesNewestFirst={chosenActivities.chosenActivitiesNewestFirst}
 							onRate={(activityID, action) => void handleRate(activityID, action)}
-							onDismiss={chosenActivities.remove}
+							onDismiss={handleDismissChosenActivity}
+							onUndoRating={(activityID) => void handleUndoRating(activityID)}
+							onUndoDismissal={chosenActivities.restore}
+							onStartFadingOutClearedChosenActivity={chosenActivities.startFadingOutClearedChosenActivity}
+							onForgetClearedChosenActivity={chosenActivities.forgetClearedChosenActivity}
 						/>
 
 						<TagFilterBar
@@ -390,6 +409,7 @@ function App() {
 								lockedActualProbabilityByActivityID={lockedActualWeights.lockedActualProbabilityByActivityID}
 								onRename={activityState.rename}
 								onFeedback={handleRate}
+								onUndoRating={handleUndoRating}
 								onDelete={handleDelete}
 								onUpdateTags={handleUpdateTags}
 								onAddTag={handleAddTagToActivity}
@@ -449,8 +469,6 @@ function App() {
 								key={toast.key}
 								message={toast.message}
 								onDismiss={dismissToast}
-								durationMs={toast.undo ? UNDO_TOAST_DURATION_MILLISECONDS : undefined}
-								action={toast.undo ? { label: 'Undo', onClick: toast.undo } : undefined}
 							/>
 						)}
 					</>

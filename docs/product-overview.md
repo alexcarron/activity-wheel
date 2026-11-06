@@ -18,7 +18,7 @@ Once it lands, you answer one question: do you want to do this right now?
 
 - **Go with this** (`Enter`): You'll do it. The rating buttons appear in its place under "How was the activity?" so you can rate it, and once you do the wheel is ready to spin again. "Rate it later" puts it in your How was it? list instead.
 - **Spin again** (`Space`): Not this one. Spins from whatever activities are left this session.
-- **Reset session**: Makes every excluded activity available again.
+- **Reset wheel**: Makes every excluded activity available again.
 
 Neither Go with this nor Spin again changes an activity's chance of coming up later. Only ratings do, so a bad mood can never bury something you'd enjoy.
 
@@ -38,11 +38,11 @@ These are ratings, not increments. Each one pulls the preference score toward th
 
 You can rate in three places:
 
-- **How was it? list**: Appears near the wheel when you've gone with something. Activities wait there until you rate them or remove them with the `×`, with no timers, so a meal and a month-long game both work. It never blocks anything, an activity in it can still come up on the wheel, and going with it again doesn't add a duplicate. Rating an activity anywhere clears it from the list.
+- **How was it? list**: Appears near the wheel when you've gone with something. Activities wait there until you rate them or remove them with the `×`, with no timers, so a meal and a month-long game both work. It never blocks anything, an activity in it can still come up on the wheel, and going with it again doesn't add a duplicate. Rating an activity anywhere or pressing `×` clears it from the list. Its buttons change to a label in the past tense like "Loved It!", or "Removed", next to an undo button. The label's color drains from right to left as a countdown, then it fades out, and the panel slides away once the list is empty. The countdown pauses while your mouse is over the item.
 - **Landing panel**: The rating buttons and their keys only work after you click Go with this, so a habit press can't rate something you haven't done yet.
 - **Activity list**: Every row has the same rating buttons.
 
-After each rating, a brief message offers **Undo**, and the activity's row highlights your last rating. A second rating on the same activity within a second of the last one is ignored as an accidental double click.
+After a rating from any of these places, the activity's row highlights that rating and shows an undo button. Undoing puts everything back the way it was before the rating, including the activity's spot in the How was it? list if the rating cleared it from there. Undo only goes back one rating, so the highlight and the button both disappear afterward. They also disappear when you reload the page, and they're hidden along with the rating buttons on compact rows on small screens. On a shared wheel, everyone who has the page open when a rating comes in sees the highlight and can undo it. A second rating on the same activity within a second of the last one is ignored as an accidental double click.
 
 You can rename the winning activity directly from this panel by clicking its name.
 
@@ -91,7 +91,7 @@ The activity list below the wheel shows every activity (or the tag-filtered subs
 Each row supports:
 
 - Click the name to rename it inline.
-- The same five rating buttons as the landing panel (Love It!, Like It, Meh, Dislike It, Hate It!), so you can rate an activity without spinning for it. Your last rating is highlighted.
+- The same five rating buttons as the landing panel (Love It!, Like It, Meh, Dislike It, Hate It!), so you can rate an activity without spinning for it. A rating you can still undo is highlighted, with an undo button to the left of the rating buttons, or between Hate It! and delete when the buttons wrap onto their own line on small screens.
 - Tags: add via the `+` combobox (autocompletes from every tag you've ever used, or lets you create a new one), remove with the `×` on hover, right-click a tag to open a small popover where you can rename it (rejecting a name that collides with another tag), change its color from a preset palette or a custom picker, or delete it entirely (with a confirmation prompt, since it strips the tag from every activity that has it).
 - Delete, with a confirmation prompt.
 
@@ -156,9 +156,9 @@ All of these persist to `localStorage`, so they survive a page reload.
 
 - **No activities at all** shows a prompt to add your first one instead of an empty wheel.
 - **One activity** is always picked, deterministically.
-- **No activities left this session** (everything's been spun) offers a Reset session button instead of a spin button.
+- **No activities left this session** (everything's been spun) offers a Reset wheel button instead of a spin button.
 - **Tag filter matches nothing** offers a Clear filter button.
-- **Tag filter matches something, but you've spun through all of it this session** offers both Reset session and Clear filter.
+- **Tag filter matches something, but you've spun through all of it this session** offers both Reset wheel and Clear filter.
 - **Deleting an activity mid-animation** is handled gracefully: the wheel resets rather than trying to land on something that no longer exists.
 
 ## Responsive layout

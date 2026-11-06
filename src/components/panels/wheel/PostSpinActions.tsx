@@ -230,7 +230,7 @@ export function PostSpinActions(props: Props) {
 
 			<div className="post-spin-nav">
 				<button type="button" className="btn btn-ghost" onClick={onResetSession} disabled={busy}>
-					Reset session
+					Reset wheel
 				</button>
 			</div>
 		</div>

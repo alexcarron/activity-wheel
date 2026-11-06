@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties, KeyboardEvent } from 'react';
 import { MAXIMUM_ACTIVITY_NAME_LENGTH, type Activity, type RatingFeedbackAction, type TagMetadata } from '../../../domain-logic/types';
+import { getUndoableRatingAction } from '../../../domain-logic/weight-logic/weight-feedback-response-logic';
 import { formatDate, formatCompactDate } from '../../../utils/format';
 import { DEBUG_VALUE_PILL_KEYS, type DebugValuePillKey, type DebugValuePillRange } from '../../reusable/debug-value-pills';
 import { DebugValuePills } from '../../reusable/DebugValuePills';
@@ -11,7 +12,10 @@ import { TagColorPickerPopover } from '../../reusable/TagColorPicker';
 import { TrashIcon } from '../../svg-icons/TrashIcon';
 import { CheckIcon } from '../../svg-icons/CheckIcon';
 import { RatingIconButtons } from '../../reusable/RatingIconButtons';
+import { UndoRatingButton } from './UndoRatingButton';
 import './ActivityRow.css';
+
+const PAGE_LOADED_AT = Date.now();
 
 function DeleteButton({ onClick, disabled }: { onClick(): void; disabled: boolean }) {
 	return (
@@ -307,6 +311,7 @@ interface Props {
 	readonly isSelectMode: boolean;
 	onRename(id: string, name: string): Promise<void>;
 	onFeedback(id: string, action: RatingFeedbackAction): Promise<void>;
+	onUndoRating(id: string): Promise<void>;
 	onDelete(id: string): Promise<void>;
 	onUpdateTags(id: string, tagIds: string[]): Promise<void>;
 	onAddTag(id: string, tagName: string): Promise<void>;
@@ -334,6 +339,7 @@ function ActivityRowComponent({
 	isSelectMode,
 	onRename,
 	onFeedback,
+	onUndoRating,
 	onDelete,
 	onUpdateTags,
 	onAddTag,
@@ -466,6 +472,22 @@ function ActivityRowComponent({
 	);
 
 	const tagIds = activity.tagIds ?? [];
+	const undoableRatingAction = getUndoableRatingAction({
+		activity,
+		pageLoadedAt: PAGE_LOADED_AT,
+	});
+	const ratingAndDeleteButtons = (
+		<div className="activity-row-feedback">
+			{undoableRatingAction && (
+				<UndoRatingButton
+					undoableRatingAction={undoableRatingAction}
+					onClick={() => void onUndoRating(activity.id)}
+				/>
+			)}
+			<RatingIconButtons undoableRatingAction={undoableRatingAction} onRate={handleFeedback} />
+			<DeleteButton onClick={() => void handleDelete()} disabled={busy} />
+		</div>
+	);
 
 	if (isCompact) {
 		return (
@@ -567,10 +589,7 @@ function ActivityRowComponent({
 								</span>
 							)}
 						</div>
-						<div className="activity-row-feedback">
-							<RatingIconButtons lastRatingAction={activity.lastFeedbackAction} onRate={handleFeedback} />
-							<DeleteButton onClick={() => void handleDelete()} disabled={busy} />
-						</div>
+						{ratingAndDeleteButtons}
 					</div>
 				</div>
 			</li>
@@ -658,10 +677,7 @@ function ActivityRowComponent({
 						</span>
 					)}
 
-					<div className="activity-row-feedback">
-						<RatingIconButtons lastRatingAction={activity.lastFeedbackAction} onRate={handleFeedback} />
-						<DeleteButton onClick={() => void handleDelete()} disabled={busy} />
-					</div>
+					{ratingAndDeleteButtons}
 				</div>
 
 				{hasTags && isShowingTags && (

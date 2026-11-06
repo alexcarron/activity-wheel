@@ -27,25 +27,3 @@
 	overflow-wrap: anywhere;
 	min-width: 0;
 }
-
-.toast-action {
-	flex-shrink: 0;
-	padding: 4px 8px;
-	background: transparent;
-	border: none;
-	border-radius: var(--radius-small);
-	color: var(--strong-accent-color);
-	font-size: 0.875rem;
-	font-weight: 600;
-}
-
-.toast-action:hover {
-	background: var(--soft-accent-color);
-}
-
-@media (pointer: coarse) {
-	.toast-action {
-		min-height: 44px;
-		min-width: 44px;
-	}
-}

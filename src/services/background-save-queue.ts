@@ -6,6 +6,7 @@ export type BackgroundSaveTask = () => Promise<void>;
 
 export interface BackgroundSaveQueue {
 	addToQueue(activityID: string, saveTask: BackgroundSaveTask): void;
+	waitUntilAllSavesFinish(): Promise<void>;
 }
 
 export function createBackgroundSaveQueue(): BackgroundSaveQueue {
@@ -21,6 +22,12 @@ export function createBackgroundSaveQueue(): BackgroundSaveQueue {
 					activityIDToPendingSaveTask.delete(activityID);
 				}
 			});
+		},
+
+		async waitUntilAllSavesFinish() {
+			while (activityIDToPendingSaveTask.size > 0) {
+				await Promise.allSettled(activityIDToPendingSaveTask.values());
+			}
 		},
 	};
 }

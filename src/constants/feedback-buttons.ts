@@ -10,6 +10,14 @@ export const FEEDBACK_ACTION_TO_BUTTON_LABEL: Record<RatingFeedbackAction, strin
 	hate: 'Hate It!',
 };
 
+export const FEEDBACK_ACTION_TO_PAST_TENSE_LABEL: Record<RatingFeedbackAction, string> = {
+	love: 'Loved It!',
+	like: 'Liked It',
+	neutral: 'Felt Meh',
+	dislike: 'Disliked It',
+	hate: 'Hated It!',
+};
+
 export const FEEDBACK_ACTION_TO_BUTTON_TOOLTIP: Record<RatingFeedbackAction, string> = {
 	love: `${FEEDBACK_ACTION_TO_BUTTON_LABEL.love} (you loved doing this)`,
 	like: `${FEEDBACK_ACTION_TO_BUTTON_LABEL.like} (you enjoyed doing this)`,

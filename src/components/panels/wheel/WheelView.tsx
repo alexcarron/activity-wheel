@@ -188,7 +188,7 @@ export function WheelView({
 		if (activities.length === 0 && !tagFilterActive) return 'Add an activity to start the wheel.';
 		if (activities.length === 0 && tagFilterActive) return null;
 		if (remainingActivities.length === 0 && !tagFilterActive)
-			return 'No activities left this session. Reset to spin again.';
+			return 'No activities left. Reset the wheel to spin again.';
 		if (remainingActivities.length === 0 && tagFilterActive) return null;
 		return null;
 	}, [activities.length, remainingActivities.length, tagFilterActive]);
@@ -230,7 +230,7 @@ export function WheelView({
 							<p className="wheel-empty">All filtered activities have been spun this session.</p>
 							<div style={{ display: 'flex', gap: 8 }}>
 								<button type="button" className="btn btn-secondary" onClick={handleResetSession}>
-									Reset session
+									Reset wheel
 								</button>
 								<button type="button" className="btn btn-ghost" onClick={onClearTagFilter}>
 									Clear filter
@@ -252,7 +252,7 @@ export function WheelView({
 					)}
 					{remainingActivities.length === 0 && activities.length > 0 && !tagFilterActive && (
 						<button type="button" className="btn btn-secondary" onClick={handleResetSession}>
-							Reset session
+							Reset wheel
 						</button>
 					)}
 				</div>
